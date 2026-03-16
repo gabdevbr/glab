@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -297,15 +298,17 @@ func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
 		}
 	}
 
-	// Parse @user mentions and create mention records.
-	mentionedUserIDs := h.parseUserMentions(ctx, payload.Content, channelUUID)
-	for _, mentionUID := range mentionedUserIDs {
+	// Parse @user/@all/@here/@channel mentions.
+	mentions := h.parseUserMentions(ctx, payload.Content, channelUUID)
+
+	// Helper to create mention + notify.
+	notifyUser := func(uid pgtype.UUID, mentionType string) {
 		_ = h.queries.CreateMention(ctx, repository.CreateMentionParams{
-			MessageID: msg.ID,
-			UserID:    mentionUID,
-			ChannelID: channelUUID,
+			MessageID:   msg.ID,
+			UserID:      uid,
+			ChannelID:   channelUUID,
+			MentionType: mentionType,
 		})
-		// Notify mentioned user via WS.
 		mentionEnv, err := MakeEnvelope(EventNotification, map[string]string{
 			"type":       "mention",
 			"message_id": uuidToString(msg.ID),
@@ -314,8 +317,23 @@ func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
 			"content":    payload.Content,
 		})
 		if err == nil {
-			h.hub.SendToUser(uuidToString(mentionUID), mentionEnv)
+			h.hub.SendToUser(uuidToString(uid), mentionEnv)
 		}
+	}
+
+	// Individual @username mentions (synchronous — few users).
+	for _, mentionUID := range mentions.UserIDs {
+		notifyUser(mentionUID, "user")
+	}
+
+	// Group mentions (@all/@here/@channel) — run in goroutine to avoid blocking.
+	if mentions.HasAll || mentions.HasHere {
+		senderID := client.userID
+		individualSet := make(map[string]bool, len(mentions.UserIDs))
+		for _, uid := range mentions.UserIDs {
+			individualSet[uuidToString(uid)] = true
+		}
+		go h.resolveGroupMentions(msg.ID, channelUUID, payload.ChannelID, senderID, client.username, payload.Content, mentions.HasAll, mentions.HasHere, individualSet)
 	}
 
 	// Send ack with the new message ID.
@@ -893,35 +911,130 @@ func (h *MessageHandler) handleReactionRemove(client *Client, env Envelope) {
 	h.sendAck(client, env.ID, true, "", nil)
 }
 
-// parseUserMentions extracts @username mentions from message content that match real users.
-// Returns a list of user UUIDs to mention.
-func (h *MessageHandler) parseUserMentions(ctx context.Context, content string, channelUUID pgtype.UUID) []pgtype.UUID {
+// MentionResult holds the parsed mentions from a message.
+type MentionResult struct {
+	UserIDs []pgtype.UUID // Individual @username mentions
+	HasAll  bool          // @all or @channel found
+	HasHere bool          // @here found
+}
+
+// Reserved mention keywords that are not usernames.
+var reservedMentionKeywords = map[string]bool{
+	"all": true, "here": true, "channel": true,
+}
+
+// parseUserMentions extracts @username, @all, @here, @channel mentions from message content.
+func (h *MessageHandler) parseUserMentions(ctx context.Context, content string, channelUUID pgtype.UUID) MentionResult {
 	words := splitMentions(content)
 	seen := make(map[string]bool)
-	var userIDs []pgtype.UUID
+	var result MentionResult
 
 	for _, word := range words {
 		if len(word) < 2 || word[0] != '@' {
 			continue
 		}
-		username := word[1:]
-		username = trimTrailingPunct(username)
-		if username == "" || seen[username] {
+		name := word[1:]
+		name = trimTrailingPunct(name)
+		if name == "" || seen[name] {
 			continue
 		}
-		// Skip agent mentions (handled separately).
-		if h.agentSlugs[username] {
-			continue
-		}
-		seen[username] = true
+		seen[name] = true
 
-		user, err := h.queries.GetUserByUsername(ctx, username)
+		// Check for group mention keywords (case-insensitive).
+		lower := strings.ToLower(name)
+		if lower == "all" || lower == "channel" {
+			result.HasAll = true
+			continue
+		}
+		if lower == "here" {
+			result.HasHere = true
+			continue
+		}
+
+		// Skip agent mentions (handled separately).
+		if h.agentSlugs[name] {
+			continue
+		}
+
+		user, err := h.queries.GetUserByUsername(ctx, name)
 		if err != nil {
 			continue
 		}
-		userIDs = append(userIDs, user.ID)
+		result.UserIDs = append(result.UserIDs, user.ID)
 	}
-	return userIDs
+	return result
+}
+
+// resolveGroupMentions handles @all/@here/@channel by creating mention records
+// and sending notifications to channel members. Runs in a goroutine.
+func (h *MessageHandler) resolveGroupMentions(
+	msgID, channelUUID pgtype.UUID,
+	channelIDStr, senderID, senderUsername, content string,
+	hasAll, hasHere bool,
+	alreadyMentioned map[string]bool,
+) {
+	ctx := context.Background()
+
+	members, err := h.queries.GetChannelMembers(ctx, channelUUID)
+	if err != nil {
+		slog.Error("ws: failed to get channel members for group mention", "error", err)
+		return
+	}
+
+	// For @here, get online users from presence.
+	var onlineUsers map[string]string
+	if hasHere && !hasAll {
+		onlineUsers = h.presence.GetOnlineUsers()
+	}
+
+	mentionType := "all"
+	if hasHere && !hasAll {
+		mentionType = "here"
+	}
+
+	for _, member := range members {
+		memberIDStr := uuidToString(member.ID)
+
+		// Skip sender.
+		if memberIDStr == senderID {
+			continue
+		}
+		// Skip bots/agents.
+		if member.IsBot {
+			continue
+		}
+		// Skip already individually mentioned users (avoid duplicate).
+		if alreadyMentioned[memberIDStr] {
+			continue
+		}
+
+		// Create mention record for all targeted members.
+		_ = h.queries.CreateMention(ctx, repository.CreateMentionParams{
+			MessageID:   msgID,
+			UserID:      member.ID,
+			ChannelID:   channelUUID,
+			MentionType: mentionType,
+		})
+
+		// Send WS notification: always for @all, only if online for @here.
+		shouldNotify := hasAll
+		if !shouldNotify && hasHere {
+			_, shouldNotify = onlineUsers[memberIDStr]
+		}
+
+		if shouldNotify {
+			mentionEnv, err := MakeEnvelope(EventNotification, map[string]string{
+				"type":       "mention",
+				"message_id": uuidToString(msgID),
+				"channel_id": channelIDStr,
+				"from":       senderUsername,
+				"content":    content,
+			})
+			if err == nil {
+				h.hub.SendToUser(memberIDStr, mentionEnv)
+			}
+		}
+	}
 }
 
 // --- UUID/Timestamp helpers (duplicated from handler to avoid circular deps) ---

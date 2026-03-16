@@ -12,22 +12,28 @@ import (
 )
 
 const createMention = `-- name: CreateMention :exec
-INSERT INTO mentions (message_id, user_id, channel_id) VALUES ($1, $2, $3)
+INSERT INTO mentions (message_id, user_id, channel_id, mention_type) VALUES ($1, $2, $3, $4)
 `
 
 type CreateMentionParams struct {
-	MessageID pgtype.UUID `json:"message_id"`
-	UserID    pgtype.UUID `json:"user_id"`
-	ChannelID pgtype.UUID `json:"channel_id"`
+	MessageID   pgtype.UUID `json:"message_id"`
+	UserID      pgtype.UUID `json:"user_id"`
+	ChannelID   pgtype.UUID `json:"channel_id"`
+	MentionType string      `json:"mention_type"`
 }
 
 func (q *Queries) CreateMention(ctx context.Context, arg CreateMentionParams) error {
-	_, err := q.db.Exec(ctx, createMention, arg.MessageID, arg.UserID, arg.ChannelID)
+	_, err := q.db.Exec(ctx, createMention,
+		arg.MessageID,
+		arg.UserID,
+		arg.ChannelID,
+		arg.MentionType,
+	)
 	return err
 }
 
 const getUnreadMentions = `-- name: GetUnreadMentions :many
-SELECT m.id, m.message_id, m.user_id, m.channel_id, m.is_read, m.created_at, msg.content, msg.channel_id as msg_channel_id, ch.name as channel_name
+SELECT m.id, m.message_id, m.user_id, m.channel_id, m.is_read, m.created_at, m.mention_type, msg.content, msg.channel_id as msg_channel_id, ch.name as channel_name
 FROM mentions m
 JOIN messages msg ON msg.id = m.message_id
 JOIN channels ch ON ch.id = m.channel_id
@@ -42,6 +48,7 @@ type GetUnreadMentionsRow struct {
 	ChannelID    pgtype.UUID        `json:"channel_id"`
 	IsRead       bool               `json:"is_read"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	MentionType  string             `json:"mention_type"`
 	Content      string             `json:"content"`
 	MsgChannelID pgtype.UUID        `json:"msg_channel_id"`
 	ChannelName  string             `json:"channel_name"`
@@ -63,6 +70,7 @@ func (q *Queries) GetUnreadMentions(ctx context.Context, userID pgtype.UUID) ([]
 			&i.ChannelID,
 			&i.IsRead,
 			&i.CreatedAt,
+			&i.MentionType,
 			&i.Content,
 			&i.MsgChannelID,
 			&i.ChannelName,

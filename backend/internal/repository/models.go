@@ -108,12 +108,13 @@ type File struct {
 }
 
 type Mention struct {
-	ID        pgtype.UUID        `json:"id"`
-	MessageID pgtype.UUID        `json:"message_id"`
-	UserID    pgtype.UUID        `json:"user_id"`
-	ChannelID pgtype.UUID        `json:"channel_id"`
-	IsRead    bool               `json:"is_read"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID          pgtype.UUID        `json:"id"`
+	MessageID   pgtype.UUID        `json:"message_id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	ChannelID   pgtype.UUID        `json:"channel_id"`
+	IsRead      bool               `json:"is_read"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	MentionType string             `json:"mention_type"`
 }
 
 type Message struct {

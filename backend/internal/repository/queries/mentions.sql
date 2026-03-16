@@ -1,5 +1,5 @@
 -- name: CreateMention :exec
-INSERT INTO mentions (message_id, user_id, channel_id) VALUES ($1, $2, $3);
+INSERT INTO mentions (message_id, user_id, channel_id, mention_type) VALUES ($1, $2, $3, $4);
 
 -- name: GetUnreadMentions :many
 SELECT m.*, msg.content, msg.channel_id as msg_channel_id, ch.name as channel_name

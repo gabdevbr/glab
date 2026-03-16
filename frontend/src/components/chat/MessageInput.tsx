@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect, KeyboardEvent, FormEvent } fr
 import { wsClient } from '@/lib/ws';
 import { api } from '@/lib/api';
 import { User } from '@/lib/types';
-import { MentionAutocomplete } from './MentionAutocomplete';
+import { MentionAutocomplete, getMentionItemCount } from './MentionAutocomplete';
 import { Paperclip, X } from 'lucide-react';
 
 interface MessageInputProps {
@@ -158,18 +158,24 @@ export function MessageInput({ channelId, channelName, isConnected, threadId }: 
         return;
       }
       if (e.key === 'Tab' || e.key === 'Enter') {
-        // Let the autocomplete handle selection
-        const filtered = users.filter((u) => {
-          const q = (mentionQuery || '').toLowerCase();
-          return (
-            u.username.toLowerCase().includes(q) ||
-            u.display_name.toLowerCase().includes(q)
-          );
-        }).slice(0, 8);
-        if (filtered.length > 0) {
+        const q = (mentionQuery || '').toLowerCase();
+        const mentionUsers = users.map((u) => ({
+          id: u.id, username: u.username, display_name: u.display_name, is_bot: u.is_bot,
+        }));
+        const itemCount = getMentionItemCount(mentionUsers, mentionQuery || '');
+        if (itemCount > 0) {
           e.preventDefault();
-          const idx = mentionIndex % filtered.length;
-          insertMention(filtered[idx].username);
+          // Determine which item is selected across special + user lists
+          const idx = mentionIndex % itemCount;
+          const specialMentions = ['all', 'here', 'channel'].filter((k) => k.startsWith(q));
+          if (idx < specialMentions.length) {
+            insertMention(specialMentions[idx]);
+          } else {
+            const filtered = users.filter((u) =>
+              u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q),
+            ).slice(0, 8);
+            insertMention(filtered[idx - specialMentions.length].username);
+          }
           return;
         }
       }

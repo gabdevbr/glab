@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { EmojiPicker } from './EmojiPicker';
 import { MoreHorizontal, Pin, PinOff, Pencil, Trash2, MessageSquare, SmilePlus } from 'lucide-react';
+import { MentionText } from './MentionText';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -75,6 +76,64 @@ function renderWithCustomEmojis(text: string): React.ReactNode[] {
   }
 
   return parts.length > 0 ? parts : [text];
+}
+
+const MENTION_GROUP_KEYWORDS = new Set(['all', 'here', 'channel']);
+
+/**
+ * Renders message content with both @mention pills and custom emoji support.
+ * First splits by mentions, then applies emoji rendering to text segments.
+ */
+function renderWithMentionsAndEmojis(content: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const mentionRegex = /(?:^|(?<=\s))@(\w+)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = mentionRegex.exec(content)) !== null) {
+    const name = match[1];
+    const isGroup = MENTION_GROUP_KEYWORDS.has(name.toLowerCase());
+
+    if (!isGroup && name.length < 2) continue;
+
+    // Text before mention - apply emoji rendering
+    if (match.index > lastIndex) {
+      const textBefore = content.slice(lastIndex, match.index);
+      for (const node of renderWithCustomEmojis(textBefore)) {
+        parts.push(typeof node === 'string' ? node : React.cloneElement(node as React.ReactElement, { key: `e${key++}` }));
+      }
+    }
+
+    // Mention pill
+    const displayName = isGroup ? name.toLowerCase() : name;
+    parts.push(
+      <MentionPill key={`m${key++}`} name={displayName} isGroup={isGroup} />,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Remaining text
+  if (lastIndex < content.length) {
+    const remaining = content.slice(lastIndex);
+    parts.push(...renderWithCustomEmojis(remaining));
+  }
+
+  return parts.length > 0 ? parts : renderWithCustomEmojis(content);
+}
+
+function MentionPill({ name, isGroup }: { name: string; isGroup: boolean }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded px-0.5 font-medium text-[0.9em] transition-colors',
+        'bg-accent-primary-subtle text-accent-primary-subtle-text',
+        isGroup ? 'cursor-default' : 'cursor-pointer hover:brightness-110',
+      )}
+    >
+      @{name}
+    </span>
+  );
 }
 
 function formatTime(dateStr: string): string {
@@ -254,7 +313,7 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
 
     return (
       <p className="whitespace-pre-wrap break-words text-sm text-foreground">
-        {renderWithCustomEmojis(message.content)}
+        {renderWithMentionsAndEmojis(message.content)}
         {message.edited_at && (
           <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>
         )}
