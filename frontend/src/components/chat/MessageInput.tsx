@@ -12,9 +12,36 @@ interface MessageInputProps {
   channelName: string;
   isConnected: boolean;
   threadId?: string;
+  /** Called when user presses ↑ in empty input to edit last message */
+  onEditLastMessage?: () => void;
 }
 
-export function MessageInput({ channelId, channelName, isConnected, threadId }: MessageInputProps) {
+/** Wraps selected text in a textarea with prefix/suffix markdown markers. */
+function wrapSelection(ta: HTMLTextAreaElement, prefix: string, suffix: string): string {
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const value = ta.value;
+  const selected = value.slice(start, end);
+
+  // If already wrapped, unwrap
+  const beforePrefix = value.slice(Math.max(0, start - prefix.length), start);
+  const afterSuffix = value.slice(end, end + suffix.length);
+  if (beforePrefix === prefix && afterSuffix === suffix) {
+    const newValue = value.slice(0, start - prefix.length) + selected + value.slice(end + suffix.length);
+    requestAnimationFrame(() => {
+      ta.setSelectionRange(start - prefix.length, end - prefix.length);
+    });
+    return newValue;
+  }
+
+  const newValue = value.slice(0, start) + prefix + selected + suffix + value.slice(end);
+  requestAnimationFrame(() => {
+    ta.setSelectionRange(start + prefix.length, end + prefix.length);
+  });
+  return newValue;
+}
+
+export function MessageInput({ channelId, channelName, isConnected, threadId, onEditLastMessage }: MessageInputProps) {
   const [content, setContent] = useState('');
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -183,6 +210,68 @@ export function MessageInput({ channelId, channelName, isConnected, threadId }: 
         setMentionQuery(null);
         return;
       }
+    }
+
+    const isMod = e.metaKey || e.ctrlKey;
+    const ta = textareaRef.current;
+
+    // --- Formatting shortcuts ---
+    if (isMod && ta) {
+      // Bold: Ctrl/⌘ + B
+      if (e.key === 'b') {
+        e.preventDefault();
+        setContent(wrapSelection(ta, '**', '**'));
+        return;
+      }
+      // Italic: Ctrl/⌘ + I
+      if (e.key === 'i') {
+        e.preventDefault();
+        setContent(wrapSelection(ta, '_', '_'));
+        return;
+      }
+      // Strikethrough: Ctrl/⌘ + Shift + X
+      if (e.shiftKey && e.key === 'X') {
+        e.preventDefault();
+        setContent(wrapSelection(ta, '~~', '~~'));
+        return;
+      }
+      // Inline code: Ctrl/⌘ + Shift + C
+      if (e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+        setContent(wrapSelection(ta, '`', '`'));
+        return;
+      }
+      // Code block: Ctrl/⌘ + Alt + Shift + C
+      if (e.shiftKey && e.altKey && (e.key === 'C' || e.key === 'c')) {
+        e.preventDefault();
+        setContent(wrapSelection(ta, '```\n', '\n```'));
+        return;
+      }
+      // Quote: Ctrl/⌘ + Shift + 9
+      if (e.shiftKey && e.key === '9') {
+        e.preventDefault();
+        setContent(wrapSelection(ta, '> ', ''));
+        return;
+      }
+      // Bulleted list: Ctrl/⌘ + Shift + 8
+      if (e.shiftKey && e.key === '8') {
+        e.preventDefault();
+        setContent(wrapSelection(ta, '- ', ''));
+        return;
+      }
+      // Numbered list: Ctrl/⌘ + Shift + 7
+      if (e.shiftKey && e.key === '7') {
+        e.preventDefault();
+        setContent(wrapSelection(ta, '1. ', ''));
+        return;
+      }
+    }
+
+    // --- Edit last message: ↑ in empty input ---
+    if (e.key === 'ArrowUp' && content === '' && onEditLastMessage) {
+      e.preventDefault();
+      onEditLastMessage();
+      return;
     }
 
     if (e.key === 'Enter' && !e.shiftKey) {

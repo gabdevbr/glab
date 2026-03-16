@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useChannelStore } from '@/stores/channelStore';
@@ -8,9 +8,11 @@ import { usePresenceStore } from '@/stores/presenceStore';
 import { useAIStreamStore } from '@/stores/aiStreamStore';
 import { useAgentStore } from '@/stores/agentStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { wsClient } from '@/lib/ws';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { AgentPanel } from '@/components/ai/AgentPanel';
+import { QuickSwitcher } from '@/components/chat/QuickSwitcher';
 import { Message } from '@/lib/types';
 
 export default function ChatLayout({
@@ -28,6 +30,13 @@ export default function ChatLayout({
   const appendChunk = useAIStreamStore((s) => s.appendChunk);
   const clearStream = useAIStreamStore((s) => s.clearStream);
   const isPanelOpen = useAgentStore((s) => s.isPanelOpen);
+
+  // Quick Switcher state
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+  const openQuickSwitcher = useCallback(() => setQuickSwitcherOpen(true), []);
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts({ openQuickSwitcher });
 
   // Connect WebSocket
   useWebSocket();
@@ -130,6 +139,7 @@ export default function ChatLayout({
       <Sidebar />
       <main className="flex flex-1 overflow-hidden">{children}</main>
       {isPanelOpen && <AgentPanel />}
+      <QuickSwitcher open={quickSwitcherOpen} onClose={() => setQuickSwitcherOpen(false)} />
     </div>
   );
 }
