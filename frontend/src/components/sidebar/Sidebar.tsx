@@ -2,7 +2,6 @@
 
 import { useAuthStore } from '@/stores/authStore';
 import { useRouter } from 'next/navigation';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ChannelList } from './ChannelList';
 import { DMList } from './DMList';
@@ -13,7 +12,11 @@ import { LogOut, Bot, Settings, ChevronDown, Search } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 
-export function Sidebar() {
+interface SidebarProps {
+  onOpenSearch?: () => void;
+}
+
+export function Sidebar({ onOpenSearch }: SidebarProps) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -49,15 +52,18 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Search */}
+      {/* Search — opens Quick Switcher */}
       <div className="px-3 pb-3">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            className="h-8 rounded-md border-chat-input-border bg-chat-input-bg pl-7 text-xs text-foreground placeholder:text-muted-foreground"
-          />
-        </div>
+        <button
+          onClick={onOpenSearch}
+          className="flex h-8 w-full items-center gap-2 rounded-md border border-chat-input-border bg-chat-input-bg px-2 text-xs text-muted-foreground hover:border-chat-input-focus"
+        >
+          <Search className="size-3.5 shrink-0" />
+          <span className="flex-1 text-left">Search...</span>
+          <kbd className="rounded border border-border bg-secondary px-1 py-0.5 text-[9px] text-muted-foreground">
+            {typeof navigator !== 'undefined' && /Mac/.test(navigator.userAgent) ? '⌘K' : 'Ctrl+K'}
+          </kbd>
+        </button>
       </div>
 
       {/* Scrollable sections */}

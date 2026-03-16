@@ -136,7 +136,7 @@ export default function ChatLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
+      <Sidebar onOpenSearch={openQuickSwitcher} />
       <main className="flex flex-1 overflow-hidden">{children}</main>
       {isPanelOpen && <AgentPanel />}
       <QuickSwitcher open={quickSwitcherOpen} onClose={() => setQuickSwitcherOpen(false)} />
