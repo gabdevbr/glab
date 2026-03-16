@@ -14,6 +14,7 @@ import (
 	"github.com/geovendas/glab/backend/internal/auth"
 	"github.com/geovendas/glab/backend/internal/repository"
 	"github.com/geovendas/glab/backend/internal/storage"
+	"github.com/geovendas/glab/backend/internal/ws"
 )
 
 const maxUploadSize = 50 << 20 // 50 MB
@@ -22,11 +23,12 @@ const maxUploadSize = 50 << 20 // 50 MB
 type FileHandler struct {
 	queries     *repository.Queries
 	fileService *storage.FileService
+	hub         *ws.Hub
 }
 
 // NewFileHandler creates a FileHandler.
-func NewFileHandler(q *repository.Queries, fs *storage.FileService) *FileHandler {
-	return &FileHandler{queries: q, fileService: fs}
+func NewFileHandler(q *repository.Queries, fs *storage.FileService, hub *ws.Hub) *FileHandler {
+	return &FileHandler{queries: q, fileService: fs, hub: hub}
 }
 
 // Upload handles POST /api/v1/channels/{id}/upload.
@@ -120,6 +122,41 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		slog.Error("failed to create file record", "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to record file")
 		return
+	}
+
+	// Broadcast message.new via WebSocket so other clients see the file.
+	fullMsg, err := h.queries.GetMessageByID(r.Context(), msg.ID)
+	if err == nil {
+		fr := fileToResponse(dbFile)
+		newPayload := ws.MessageNewPayload{
+			ID:          uuidToString(fullMsg.ID),
+			ChannelID:   uuidToString(fullMsg.ChannelID),
+			UserID:      uuidToString(fullMsg.UserID),
+			Username:    fullMsg.Username,
+			DisplayName: fullMsg.DisplayName,
+			AvatarURL:   fullMsg.AvatarUrl.String,
+			Content:     fullMsg.Content,
+			ContentType: fullMsg.ContentType,
+			ThreadID:    uuidToString(fullMsg.ThreadID),
+			IsBot:       fullMsg.IsBot,
+			CreatedAt:   timestampToString(fullMsg.CreatedAt),
+			File: &ws.FilePayload{
+				ID:           fr.ID,
+				MessageID:    fr.MessageID,
+				UserID:       fr.UserID,
+				ChannelID:    fr.ChannelID,
+				Filename:     fr.Filename,
+				OriginalName: fr.OriginalName,
+				MimeType:     fr.MimeType,
+				SizeBytes:    fr.SizeBytes,
+				HasThumbnail: fr.HasThumbnail,
+				CreatedAt:    fr.CreatedAt,
+			},
+		}
+		env, err := ws.MakeEnvelope(ws.EventMessageNew, newPayload)
+		if err == nil {
+			h.hub.BroadcastToChannel(channelIDStr, env)
+		}
 	}
 
 	respondJSON(w, http.StatusCreated, fileToResponse(dbFile))

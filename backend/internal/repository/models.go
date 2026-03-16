@@ -84,6 +84,15 @@ type ChannelMember struct {
 	Notifications string             `json:"notifications"`
 }
 
+type CustomEmoji struct {
+	ID          pgtype.UUID        `json:"id"`
+	Name        string             `json:"name"`
+	Aliases     []string           `json:"aliases"`
+	MimeType    string             `json:"mime_type"`
+	StoragePath string             `json:"storage_path"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type File struct {
 	ID            pgtype.UUID        `json:"id"`
 	MessageID     pgtype.UUID        `json:"message_id"`
@@ -119,6 +128,40 @@ type Message struct {
 	Metadata     json.RawMessage    `json:"metadata"`
 	SearchVector interface{}        `json:"search_vector"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type MigrationJob struct {
+	ID          pgtype.UUID        `json:"id"`
+	Status      string             `json:"status"`
+	Config      []byte             `json:"config"`
+	StartedBy   pgtype.UUID        `json:"started_by"`
+	Phase       string             `json:"phase"`
+	Progress    []byte             `json:"progress"`
+	Error       string             `json:"error"`
+	StartedAt   pgtype.Timestamptz `json:"started_at"`
+	CompletedAt pgtype.Timestamptz `json:"completed_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type MigrationLog struct {
+	ID        int64              `json:"id"`
+	JobID     pgtype.UUID        `json:"job_id"`
+	Level     string             `json:"level"`
+	Phase     string             `json:"phase"`
+	Message   string             `json:"message"`
+	Detail    json.RawMessage    `json:"detail"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type MigrationRoomState struct {
+	RcRoomID     string             `json:"rc_room_id"`
+	RcRoomName   string             `json:"rc_room_name"`
+	RcRoomType   string             `json:"rc_room_type"`
+	MessageCount int32              `json:"message_count"`
+	LatestExport pgtype.Timestamptz `json:"latest_export"`
+	JobID        pgtype.UUID        `json:"job_id"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 

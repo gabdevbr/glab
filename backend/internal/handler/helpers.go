@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,39 @@ import (
 
 	"github.com/geovendas/glab/backend/internal/repository"
 )
+
+// enrichMessagesWithFiles loads file records for any file-type messages and attaches them.
+func enrichMessagesWithFiles(ctx context.Context, queries *repository.Queries, msgs []MessageResponse) {
+	var fileMessageIDs []pgtype.UUID
+	idxMap := make(map[string]int) // message ID string -> index in msgs
+
+	for i, m := range msgs {
+		if m.ContentType == "file" {
+			uid, err := parseUUID(m.ID)
+			if err == nil {
+				fileMessageIDs = append(fileMessageIDs, uid)
+				idxMap[m.ID] = i
+			}
+		}
+	}
+
+	if len(fileMessageIDs) == 0 {
+		return
+	}
+
+	files, err := queries.ListFilesByMessageIDs(ctx, fileMessageIDs)
+	if err != nil {
+		return
+	}
+
+	for _, f := range files {
+		msgIDStr := uuidToString(f.MessageID)
+		if idx, ok := idxMap[msgIDStr]; ok {
+			fr := fileToResponse(f)
+			msgs[idx].File = &fr
+		}
+	}
+}
 
 // respondJSON writes a JSON response with the given status code.
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
@@ -138,18 +172,19 @@ func channelToResponse(c repository.Channel) ChannelResponse {
 
 // MessageResponse is the JSON representation of a message with user info.
 type MessageResponse struct {
-	ID          string `json:"id"`
-	ChannelID   string `json:"channel_id"`
-	UserID      string `json:"user_id"`
-	ThreadID    string `json:"thread_id,omitempty"`
-	Content     string `json:"content"`
-	ContentType string `json:"content_type"`
-	EditedAt    string `json:"edited_at,omitempty"`
-	IsPinned    bool   `json:"is_pinned"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
-	AvatarURL   string `json:"avatar_url,omitempty"`
-	IsBot       bool   `json:"is_bot"`
+	ID          string        `json:"id"`
+	ChannelID   string        `json:"channel_id"`
+	UserID      string        `json:"user_id"`
+	ThreadID    string        `json:"thread_id,omitempty"`
+	Content     string        `json:"content"`
+	ContentType string        `json:"content_type"`
+	EditedAt    string        `json:"edited_at,omitempty"`
+	IsPinned    bool          `json:"is_pinned"`
+	CreatedAt   string        `json:"created_at"`
+	UpdatedAt   string        `json:"updated_at"`
+	Username    string        `json:"username"`
+	DisplayName string        `json:"display_name"`
+	AvatarURL   string        `json:"avatar_url,omitempty"`
+	IsBot       bool          `json:"is_bot"`
+	File        *FileResponse `json:"file,omitempty"`
 }

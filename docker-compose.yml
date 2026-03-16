@@ -55,6 +55,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-glab}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-glab}
       POSTGRES_DB: ${POSTGRES_DB:-glab}
+    ports:
+      - "5433:5432"
     volumes:
       - glab-pgdata:/var/lib/postgresql/data
     deploy:

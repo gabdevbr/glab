@@ -49,6 +49,11 @@ const (
 	EventAIChunk      = "ai.chunk"       // streaming in channel (broadcast)
 	EventAIPanelChunk = "ai.panel.chunk" // streaming in panel (to user only)
 	EventAIToolUse    = "ai.tool_use"    // tool use status (future)
+
+	// Migration events - Server -> Client (admin only)
+	EventMigrationLog      = "migration.log"
+	EventMigrationStatus   = "migration.status"
+	EventMigrationProgress = "migration.progress"
 )
 
 // --- Client -> Server payloads ---
@@ -123,19 +128,34 @@ type AckPayload struct {
 	Data  json.RawMessage `json:"data,omitempty"`
 }
 
+// FilePayload is the file info attached to a message.new event.
+type FilePayload struct {
+	ID           string `json:"id"`
+	MessageID    string `json:"message_id,omitempty"`
+	UserID       string `json:"user_id"`
+	ChannelID    string `json:"channel_id"`
+	Filename     string `json:"filename"`
+	OriginalName string `json:"original_name"`
+	MimeType     string `json:"mime_type"`
+	SizeBytes    int64  `json:"size_bytes"`
+	HasThumbnail bool   `json:"has_thumbnail"`
+	CreatedAt    string `json:"created_at"`
+}
+
 // MessageNewPayload is broadcast when a new message is created.
 type MessageNewPayload struct {
-	ID          string `json:"id"`
-	ChannelID   string `json:"channel_id"`
-	UserID      string `json:"user_id"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
-	AvatarURL   string `json:"avatar_url,omitempty"`
-	Content     string `json:"content"`
-	ContentType string `json:"content_type"`
-	ThreadID    string `json:"thread_id,omitempty"`
-	IsBot       bool   `json:"is_bot"`
-	CreatedAt   string `json:"created_at"`
+	ID          string       `json:"id"`
+	ChannelID   string       `json:"channel_id"`
+	UserID      string       `json:"user_id"`
+	Username    string       `json:"username"`
+	DisplayName string       `json:"display_name"`
+	AvatarURL   string       `json:"avatar_url,omitempty"`
+	Content     string       `json:"content"`
+	ContentType string       `json:"content_type"`
+	ThreadID    string       `json:"thread_id,omitempty"`
+	IsBot       bool         `json:"is_bot"`
+	CreatedAt   string       `json:"created_at"`
+	File        *FilePayload `json:"file,omitempty"`
 }
 
 // MessageEditedPayload is broadcast when a message is edited.

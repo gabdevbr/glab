@@ -157,3 +157,39 @@ func (q *Queries) ListFilesByMessage(ctx context.Context, messageID pgtype.UUID)
 	}
 	return items, nil
 }
+
+const listFilesByMessageIDs = `-- name: ListFilesByMessageIDs :many
+SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at FROM files WHERE message_id = ANY($1::uuid[])
+`
+
+func (q *Queries) ListFilesByMessageIDs(ctx context.Context, messageIds []pgtype.UUID) ([]File, error) {
+	rows, err := q.db.Query(ctx, listFilesByMessageIDs, messageIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []File{}
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.UserID,
+			&i.ChannelID,
+			&i.Filename,
+			&i.OriginalName,
+			&i.MimeType,
+			&i.SizeBytes,
+			&i.StoragePath,
+			&i.ThumbnailPath,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

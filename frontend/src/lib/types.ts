@@ -114,3 +114,50 @@ export interface AgentSession {
   created_at: string;
   updated_at: string;
 }
+
+// Migration types
+export interface MigrationProgress {
+  users: number;
+  channels: number;
+  members: number;
+  messages: number;
+  reactions: number;
+  mentions: number;
+  rooms_total: number;
+  rooms_done: number;
+  files: number;
+  emojis: number;
+}
+
+export interface MigrationJob {
+  id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  config?: Record<string, unknown>;
+  phase: string;
+  progress?: MigrationProgress;
+  error: string;
+  started_at?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MigrationLog {
+  id: number;
+  job_id: string;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  phase: string;
+  message: string;
+  detail?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface MigrationRoomState {
+  rc_room_id: string;
+  rc_room_name: string;
+  rc_room_type: string;
+  message_count: number;
+  latest_export?: string;
+  job_id?: string;
+  updated_at: string;
+}

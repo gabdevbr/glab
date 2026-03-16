@@ -1,27 +1,28 @@
-package rocketchat
+package migration
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 )
 
-// Client handles communication with the RocketChat REST API.
-type Client struct {
+// RCClient handles communication with the RocketChat REST API.
+// All methods accept context.Context for cancellation support.
+type RCClient struct {
 	baseURL   string
 	authToken string
 	userID    string
 	client    *http.Client
 }
 
-// NewClient creates a RocketChat API client.
-func NewClient(baseURL, authToken, userID string) *Client {
-	return &Client{
+// NewRCClient creates a RocketChat API client.
+func NewRCClient(baseURL, authToken, userID string) *RCClient {
+	return &RCClient{
 		baseURL:   baseURL,
 		authToken: authToken,
 		userID:    userID,
@@ -41,39 +42,34 @@ type RCUser struct {
 	} `json:"emails"`
 	Roles     []string `json:"roles"`
 	Active    bool     `json:"active"`
-	AvatarURL string   `json:"-"` // Built from baseURL + username
+	AvatarURL string   `json:"-"`
 }
 
 // RCRoom represents a RocketChat room (channel, group, or DM).
 type RCRoom struct {
 	ID          string   `json:"_id"`
 	Name        string   `json:"name"`
-	Type        string   `json:"t"` // "c"=channel, "p"=private, "d"=DM
+	Type        string   `json:"t"`
 	Topic       string   `json:"topic"`
 	Description string   `json:"description"`
 	Usernames   []string `json:"usernames"`
 	UsersCount  int      `json:"usersCount"`
 }
 
-// RCTimestamp handles both RocketChat timestamp formats:
-// - String ISO 8601: "2024-01-15T10:30:00.000Z"
-// - MongoDB EJSON:   {"$date": 1705312200000}
+// RCTimestamp handles both RocketChat timestamp formats.
 type RCTimestamp struct {
 	Date int64
 }
 
-// MarshalJSON serializes as ISO 8601 string for consistent round-trip via JSONL files.
 func (t RCTimestamp) MarshalJSON() ([]byte, error) {
 	return json.Marshal(time.UnixMilli(t.Date).UTC().Format(time.RFC3339Nano))
 }
 
 func (t *RCTimestamp) UnmarshalJSON(data []byte) error {
-	// Try string first (REST API format)
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
 		parsed, err := time.Parse(time.RFC3339Nano, s)
 		if err != nil {
-			// Try without nano
 			parsed, err = time.Parse("2006-01-02T15:04:05.000Z", s)
 			if err != nil {
 				parsed, err = time.Parse(time.RFC3339, s)
@@ -86,7 +82,6 @@ func (t *RCTimestamp) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// Try EJSON object: {"$date": 1234567890}
 	var obj struct {
 		Date int64 `json:"$date"`
 	}
@@ -103,19 +98,15 @@ type RCReaction struct {
 	Usernames []string `json:"usernames"`
 }
 
-// RCReactions handles both formats from RocketChat:
-// - map[string]{"usernames": [...]}  (when reactions exist)
-// - [] (empty array when no reactions)
+// RCReactions handles both map and empty array formats from RocketChat.
 type RCReactions map[string]RCReaction
 
 func (r *RCReactions) UnmarshalJSON(data []byte) error {
-	// Try map first (normal case with reactions)
 	var m map[string]RCReaction
 	if err := json.Unmarshal(data, &m); err == nil {
 		*r = m
 		return nil
 	}
-	// Empty array or other non-map — treat as no reactions
 	*r = nil
 	return nil
 }
@@ -125,14 +116,14 @@ type RCMessage struct {
 	ID        string      `json:"_id"`
 	RoomID    string      `json:"rid"`
 	Msg       string      `json:"msg"`
-	Timestamp RCTimestamp `json:"ts"`
+	Timestamp RCTimestamp  `json:"ts"`
 	User      struct {
 		ID       string `json:"_id"`
 		Username string `json:"username"`
 	} `json:"u"`
-	ThreadMsgID string       `json:"tmid"`
+	ThreadMsgID string      `json:"tmid"`
 	Reactions   RCReactions `json:"reactions"`
-	File *struct {
+	File        *struct {
 		ID   string `json:"_id"`
 		Name string `json:"name"`
 		Type string `json:"type"`
@@ -143,25 +134,17 @@ type RCMessage struct {
 		ImageURL string `json:"image_url"`
 	} `json:"attachments"`
 	EditedAt *RCTimestamp `json:"editedAt"`
-	Pinned   bool         `json:"pinned"`
+	Pinned   bool        `json:"pinned"`
 }
 
-// paginated is a generic response wrapper for paginated RC API endpoints.
-type paginated[T any] struct {
-	Items  []T `json:"-"`
-	Count  int `json:"count"`
-	Offset int `json:"offset"`
-	Total  int `json:"total"`
-}
-
-func (c *Client) doGet(path string, params url.Values) ([]byte, error) {
+func (c *RCClient) doGet(ctx context.Context, path string, params url.Values) ([]byte, error) {
 	u, err := url.Parse(c.baseURL + path)
 	if err != nil {
 		return nil, fmt.Errorf("parsing URL: %w", err)
 	}
 	u.RawQuery = params.Encode()
 
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -187,14 +170,22 @@ func (c *Client) doGet(path string, params url.Values) ([]byte, error) {
 	return body, nil
 }
 
-// fetchAllPaginated fetches all pages from a paginated endpoint.
-// listKey is the JSON key containing the array (e.g. "users", "channels").
-func fetchAllPaginated[T any](c *Client, path, listKey string, extraParams url.Values) ([]T, error) {
+// TestConnection verifies the RC credentials are valid.
+func (c *RCClient) TestConnection(ctx context.Context) error {
+	_, err := c.doGet(ctx, "/api/v1/me", nil)
+	return err
+}
+
+func fetchAllPaginated[T any](ctx context.Context, c *RCClient, path, listKey string, extraParams url.Values) ([]T, error) {
 	const pageSize = 100
 	var all []T
 	offset := 0
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return all, err
+		}
+
 		params := url.Values{}
 		if extraParams != nil {
 			for k, v := range extraParams {
@@ -204,12 +195,11 @@ func fetchAllPaginated[T any](c *Client, path, listKey string, extraParams url.V
 		params.Set("count", strconv.Itoa(pageSize))
 		params.Set("offset", strconv.Itoa(offset))
 
-		body, err := c.doGet(path, params)
+		body, err := c.doGet(ctx, path, params)
 		if err != nil {
 			return nil, fmt.Errorf("fetching %s (offset %d): %w", path, offset, err)
 		}
 
-		// Parse the total count from the response.
 		var meta struct {
 			Count  int `json:"count"`
 			Offset int `json:"offset"`
@@ -219,7 +209,6 @@ func fetchAllPaginated[T any](c *Client, path, listKey string, extraParams url.V
 			return nil, fmt.Errorf("parsing pagination metadata: %w", err)
 		}
 
-		// Parse the list items.
 		var raw map[string]json.RawMessage
 		if err := json.Unmarshal(body, &raw); err != nil {
 			return nil, fmt.Errorf("parsing response: %w", err)
@@ -247,12 +236,11 @@ func fetchAllPaginated[T any](c *Client, path, listKey string, extraParams url.V
 }
 
 // GetUsers returns all users from RocketChat.
-func (c *Client) GetUsers() ([]RCUser, error) {
-	users, err := fetchAllPaginated[RCUser](c, "/api/v1/users.list", "users", nil)
+func (c *RCClient) GetUsers(ctx context.Context) ([]RCUser, error) {
+	users, err := fetchAllPaginated[RCUser](ctx, c, "/api/v1/users.list", "users", nil)
 	if err != nil {
 		return nil, err
 	}
-	// Build avatar URLs.
 	for i := range users {
 		users[i].AvatarURL = fmt.Sprintf("%s/avatar/%s", c.baseURL, users[i].Username)
 	}
@@ -260,41 +248,22 @@ func (c *Client) GetUsers() ([]RCUser, error) {
 }
 
 // GetChannels returns all public channels.
-func (c *Client) GetChannels() ([]RCRoom, error) {
-	return fetchAllPaginated[RCRoom](c, "/api/v1/channels.list", "channels", nil)
+func (c *RCClient) GetChannels(ctx context.Context) ([]RCRoom, error) {
+	return fetchAllPaginated[RCRoom](ctx, c, "/api/v1/channels.list", "channels", nil)
 }
 
 // GetGroups returns all private groups.
-func (c *Client) GetGroups() ([]RCRoom, error) {
-	return fetchAllPaginated[RCRoom](c, "/api/v1/groups.list", "groups", nil)
+func (c *RCClient) GetGroups(ctx context.Context) ([]RCRoom, error) {
+	return fetchAllPaginated[RCRoom](ctx, c, "/api/v1/groups.list", "groups", nil)
 }
 
 // GetDMs returns all direct message rooms.
-func (c *Client) GetDMs() ([]RCRoom, error) {
-	return fetchAllPaginated[RCRoom](c, "/api/v1/dm.list", "ims", nil)
-}
-
-// GetRoomMembers returns usernames of members in a room.
-func (c *Client) GetRoomMembers(roomID string) ([]string, error) {
-	type member struct {
-		Username string `json:"username"`
-	}
-	members, err := fetchAllPaginated[member](c, "/api/v1/channels.members", "members", url.Values{
-		"roomId": {roomID},
-	})
-	if err != nil {
-		return nil, err
-	}
-	usernames := make([]string, len(members))
-	for i, m := range members {
-		usernames[i] = m.Username
-	}
-	return usernames, nil
+func (c *RCClient) GetDMs(ctx context.Context) ([]RCRoom, error) {
+	return fetchAllPaginated[RCRoom](ctx, c, "/api/v1/dm.list", "ims", nil)
 }
 
 // GetMessages returns messages from a room within a time range.
-// roomType should be "channels", "groups", or "dm".
-func (c *Client) GetMessages(roomID, roomType string, oldest, latest time.Time) ([]RCMessage, error) {
+func (c *RCClient) GetMessages(ctx context.Context, roomID, roomType string, oldest, latest time.Time) ([]RCMessage, error) {
 	endpoint := "/api/v1/channels.history"
 	switch roomType {
 	case "p":
@@ -306,12 +275,12 @@ func (c *Client) GetMessages(roomID, roomType string, oldest, latest time.Time) 
 	const pageSize = 100
 	var all []RCMessage
 	latest_ := latest
-	batch := 0
-	start := time.Now()
 
 	for {
-		batch++
-		batchStart := time.Now()
+		if err := ctx.Err(); err != nil {
+			return all, err
+		}
+
 		params := url.Values{
 			"roomId":    {roomID},
 			"oldest":    {oldest.Format(time.RFC3339)},
@@ -320,9 +289,8 @@ func (c *Client) GetMessages(roomID, roomType string, oldest, latest time.Time) 
 			"inclusive": {"true"},
 		}
 
-		body, err := c.doGet(endpoint, params)
+		body, err := c.doGet(ctx, endpoint, params)
 		if err != nil {
-			log.Printf("    [batch %d] HTTP error after %v: %v", batch, time.Since(batchStart), err)
 			return nil, fmt.Errorf("fetching messages for room %s: %w", roomID, err)
 		}
 
@@ -338,14 +306,10 @@ func (c *Client) GetMessages(roomID, roomType string, oldest, latest time.Time) 
 		}
 
 		all = append(all, resp.Messages...)
-		log.Printf("    [batch %d] +%d msgs (total: %d, elapsed: %v)", batch, len(resp.Messages), len(all), time.Since(start).Round(time.Millisecond))
 
-		// Messages come in reverse chronological order.
-		// Move latest to the timestamp of the oldest message in this batch.
 		oldestInBatch := resp.Messages[len(resp.Messages)-1]
 		batchTime := time.UnixMilli(oldestInBatch.Timestamp.Date)
 		if !batchTime.Before(latest_) {
-			// No progress, we're done.
 			break
 		}
 		latest_ = batchTime.Add(-time.Millisecond)
@@ -355,19 +319,49 @@ func (c *Client) GetMessages(roomID, roomType string, oldest, latest time.Time) 
 		}
 	}
 
-	log.Printf("    Room %s: %d messages in %v (%d batches)", roomID, len(all), time.Since(start).Round(time.Millisecond), batch)
 	return all, nil
 }
 
-// DownloadFile downloads a file from RocketChat. The caller must close the reader.
-func (c *Client) DownloadFile(fileURL string) (io.ReadCloser, error) {
-	// Resolve relative URLs.
+// RCCustomEmoji represents a custom emoji from RocketChat.
+type RCCustomEmoji struct {
+	ID        string   `json:"_id"`
+	Name      string   `json:"name"`
+	Aliases   []string `json:"aliases"`
+	Extension string   `json:"extension"`
+}
+
+// GetCustomEmojis returns all custom emojis from RocketChat.
+func (c *RCClient) GetCustomEmojis(ctx context.Context) ([]RCCustomEmoji, error) {
+	body, err := c.doGet(ctx, "/api/v1/emoji-custom.list", nil)
+	if err != nil {
+		return nil, fmt.Errorf("fetching custom emojis: %w", err)
+	}
+
+	var resp struct {
+		Emojis struct {
+			Update []RCCustomEmoji `json:"update"`
+		} `json:"emojis"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("parsing custom emojis: %w", err)
+	}
+
+	return resp.Emojis.Update, nil
+}
+
+// EmojiImageURL returns the URL for a custom emoji image.
+func (c *RCClient) EmojiImageURL(name, extension string) string {
+	return fmt.Sprintf("%s/emoji-custom/%s.%s", c.baseURL, name, extension)
+}
+
+// DownloadFile downloads a file from RocketChat.
+func (c *RCClient) DownloadFile(ctx context.Context, fileURL string) (io.ReadCloser, error) {
 	u := fileURL
 	if len(u) > 0 && u[0] == '/' {
 		u = c.baseURL + u
 	}
 
-	req, err := http.NewRequest(http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating download request: %w", err)
 	}

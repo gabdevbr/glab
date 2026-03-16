@@ -1,32 +1,30 @@
-package loader
+package migration
 
 import (
 	"context"
 	"fmt"
-	"log"
+	"io"
+	"os"
+	"path/filepath"
 
-	"github.com/geovendas/glab/migrate/internal/transform"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Loader handles bulk inserts into the Glab database.
+// Uses the backend's shared connection pool.
 type Loader struct {
 	pool *pgxpool.Pool
 }
 
-// NewLoader creates a new database loader.
 func NewLoader(pool *pgxpool.Pool) *Loader {
 	return &Loader{pool: pool}
 }
 
-// UpsertUsers inserts users with ON CONFLICT DO UPDATE for idempotent re-runs.
-func (l *Loader) UpsertUsers(ctx context.Context, users []transform.GlabUser) error {
+func (l *Loader) UpsertUsers(ctx context.Context, users []GlabUser) error {
 	if len(users) == 0 {
 		return nil
 	}
-
-	log.Printf("Upserting %d users...", len(users))
 
 	batch := &pgx.Batch{}
 	for _, u := range users {
@@ -50,17 +48,13 @@ func (l *Loader) UpsertUsers(ctx context.Context, users []transform.GlabUser) er
 		}
 	}
 
-	log.Printf("Upserted %d users", len(users))
 	return nil
 }
 
-// UpsertChannels inserts channels with ON CONFLICT for idempotent re-runs.
-func (l *Loader) UpsertChannels(ctx context.Context, channels []transform.GlabChannel) error {
+func (l *Loader) UpsertChannels(ctx context.Context, channels []GlabChannel) error {
 	if len(channels) == 0 {
 		return nil
 	}
-
-	log.Printf("Upserting %d channels...", len(channels))
 
 	batch := &pgx.Batch{}
 	for _, ch := range channels {
@@ -84,17 +78,13 @@ func (l *Loader) UpsertChannels(ctx context.Context, channels []transform.GlabCh
 		}
 	}
 
-	log.Printf("Upserted %d channels", len(channels))
 	return nil
 }
 
-// UpsertMembers inserts memberships with ON CONFLICT DO NOTHING.
-func (l *Loader) UpsertMembers(ctx context.Context, members []transform.GlabMember) error {
+func (l *Loader) UpsertMembers(ctx context.Context, members []GlabMember) error {
 	if len(members) == 0 {
 		return nil
 	}
-
-	log.Printf("Upserting %d memberships...", len(members))
 
 	batch := &pgx.Batch{}
 	for _, m := range members {
@@ -114,36 +104,28 @@ func (l *Loader) UpsertMembers(ctx context.Context, members []transform.GlabMemb
 		}
 	}
 
-	log.Printf("Upserted %d memberships", len(members))
 	return nil
 }
 
-// LoadRoomData loads messages, reactions, and mentions for a single room.
-// Uses temp table + COPY for messages (speed) and batch INSERT for reactions/mentions.
-// All operations use ON CONFLICT DO NOTHING for idempotent re-runs.
-func (l *Loader) LoadRoomData(ctx context.Context, msgs []transform.GlabMessage, reactions []transform.GlabReaction, mentions []transform.GlabMention) error {
+func (l *Loader) LoadRoomData(ctx context.Context, msgs []GlabMessage, reactions []GlabReaction, mentions []GlabMention) error {
 	if len(msgs) == 0 {
 		return nil
 	}
 
-	// Use a transaction so either all room data loads or none.
 	tx, err := l.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("starting transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	// Load messages via temp table + COPY + INSERT ON CONFLICT.
 	if err := l.copyMessagesIdempotent(ctx, tx, msgs); err != nil {
 		return fmt.Errorf("loading messages: %w", err)
 	}
 
-	// Load reactions via batch INSERT ON CONFLICT.
 	if err := l.insertReactions(ctx, tx, reactions); err != nil {
 		return fmt.Errorf("loading reactions: %w", err)
 	}
 
-	// Load mentions via batch INSERT ON CONFLICT.
 	if err := l.insertMentions(ctx, tx, mentions); err != nil {
 		return fmt.Errorf("loading mentions: %w", err)
 	}
@@ -151,14 +133,12 @@ func (l *Loader) LoadRoomData(ctx context.Context, msgs []transform.GlabMessage,
 	return tx.Commit(ctx)
 }
 
-// copyMessagesIdempotent uses: CREATE TEMP TABLE → COPY → INSERT ON CONFLICT.
-func (l *Loader) copyMessagesIdempotent(ctx context.Context, tx pgx.Tx, msgs []transform.GlabMessage) error {
+func (l *Loader) copyMessagesIdempotent(ctx context.Context, tx pgx.Tx, msgs []GlabMessage) error {
 	if len(msgs) == 0 {
 		return nil
 	}
 
-	// Separate parents from thread replies for FK ordering.
-	var parents, replies []transform.GlabMessage
+	var parents, replies []GlabMessage
 	for _, m := range msgs {
 		if m.ThreadID == nil {
 			parents = append(parents, m)
@@ -167,7 +147,6 @@ func (l *Loader) copyMessagesIdempotent(ctx context.Context, tx pgx.Tx, msgs []t
 		}
 	}
 
-	// Create temp staging table.
 	_, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE _msg_staging (
 			id UUID,
@@ -185,7 +164,6 @@ func (l *Loader) copyMessagesIdempotent(ctx context.Context, tx pgx.Tx, msgs []t
 		return fmt.Errorf("creating temp table: %w", err)
 	}
 
-	// COPY parents to staging.
 	if len(parents) > 0 {
 		rows := messageRows(parents)
 		_, err := tx.CopyFrom(ctx,
@@ -198,7 +176,6 @@ func (l *Loader) copyMessagesIdempotent(ctx context.Context, tx pgx.Tx, msgs []t
 		}
 	}
 
-	// Insert parents from staging to messages (ON CONFLICT DO NOTHING).
 	_, err = tx.Exec(ctx, `
 		INSERT INTO messages (id, channel_id, user_id, thread_id, content, content_type, edited_at, is_pinned, created_at)
 		SELECT id, channel_id, user_id, thread_id, content, content_type, edited_at, is_pinned, created_at
@@ -209,13 +186,11 @@ func (l *Loader) copyMessagesIdempotent(ctx context.Context, tx pgx.Tx, msgs []t
 		return fmt.Errorf("inserting parents: %w", err)
 	}
 
-	// Clear staging for replies.
 	_, err = tx.Exec(ctx, "TRUNCATE _msg_staging")
 	if err != nil {
 		return fmt.Errorf("truncating staging: %w", err)
 	}
 
-	// COPY replies to staging.
 	if len(replies) > 0 {
 		rows := messageRows(replies)
 		_, err := tx.CopyFrom(ctx,
@@ -227,7 +202,6 @@ func (l *Loader) copyMessagesIdempotent(ctx context.Context, tx pgx.Tx, msgs []t
 			return fmt.Errorf("COPY replies to staging: %w", err)
 		}
 
-		// Insert replies.
 		_, err = tx.Exec(ctx, `
 			INSERT INTO messages (id, channel_id, user_id, thread_id, content, content_type, edited_at, is_pinned, created_at)
 			SELECT id, channel_id, user_id, thread_id, content, content_type, edited_at, is_pinned, created_at
@@ -242,7 +216,7 @@ func (l *Loader) copyMessagesIdempotent(ctx context.Context, tx pgx.Tx, msgs []t
 	return nil
 }
 
-func messageRows(msgs []transform.GlabMessage) [][]interface{} {
+func messageRows(msgs []GlabMessage) [][]interface{} {
 	rows := make([][]interface{}, len(msgs))
 	for i, m := range msgs {
 		var threadID interface{}
@@ -261,8 +235,7 @@ func messageRows(msgs []transform.GlabMessage) [][]interface{} {
 	return rows
 }
 
-// insertReactions uses batch INSERT ON CONFLICT DO NOTHING.
-func (l *Loader) insertReactions(ctx context.Context, tx pgx.Tx, reactions []transform.GlabReaction) error {
+func (l *Loader) insertReactions(ctx context.Context, tx pgx.Tx, reactions []GlabReaction) error {
 	if len(reactions) == 0 {
 		return nil
 	}
@@ -288,8 +261,7 @@ func (l *Loader) insertReactions(ctx context.Context, tx pgx.Tx, reactions []tra
 	return nil
 }
 
-// insertMentions uses batch INSERT ON CONFLICT DO NOTHING.
-func (l *Loader) insertMentions(ctx context.Context, tx pgx.Tx, mentions []transform.GlabMention) error {
+func (l *Loader) insertMentions(ctx context.Context, tx pgx.Tx, mentions []GlabMention) error {
 	if len(mentions) == 0 {
 		return nil
 	}
@@ -315,10 +287,30 @@ func (l *Loader) insertMentions(ctx context.Context, tx pgx.Tx, mentions []trans
 	return nil
 }
 
-// RebuildThreadSummaries recalculates thread_summaries from the imported messages.
-func (l *Loader) RebuildThreadSummaries(ctx context.Context) error {
-	log.Println("Rebuilding thread summaries...")
+// SaveEmojiFile saves a custom emoji image to disk and returns the storage path.
+func (l *Loader) SaveEmojiFile(name, extension string, body io.ReadCloser) (string, error) {
+	dir := filepath.Join("uploads", "emojis")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("creating emoji dir: %w", err)
+	}
 
+	filename := name + "." + extension
+	storagePath := filepath.Join(dir, filename)
+
+	f, err := os.Create(storagePath)
+	if err != nil {
+		return "", fmt.Errorf("creating file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, body); err != nil {
+		return "", fmt.Errorf("writing file: %w", err)
+	}
+
+	return storagePath, nil
+}
+
+func (l *Loader) RebuildThreadSummaries(ctx context.Context) error {
 	query := `
 		INSERT INTO thread_summaries (message_id, reply_count, last_reply_at, participant_ids)
 		SELECT
@@ -336,28 +328,11 @@ func (l *Loader) RebuildThreadSummaries(ctx context.Context) error {
 	`
 
 	_, err := l.pool.Exec(ctx, query)
-	if err != nil {
-		return fmt.Errorf("rebuilding thread summaries: %w", err)
-	}
-
-	log.Println("Thread summaries rebuilt")
-	return nil
+	return err
 }
 
-// RefreshSearchIndexes forces the search_vector trigger to re-fire for all messages.
 func (l *Loader) RefreshSearchIndexes(ctx context.Context) error {
-	log.Println("Refreshing search indexes (this may take a while)...")
-
-	query := `
-		UPDATE messages SET content = content
-		WHERE search_vector IS NULL
-	`
-
-	result, err := l.pool.Exec(ctx, query)
-	if err != nil {
-		return fmt.Errorf("refreshing search indexes: %w", err)
-	}
-
-	log.Printf("Search indexes refreshed for %d messages", result.RowsAffected())
-	return nil
+	query := `UPDATE messages SET content = content WHERE search_vector IS NULL`
+	_, err := l.pool.Exec(ctx, query)
+	return err
 }

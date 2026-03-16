@@ -19,7 +19,7 @@ export default function ChatHome() {
   }, [channels, isLoading, router]);
 
   return (
-    <div className="flex h-full items-center justify-center">
+    <div className="flex flex-1 items-center justify-center">
       <div className="text-center">
         <h2 className="text-xl font-semibold text-slate-200">Welcome to Glab</h2>
         <p className="mt-2 text-sm text-slate-400">

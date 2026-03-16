@@ -149,6 +149,32 @@ func (h *Hub) SendToUser(userID string, envelope Envelope) {
 	}
 }
 
+// BroadcastToAdmins sends an envelope to all connected admin clients.
+func (h *Hub) BroadcastToAdmins(envelope Envelope) {
+	data, err := marshalEnvelope(envelope)
+	if err != nil {
+		slog.Error("ws: failed to marshal envelope for admin broadcast", "error", err)
+		return
+	}
+
+	h.mu.RLock()
+	targets := make([]*Client, 0)
+	for c := range h.clients {
+		if c.role == "admin" {
+			targets = append(targets, c)
+		}
+	}
+	h.mu.RUnlock()
+
+	for _, c := range targets {
+		select {
+		case c.send <- data:
+		default:
+			slog.Warn("ws: dropping message for slow admin client", "user_id", c.userID)
+		}
+	}
+}
+
 // BroadcastToAll sends an envelope to every connected client.
 func (h *Hub) BroadcastToAll(envelope Envelope) {
 	data, err := marshalEnvelope(envelope)

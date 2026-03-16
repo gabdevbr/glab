@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Message } from '@/lib/types';
 import { useAuthStore } from '@/stores/authStore';
 import { wsClient } from '@/lib/ws';
@@ -16,6 +16,66 @@ import { EmojiPicker } from './EmojiPicker';
 import { MoreHorizontal, Pin, PinOff, Pencil, Trash2, MessageSquare, SmilePlus } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+// Custom emoji cache shared across all MessageItem instances
+let customEmojiNames: Set<string> | null = null;
+let customEmojiFetchPromise: Promise<void> | null = null;
+
+function ensureCustomEmojisLoaded(onLoaded: () => void) {
+  if (customEmojiNames) return;
+  if (customEmojiFetchPromise) {
+    customEmojiFetchPromise.then(onLoaded);
+    return;
+  }
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  customEmojiFetchPromise = fetch(`${API_URL}/api/v1/emojis/custom`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then((r) => (r.ok ? r.json() : []))
+    .then((data: { name: string }[]) => {
+      customEmojiNames = new Set(data.map((e) => e.name));
+      onLoaded();
+    })
+    .catch(() => {
+      customEmojiNames = new Set();
+    });
+}
+
+function renderWithCustomEmojis(text: string): React.ReactNode[] {
+  if (!customEmojiNames || customEmojiNames.size === 0) return [text];
+
+  const parts: React.ReactNode[] = [];
+  const regex = /:([a-zA-Z0-9_-]+):/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    const emojiName = match[1];
+    if (!customEmojiNames.has(emojiName)) continue;
+
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <img
+        key={`${match.index}-${emojiName}`}
+        src={`${API_URL}/api/v1/emojis/custom/${emojiName}`}
+        alt={`:${emojiName}:`}
+        title={`:${emojiName}:`}
+        className="inline-block size-5 align-text-bottom"
+      />,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
+}
 
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -44,6 +104,12 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const [, setEmojiReady] = useState(false);
+
+  useEffect(() => {
+    ensureCustomEmojisLoaded(() => setEmojiReady(true));
+  }, []);
 
   const isOwnMessage = user?.id === message.user_id;
 
@@ -188,7 +254,7 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
 
     return (
       <p className="whitespace-pre-wrap break-words text-sm text-slate-200">
-        {message.content}
+        {renderWithCustomEmojis(message.content)}
         {message.edited_at && (
           <span className="ml-1 text-[10px] text-slate-500">(edited)</span>
         )}
@@ -214,7 +280,17 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
                 : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600',
             )}
           >
-            <span>{g.emoji}</span>
+            <span>
+              {customEmojiNames?.has(g.emoji) ? (
+                <img
+                  src={`${API_URL}/api/v1/emojis/custom/${g.emoji}`}
+                  alt={g.emoji}
+                  className="inline-block size-4"
+                />
+              ) : (
+                g.emoji
+              )}
+            </span>
             <span>{g.count}</span>
           </button>
         ))}

@@ -28,6 +28,7 @@ import (
 	"github.com/geovendas/glab/backend/internal/config"
 	"github.com/geovendas/glab/backend/internal/db"
 	"github.com/geovendas/glab/backend/internal/handler"
+	"github.com/geovendas/glab/backend/internal/migration"
 	"github.com/geovendas/glab/backend/internal/repository"
 	"github.com/geovendas/glab/backend/internal/storage"
 	"github.com/geovendas/glab/backend/internal/ws"
@@ -93,17 +94,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// WebSocket hub (created early so handlers can reference it)
+	hub := ws.NewHub()
+	go hub.Run()
+
 	authHandler := handler.NewAuthHandler(queries, cfg.JWTSecret, cfg.JWTExpiry)
 	userHandler := handler.NewUserHandler(queries)
 	channelHandler := handler.NewChannelHandler(queries)
 	messageHandler := handler.NewMessageHandler(queries)
 	agentHandler := handler.NewAgentHandler(queries)
-	fileHandler := handler.NewFileHandler(queries, fileService)
+	fileHandler := handler.NewFileHandler(queries, fileService, hub)
 	searchHandler := handler.NewSearchHandler(queries)
-
-	// WebSocket hub, presence service, and handler
-	hub := ws.NewHub()
-	go hub.Run()
+	emojiHandler := handler.NewEmojiHandler(queries)
 	presenceService := ws.NewPresenceService(rdb, hub)
 	wsHandler := ws.NewMessageHandler(hub, queries, presenceService, cfg.JWTSecret)
 
@@ -111,6 +113,10 @@ func main() {
 	bridge := ai.NewBridgeClient()
 	dispatcher := ai.NewDispatcher(bridge, queries, hub)
 	wsHandler.SetAIDispatcher(dispatcher)
+
+	// Migration engine
+	migrationEngine := migration.NewEngine(pool, queries, hub)
+	migrationHandler := handler.NewMigrationHandler(migrationEngine, queries)
 
 	// Setup router
 	r := chi.NewRouter()
@@ -177,11 +183,23 @@ func main() {
 		// Search
 		r.Get("/api/v1/search", searchHandler.Search)
 
+		// Custom emojis
+		r.Get("/api/v1/emojis/custom", emojiHandler.List)
+		r.Get("/api/v1/emojis/custom/{name}", emojiHandler.Serve)
+
 		// Agents
 		r.Get("/api/v1/agents", agentHandler.List)
 		r.Get("/api/v1/agents/{slug}", agentHandler.GetBySlug)
 		r.Get("/api/v1/agents/{slug}/sessions", agentHandler.ListSessions)
 		r.Get("/api/v1/agents/{slug}/sessions/{id}/messages", agentHandler.GetSessionMessages)
+
+		// Admin — migration
+		r.Post("/api/v1/admin/migration/start", migrationHandler.Start)
+		r.Post("/api/v1/admin/migration/cancel", migrationHandler.Cancel)
+		r.Get("/api/v1/admin/migration/status", migrationHandler.Status)
+		r.Get("/api/v1/admin/migration/logs", migrationHandler.Logs)
+		r.Get("/api/v1/admin/migration/jobs", migrationHandler.ListJobs)
+		r.Get("/api/v1/admin/migration/rooms", migrationHandler.RoomStates)
 	})
 
 	// Start server

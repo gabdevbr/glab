@@ -10,3 +10,6 @@ SELECT * FROM files WHERE message_id = $1;
 
 -- name: ListFilesByChannel :many
 SELECT * FROM files WHERE channel_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3;
+
+-- name: ListFilesByMessageIDs :many
+SELECT * FROM files WHERE message_id = ANY(@message_ids::uuid[]);
