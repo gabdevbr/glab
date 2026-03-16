@@ -24,6 +24,10 @@ const (
 	EventChannelRead    = "channel.read"
 	EventSubscribe      = "subscribe"
 	EventUnsubscribe    = "unsubscribe"
+
+	// AI events - Client -> Server
+	EventAIPrompt = "ai.prompt" // {agent_slug, session_id?, content}
+	EventAIStop   = "ai.stop"   // {agent_slug, channel_id?}
 )
 
 // Server -> Client events.
@@ -39,6 +43,11 @@ const (
 	EventTyping          = "typing"
 	EventPresence        = "presence"
 	EventNotification    = "notification"
+
+	// AI events - Server -> Client
+	EventAIChunk      = "ai.chunk"       // streaming in channel (broadcast)
+	EventAIPanelChunk = "ai.panel.chunk" // streaming in panel (to user only)
+	EventAIToolUse    = "ai.tool_use"    // tool use status (future)
 )
 
 // --- Client -> Server payloads ---
@@ -156,6 +165,41 @@ type PresenceBroadcast struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Status   string `json:"status"`
+}
+
+// --- AI payloads ---
+
+// AIPromptPayload is sent by the client to request an AI response.
+type AIPromptPayload struct {
+	AgentSlug string `json:"agent_slug"`
+	SessionID string `json:"session_id,omitempty"`
+	Content   string `json:"content"`
+}
+
+// AIStopPayload is sent by the client to cancel an active AI stream.
+type AIStopPayload struct {
+	AgentSlug string `json:"agent_slug"`
+	ChannelID string `json:"channel_id,omitempty"`
+}
+
+// AIChunkPayload is broadcast when an AI agent streams a response in a channel.
+type AIChunkPayload struct {
+	ChannelID  string `json:"channel_id"`
+	AgentSlug  string `json:"agent_slug"`
+	AgentName  string `json:"agent_name"`
+	AgentEmoji string `json:"agent_emoji"`
+	Content    string `json:"content"`
+	Done       bool   `json:"done"`
+	MessageID  string `json:"message_id,omitempty"`
+}
+
+// AIPanelChunkPayload is sent to a specific user when streaming in the agent panel.
+type AIPanelChunkPayload struct {
+	AgentSlug string `json:"agent_slug"`
+	SessionID string `json:"session_id"`
+	Content   string `json:"content"`
+	Done      bool   `json:"done"`
+	MessageID string `json:"message_id,omitempty"`
 }
 
 // MakeEnvelope creates an Envelope with the given event type and payload.

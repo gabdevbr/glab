@@ -50,3 +50,25 @@ export interface LoginResponse {
   token: string;
   user: User;
 }
+
+export interface Agent {
+  id: string;
+  user_id: string;
+  slug: string;
+  name: string;
+  emoji: string;
+  description?: string;
+  scope?: string;
+  status: string;
+  created_at: string;
+}
+
+export interface AgentSession {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  title: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}

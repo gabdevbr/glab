@@ -24,22 +24,54 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// AIDispatcher is the interface the WS handler needs from the AI dispatcher.
+type AIDispatcher interface {
+	HandleChannelMention(ctx context.Context, agentSlug string, channelID, userID, username, content string)
+	HandlePanelChat(ctx context.Context, agentSlug, sessionID, userID, username, content string)
+	CancelStream(agentSlug, channelOrUserID string)
+}
+
 // MessageHandler dispatches incoming WebSocket messages to the correct business logic.
 type MessageHandler struct {
-	hub       *Hub
-	queries   *repository.Queries
-	presence  *PresenceService
-	jwtSecret string
+	hub          *Hub
+	queries      *repository.Queries
+	presence     *PresenceService
+	jwtSecret    string
+	aiDispatcher AIDispatcher
+	agentSlugs   map[string]bool // cached set of known agent slugs
 }
 
 // NewMessageHandler creates a new MessageHandler.
 func NewMessageHandler(hub *Hub, queries *repository.Queries, presence *PresenceService, jwtSecret string) *MessageHandler {
 	return &MessageHandler{
-		hub:       hub,
-		queries:   queries,
-		presence:  presence,
-		jwtSecret: jwtSecret,
+		hub:        hub,
+		queries:    queries,
+		presence:   presence,
+		jwtSecret:  jwtSecret,
+		agentSlugs: make(map[string]bool),
 	}
+}
+
+// SetAIDispatcher sets the AI dispatcher and loads agent slugs.
+func (h *MessageHandler) SetAIDispatcher(d AIDispatcher) {
+	h.aiDispatcher = d
+	h.refreshAgentSlugs()
+}
+
+// refreshAgentSlugs loads all active agent slugs from the DB.
+func (h *MessageHandler) refreshAgentSlugs() {
+	ctx := context.Background()
+	agents, err := h.queries.ListAgents(ctx)
+	if err != nil {
+		slog.Error("ws: failed to load agent slugs", "error", err)
+		return
+	}
+	slugs := make(map[string]bool, len(agents))
+	for _, a := range agents {
+		slugs[a.Slug] = true
+	}
+	h.agentSlugs = slugs
+	slog.Info("ws: loaded agent slugs", "count", len(slugs))
 }
 
 // ServeWS handles the HTTP upgrade to WebSocket.
@@ -153,6 +185,10 @@ func (h *MessageHandler) HandleMessage(client *Client, env Envelope) {
 		h.handleTypingStop(client, env)
 	case EventPresenceUpdate:
 		h.handlePresenceUpdate(client, env)
+	case EventAIPrompt:
+		h.handleAIPrompt(client, env)
+	case EventAIStop:
+		h.handleAIStop(client, env)
 	case EventReactionAdd, EventReactionRemove:
 		slog.Info("ws: reaction events not yet implemented", "type", env.Type, "user_id", client.userID)
 		h.sendAck(client, env.ID, false, "reactions not yet implemented", nil)
@@ -238,6 +274,22 @@ func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
 	// Send ack with the new message ID.
 	ackData, _ := json.Marshal(map[string]string{"message_id": uuidToString(msg.ID)})
 	h.sendAck(client, env.ID, true, "", ackData)
+
+	// Check for @agent mentions and dispatch AI responses.
+	if h.aiDispatcher != nil {
+		mentions := h.parseAgentMentions(payload.Content)
+		for _, slug := range mentions {
+			agentSlug := slug
+			go h.aiDispatcher.HandleChannelMention(
+				context.Background(),
+				agentSlug,
+				payload.ChannelID,
+				client.userID,
+				client.username,
+				payload.Content,
+			)
+		}
+	}
 }
 
 func (h *MessageHandler) handleMessageEdit(client *Client, env Envelope) {
@@ -555,6 +607,120 @@ func (h *MessageHandler) sendAck(client *Client, id string, ok bool, errMsg stri
 	}
 	env.ID = id
 	client.sendEnvelope(env)
+}
+
+// handleAIPrompt processes an ai.prompt event from the client (panel chat).
+func (h *MessageHandler) handleAIPrompt(client *Client, env Envelope) {
+	if h.aiDispatcher == nil {
+		h.sendAck(client, env.ID, false, "AI not available", nil)
+		return
+	}
+
+	var payload AIPromptPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	if payload.AgentSlug == "" || payload.Content == "" {
+		h.sendAck(client, env.ID, false, "agent_slug and content are required", nil)
+		return
+	}
+
+	h.sendAck(client, env.ID, true, "", nil)
+
+	go h.aiDispatcher.HandlePanelChat(
+		context.Background(),
+		payload.AgentSlug,
+		payload.SessionID,
+		client.userID,
+		client.username,
+		payload.Content,
+	)
+}
+
+// handleAIStop processes an ai.stop event to cancel an active AI stream.
+func (h *MessageHandler) handleAIStop(client *Client, env Envelope) {
+	if h.aiDispatcher == nil {
+		h.sendAck(client, env.ID, false, "AI not available", nil)
+		return
+	}
+
+	var payload AIStopPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	if payload.AgentSlug == "" {
+		h.sendAck(client, env.ID, false, "agent_slug is required", nil)
+		return
+	}
+
+	// Cancel by channel if provided, otherwise by user
+	target := payload.ChannelID
+	if target == "" {
+		target = client.userID
+	}
+	h.aiDispatcher.CancelStream(payload.AgentSlug, target)
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+// parseAgentMentions extracts @slug mentions from message content that match known agents.
+func (h *MessageHandler) parseAgentMentions(content string) []string {
+	var mentions []string
+	seen := make(map[string]bool)
+
+	words := splitMentions(content)
+	for _, word := range words {
+		if len(word) < 2 || word[0] != '@' {
+			continue
+		}
+		slug := word[1:]
+		// Clean trailing punctuation
+		slug = trimTrailingPunct(slug)
+		if slug == "" {
+			continue
+		}
+		if h.agentSlugs[slug] && !seen[slug] {
+			mentions = append(mentions, slug)
+			seen[slug] = true
+		}
+	}
+	return mentions
+}
+
+// splitMentions splits content into words, preserving @ prefixes.
+func splitMentions(s string) []string {
+	var words []string
+	word := ""
+	for _, r := range s {
+		if r == ' ' || r == '\n' || r == '\r' || r == '\t' {
+			if word != "" {
+				words = append(words, word)
+				word = ""
+			}
+		} else {
+			word += string(r)
+		}
+	}
+	if word != "" {
+		words = append(words, word)
+	}
+	return words
+}
+
+// trimTrailingPunct removes common trailing punctuation from a slug.
+func trimTrailingPunct(s string) string {
+	for len(s) > 0 {
+		last := s[len(s)-1]
+		if last == '.' || last == ',' || last == '!' || last == '?' || last == ':' || last == ';' {
+			s = s[:len(s)-1]
+		} else {
+			break
+		}
+	}
+	return s
 }
 
 // --- UUID/Timestamp helpers (duplicated from handler to avoid circular deps) ---

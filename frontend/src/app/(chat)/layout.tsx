@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useChannelStore } from '@/stores/channelStore';
 import { usePresenceStore } from '@/stores/presenceStore';
+import { useAIStreamStore } from '@/stores/aiStreamStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { wsClient } from '@/lib/ws';
 import { Sidebar } from '@/components/sidebar/Sidebar';
+import { AgentPanel } from '@/components/ai/AgentPanel';
 
 export default function ChatLayout({
   children,
@@ -19,6 +21,8 @@ export default function ChatLayout({
   const fetchChannels = useChannelStore((s) => s.fetchChannels);
   const setStatus = usePresenceStore((s) => s.setStatus);
   const bulkSetStatus = usePresenceStore((s) => s.bulkSetStatus);
+  const appendChunk = useAIStreamStore((s) => s.appendChunk);
+  const clearStream = useAIStreamStore((s) => s.clearStream);
 
   // Connect WebSocket
   useWebSocket();
@@ -60,6 +64,37 @@ export default function ChatLayout({
     };
   }, [setStatus, bulkSetStatus]);
 
+  // Wire AI channel stream events
+  useEffect(() => {
+    const unsubAIChunk = wsClient.on('ai.chunk', (payload: unknown) => {
+      const data = payload as {
+        channel_id: string;
+        agent_slug: string;
+        agent_name: string;
+        agent_emoji: string;
+        content: string;
+        done: boolean;
+        message_id?: string;
+      };
+
+      if (data.done) {
+        clearStream(data.channel_id);
+      } else {
+        appendChunk(
+          data.channel_id,
+          data.agent_slug,
+          data.agent_name,
+          data.agent_emoji,
+          data.content,
+        );
+      }
+    });
+
+    return () => {
+      unsubAIChunk();
+    };
+  }, [appendChunk, clearStream]);
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-950">
@@ -76,6 +111,7 @@ export default function ChatLayout({
     <div className="flex h-screen overflow-hidden bg-slate-950">
       <Sidebar />
       <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
+      <AgentPanel />
     </div>
   );
 }

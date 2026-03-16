@@ -3,7 +3,9 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMessageStore } from '@/stores/messageStore';
+import { useAIStreamStore } from '@/stores/aiStreamStore';
 import { MessageItem } from './MessageItem';
+import { StreamingMessage } from './StreamingMessage';
 
 interface MessageListProps {
   channelId: string;
@@ -14,6 +16,7 @@ const COMPACT_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 export function MessageList({ channelId }: MessageListProps) {
   const messages = useMessageStore((s) => s.messages[channelId] || []);
   const isLoading = useMessageStore((s) => s.isLoading);
+  const activeStream = useAIStreamStore((s) => s.channelStreams[channelId]);
 
   const parentRef = useRef<HTMLDivElement>(null);
   const wasNearBottomRef = useRef(true);
@@ -133,6 +136,13 @@ export function MessageList({ channelId }: MessageListProps) {
           </div>
         ))}
       </div>
+      {activeStream && (
+        <StreamingMessage
+          agentName={activeStream.agentName}
+          agentEmoji={activeStream.agentEmoji}
+          content={activeStream.content}
+        />
+      )}
     </div>
   );
 }

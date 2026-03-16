@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ChannelList } from './ChannelList';
 import { DMList } from './DMList';
+import { AgentList } from './AgentList';
 import { CreateChannelDialog } from './CreateChannelDialog';
 import { NewDMDialog } from './NewDMDialog';
-import { LogOut } from 'lucide-react';
+import { LogOut, Bot } from 'lucide-react';
 
 export function Sidebar() {
   const router = useRouter();
@@ -73,6 +74,17 @@ export function Sidebar() {
           <NewDMDialog />
         </div>
         <DMList />
+
+        <Separator className="my-3 bg-slate-800" />
+
+        {/* AI Agents section */}
+        <div className="mb-1 flex items-center gap-1 px-2">
+          <Bot className="size-3 text-slate-400" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            AI Agents
+          </span>
+        </div>
+        <AgentList />
       </div>
     </aside>
   );

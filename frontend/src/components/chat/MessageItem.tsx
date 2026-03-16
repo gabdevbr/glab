@@ -2,6 +2,7 @@
 
 import { Message } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
 
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -80,12 +81,21 @@ export function MessageItem({ message, isCompact }: MessageItemProps) {
             {formatTime(message.created_at)}
           </span>
         </div>
-        <p className="whitespace-pre-wrap break-words text-sm text-slate-200">
-          {message.content}
-          {message.edited_at && (
-            <span className="ml-1 text-[10px] text-slate-500">(edited)</span>
-          )}
-        </p>
+        {message.is_bot ? (
+          <div className="prose prose-invert prose-sm max-w-none text-sm text-slate-200">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+            {message.edited_at && (
+              <span className="ml-1 text-[10px] text-slate-500">(edited)</span>
+            )}
+          </div>
+        ) : (
+          <p className="whitespace-pre-wrap break-words text-sm text-slate-200">
+            {message.content}
+            {message.edited_at && (
+              <span className="ml-1 text-[10px] text-slate-500">(edited)</span>
+            )}
+          </p>
+        )}
       </div>
     </div>
   );
