@@ -82,13 +82,13 @@ export function ThreadPanel({ parentMessageId, channelId, onClose }: ThreadPanel
   }
 
   return (
-    <aside className="flex h-full w-[400px] shrink-0 flex-col border-l border-slate-800 bg-slate-950">
+    <aside className="flex h-full w-[400px] shrink-0 flex-col border-l border-border bg-chat-bg">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-        <h3 className="text-sm font-bold text-slate-100">Thread</h3>
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h3 className="text-sm font-bold text-foreground">Thread</h3>
         <button
           onClick={onClose}
-          className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
           <X className="size-3.5" />
         </button>
@@ -98,30 +98,30 @@ export function ThreadPanel({ parentMessageId, channelId, onClose }: ThreadPanel
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <p className="text-xs text-slate-500">Loading thread...</p>
+            <p className="text-xs text-muted-foreground">Loading thread...</p>
           </div>
         ) : (
           <>
             {/* Parent message */}
             {parent && (
-              <div className="border-b border-slate-800 pb-3">
+              <div className="border-b border-border pb-3">
                 <MessageItem message={parent} isCompact={false} />
               </div>
             )}
 
             {/* Replies count divider */}
             <div className="flex items-center gap-3 px-5 py-3">
-              <div className="h-px flex-1 bg-slate-800" />
-              <span className="text-xs text-slate-500">
+              <div className="h-px flex-1 bg-secondary" />
+              <span className="text-xs text-muted-foreground">
                 {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
               </span>
-              <div className="h-px flex-1 bg-slate-800" />
+              <div className="h-px flex-1 bg-secondary" />
             </div>
 
             {/* Replies */}
             <div className="px-0 py-1">
               {replies.length === 0 && (
-                <p className="px-4 py-3 text-center text-xs text-slate-500">
+                <p className="px-4 py-3 text-center text-xs text-muted-foreground">
                   No replies yet
                 </p>
               )}
@@ -135,9 +135,9 @@ export function ThreadPanel({ parentMessageId, channelId, onClose }: ThreadPanel
       </div>
 
       {/* Input */}
-      <div className="border-t border-slate-800 px-4 py-3">
+      <div className="border-t border-border px-4 py-3">
         <form onSubmit={handleSubmit}>
-          <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-800 focus-within:border-slate-600 focus-within:ring-1 focus-within:ring-slate-600">
+          <div className="overflow-hidden rounded-lg border border-chat-input-border bg-chat-input-bg focus-within:border-chat-input-focus focus-within:ring-1 focus-within:ring-chat-input-focus">
             <textarea
               ref={textareaRef}
               value={content}
@@ -150,13 +150,13 @@ export function ThreadPanel({ parentMessageId, channelId, onClose }: ThreadPanel
               onKeyDown={handleKeyDown}
               placeholder="Reply..."
               rows={1}
-              className="block w-full resize-none bg-transparent px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+              className="block w-full resize-none bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
-            <div className="flex items-center justify-end border-t border-slate-700/50 px-3 py-1.5">
+            <div className="flex items-center justify-end border-t border-border/50 px-3 py-1.5">
               <button
                 type="submit"
                 disabled={!content.trim()}
-                className="shrink-0 rounded-lg bg-indigo-600 p-1.5 text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="shrink-0 rounded-lg bg-accent-primary p-1.5 text-accent-primary-text hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Send className="size-4" />
               </button>

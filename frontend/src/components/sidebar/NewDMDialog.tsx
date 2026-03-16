@@ -82,15 +82,15 @@ export function NewDMDialog() {
     >
       <DialogTrigger
         render={
-          <button className="rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-200" />
+          <button className="rounded p-0.5 text-sidebar-section-text transition-colors hover:bg-sidebar-hover hover:text-foreground" />
         }
       >
         <Plus className="size-4" />
       </DialogTrigger>
-      <DialogContent className="border-slate-700 bg-slate-900 text-slate-100 sm:max-w-md">
+      <DialogContent className="border-border bg-panel-bg text-foreground sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-slate-100">New message</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogTitle className="text-foreground">New message</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Start a direct message with someone.
           </DialogDescription>
         </DialogHeader>
@@ -98,28 +98,28 @@ export function NewDMDialog() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name or username..."
-          className="border-slate-700 bg-slate-800 text-slate-50 placeholder:text-slate-500"
+          className="border-chat-input-border bg-chat-input-bg text-foreground placeholder:text-muted-foreground"
         />
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-status-error">{error}</p>}
         <div className="max-h-60 overflow-y-auto">
           {isLoading ? (
-            <p className="py-4 text-center text-sm text-slate-500">Loading users...</p>
+            <p className="py-4 text-center text-sm text-muted-foreground">Loading users...</p>
           ) : filteredUsers.length === 0 ? (
-            <p className="py-4 text-center text-sm text-slate-500">No users found</p>
+            <p className="py-4 text-center text-sm text-muted-foreground">No users found</p>
           ) : (
             <ul className="space-y-0.5">
               {filteredUsers.map((user) => (
                 <li key={user.id}>
                   <button
                     onClick={() => handleSelectUser(user)}
-                    className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-700/50 hover:text-slate-100"
+                    className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-hover hover:text-foreground"
                   >
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-700 text-xs font-medium text-slate-300">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-avatar-bg text-xs font-medium text-avatar-text">
                       {user.display_name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 text-left">
                       <p className="truncate font-medium">{user.display_name}</p>
-                      <p className="truncate text-xs text-slate-500">@{user.username}</p>
+                      <p className="truncate text-xs text-muted-foreground">@{user.username}</p>
                     </div>
                   </button>
                 </li>

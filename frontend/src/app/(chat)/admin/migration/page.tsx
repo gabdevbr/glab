@@ -21,29 +21,29 @@ import {
 import type { MigrationLog, MigrationProgress, MigrationRoomState } from '@/lib/types';
 
 const LEVEL_COLORS: Record<string, string> = {
-  debug: 'text-slate-500',
-  info: 'text-slate-300',
-  warn: 'text-amber-400',
-  error: 'text-red-400',
+  debug: 'text-muted-foreground',
+  info: 'text-foreground',
+  warn: 'text-status-warning',
+  error: 'text-status-error',
 };
 
 function RoomStatusIcon({ room }: { room: MigrationRoomState }) {
   if (room.message_count > 0 && room.latest_export) {
-    return <CheckCircle2 className="size-4 text-emerald-400" />;
+    return <CheckCircle2 className="size-4 text-status-success" />;
   }
   if (room.latest_export) {
-    return <CheckCircle2 className="size-4 text-emerald-400/50" />;
+    return <CheckCircle2 className="size-4 text-status-success/50" />;
   }
-  return <XCircle className="size-4 text-slate-600" />;
+  return <XCircle className="size-4 text-muted-foreground" />;
 }
 
 function RoomTypeLabel({ type }: { type: string }) {
   const labels: Record<string, { text: string; color: string }> = {
-    c: { text: 'Channel', color: 'text-blue-400' },
-    p: { text: 'Private', color: 'text-amber-400' },
-    d: { text: 'DM', color: 'text-slate-400' },
+    c: { text: 'Channel', color: 'text-status-info' },
+    p: { text: 'Private', color: 'text-status-warning' },
+    d: { text: 'DM', color: 'text-muted-foreground' },
   };
-  const l = labels[type] || { text: type, color: 'text-slate-400' };
+  const l = labels[type] || { text: type, color: 'text-muted-foreground' };
   return <span className={`text-[10px] font-medium uppercase ${l.color}`}>{l.text}</span>;
 }
 
@@ -174,72 +174,72 @@ export default function MigrationPage() {
       : 0;
 
   const statusColor: Record<string, string> = {
-    running: 'text-blue-400',
-    completed: 'text-emerald-400',
-    failed: 'text-red-400',
-    cancelled: 'text-amber-400',
-    pending: 'text-slate-400',
+    running: 'text-status-info',
+    completed: 'text-status-success',
+    failed: 'text-status-error',
+    cancelled: 'text-status-warning',
+    pending: 'text-muted-foreground',
   };
 
   if (!user || user.role !== 'admin') return null;
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-slate-950">
+    <div className="flex flex-1 flex-col overflow-hidden bg-chat-bg">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-slate-800 px-6 py-4">
+      <div className="flex items-center gap-3 border-b border-border px-6 py-4">
         <Button
           variant="ghost"
           size="icon-xs"
           onClick={() => router.push('/')}
-          className="text-slate-400 hover:text-slate-200"
+          className="text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <h1 className="text-lg font-semibold text-slate-100">RocketChat Migration</h1>
+        <h1 className="text-lg font-semibold text-foreground">RocketChat Migration</h1>
       </div>
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">
         {/* Config Form */}
-        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+        <div className="rounded-lg border border-border bg-panel-bg p-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs text-slate-400">RC URL</label>
+              <label className="mb-1 block text-xs text-muted-foreground">RC URL</label>
               <Input
                 value={rcUrl}
                 onChange={(e) => setRcUrl(e.target.value)}
-                className="border-slate-700 bg-slate-800 text-sm text-slate-100"
+                className="border-chat-input-border bg-chat-input-bg text-sm text-foreground"
                 disabled={isRunning}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-400">RC User ID</label>
+              <label className="mb-1 block text-xs text-muted-foreground">RC User ID</label>
               <Input
                 value={rcUserId}
                 onChange={(e) => setRcUserId(e.target.value)}
-                className="border-slate-700 bg-slate-800 text-sm text-slate-100"
+                className="border-chat-input-border bg-chat-input-bg text-sm text-foreground"
                 disabled={isRunning}
               />
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs text-slate-400">RC Auth Token</label>
+              <label className="mb-1 block text-xs text-muted-foreground">RC Auth Token</label>
               <Input
                 type="password"
                 value={rcToken}
                 onChange={(e) => setRcToken(e.target.value)}
-                className="border-slate-700 bg-slate-800 text-sm text-slate-100"
+                className="border-chat-input-border bg-chat-input-bg text-sm text-foreground"
                 disabled={isRunning}
               />
             </div>
           </div>
 
           <div className="mt-3 flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-foreground">
               <input
                 type="checkbox"
                 checked={migrateFiles}
                 onChange={(e) => setMigrateFiles(e.target.checked)}
                 disabled={isRunning}
-                className="rounded border-slate-600"
+                className="rounded border-chat-input-focus"
               />
               Migrate files
             </label>
@@ -258,7 +258,7 @@ export default function MigrationPage() {
                   size="sm"
                   onClick={handleStart}
                   disabled={isLoading || !rcToken || !rcUserId}
-                  className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+                  className="gap-1.5 bg-accent-primary hover:bg-accent-primary-hover"
                 >
                   {isLoading ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -275,7 +275,7 @@ export default function MigrationPage() {
                   fetchStatus();
                   fetchRooms();
                 }}
-                className="gap-1.5 border-slate-700 text-slate-300"
+                className="gap-1.5 border-border text-foreground"
               >
                 <RefreshCw className="size-3.5" /> Refresh
               </Button>
@@ -283,37 +283,37 @@ export default function MigrationPage() {
           </div>
 
           {error && (
-            <p className="mt-2 text-sm text-red-400">{error}</p>
+            <p className="mt-2 text-sm text-status-error">{error}</p>
           )}
         </div>
 
         {/* Status Bar */}
         {job && (
-          <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+          <div className="rounded-lg border border-border bg-panel-bg p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className={`text-sm font-medium capitalize ${statusColor[job.status] || 'text-slate-400'}`}>
+                <span className={`text-sm font-medium capitalize ${statusColor[job.status] || 'text-muted-foreground'}`}>
                   {job.status}
                 </span>
                 {job.phase && (
-                  <span className="text-xs text-slate-500">
-                    Phase: <span className="text-slate-300">{job.phase}</span>
+                  <span className="text-xs text-muted-foreground">
+                    Phase: <span className="text-foreground">{job.phase}</span>
                   </span>
                 )}
               </div>
-              {job.error && <span className="text-xs text-red-400">{job.error}</span>}
+              {job.error && <span className="text-xs text-status-error">{job.error}</span>}
             </div>
 
             {/* Progress Bar */}
             {progress && progress.rooms_total > 0 && (
               <div className="mt-3">
-                <div className="mb-1 flex justify-between text-xs text-slate-400">
+                <div className="mb-1 flex justify-between text-xs text-muted-foreground">
                   <span>Rooms: {progress.rooms_done}/{progress.rooms_total}</span>
                   <span>{progressPct}%</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                <div className="h-2 overflow-hidden rounded-full bg-secondary">
                   <div
-                    className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                    className="h-full rounded-full bg-status-info transition-all duration-300"
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
@@ -322,12 +322,12 @@ export default function MigrationPage() {
 
             {/* Stats */}
             {progress && (
-              <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-400">
-                <span>Users: <span className="text-slate-200">{progress.users.toLocaleString()}</span></span>
-                <span>Channels: <span className="text-slate-200">{progress.channels.toLocaleString()}</span></span>
-                <span>Messages: <span className="text-slate-200">{progress.messages.toLocaleString()}</span></span>
-                <span>Reactions: <span className="text-slate-200">{progress.reactions.toLocaleString()}</span></span>
-                <span>Mentions: <span className="text-slate-200">{progress.mentions.toLocaleString()}</span></span>
+              <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                <span>Users: <span className="text-foreground">{progress.users.toLocaleString()}</span></span>
+                <span>Channels: <span className="text-foreground">{progress.channels.toLocaleString()}</span></span>
+                <span>Messages: <span className="text-foreground">{progress.messages.toLocaleString()}</span></span>
+                <span>Reactions: <span className="text-foreground">{progress.reactions.toLocaleString()}</span></span>
+                <span>Mentions: <span className="text-foreground">{progress.mentions.toLocaleString()}</span></span>
               </div>
             )}
           </div>
@@ -339,8 +339,8 @@ export default function MigrationPage() {
             onClick={() => setTab('logs')}
             className={`rounded-t-lg px-4 py-2 text-sm font-medium ${
               tab === 'logs'
-                ? 'bg-slate-900 text-slate-100'
-                : 'text-slate-500 hover:text-slate-300'
+                ? 'bg-panel-bg text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Logs
@@ -349,8 +349,8 @@ export default function MigrationPage() {
             onClick={() => setTab('rooms')}
             className={`rounded-t-lg px-4 py-2 text-sm font-medium ${
               tab === 'rooms'
-                ? 'bg-slate-900 text-slate-100'
-                : 'text-slate-500 hover:text-slate-300'
+                ? 'bg-panel-bg text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Rooms ({rooms.length})
@@ -359,37 +359,37 @@ export default function MigrationPage() {
 
         {/* Logs Panel */}
         {tab === 'logs' && (
-          <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-800 bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2">
-              <span className="text-xs text-slate-400">{logs.length} log entries</span>
-              <label className="flex items-center gap-1.5 text-xs text-slate-400">
+          <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-panel-bg">
+            <div className="flex items-center justify-between border-b border-border px-4 py-2">
+              <span className="text-xs text-muted-foreground">{logs.length} log entries</span>
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={autoScroll}
                   onChange={(e) => setAutoScroll(e.target.checked)}
-                  className="rounded border-slate-600"
+                  className="rounded border-chat-input-focus"
                 />
                 Auto-scroll
               </label>
             </div>
             <div className="flex-1 overflow-y-auto p-3 font-mono text-xs">
               {logs.length === 0 ? (
-                <p className="text-slate-600">No logs yet. Start a migration to see output.</p>
+                <p className="text-muted-foreground">No logs yet. Start a migration to see output.</p>
               ) : (
                 logs.map((log) => (
                   <div key={log.id} className="flex gap-2 py-0.5">
-                    <span className="shrink-0 text-slate-600">
+                    <span className="shrink-0 text-muted-foreground">
                       {new Date(log.created_at).toLocaleTimeString()}
                     </span>
                     <span
-                      className={`w-12 shrink-0 text-right font-semibold uppercase ${LEVEL_COLORS[log.level] || 'text-slate-400'}`}
+                      className={`w-12 shrink-0 text-right font-semibold uppercase ${LEVEL_COLORS[log.level] || 'text-muted-foreground'}`}
                     >
                       {log.level}
                     </span>
                     {log.phase && (
-                      <span className="shrink-0 text-slate-500">[{log.phase}]</span>
+                      <span className="shrink-0 text-muted-foreground">[{log.phase}]</span>
                     )}
-                    <span className={LEVEL_COLORS[log.level] || 'text-slate-300'}>
+                    <span className={LEVEL_COLORS[log.level] || 'text-foreground'}>
                       {log.message}
                     </span>
                   </div>
@@ -402,21 +402,21 @@ export default function MigrationPage() {
 
         {/* Rooms Panel */}
         {tab === 'rooms' && (
-          <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-800 bg-slate-900">
-            <div className="border-b border-slate-800 px-4 py-2">
-              <span className="text-xs text-slate-400">
+          <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-panel-bg">
+            <div className="border-b border-border px-4 py-2">
+              <span className="text-xs text-muted-foreground">
                 {rooms.filter((r) => r.message_count > 0).length} migrated / {rooms.length} total
               </span>
             </div>
             <div className="flex-1 overflow-y-auto">
               {rooms.length === 0 ? (
-                <p className="p-4 text-xs text-slate-600">
+                <p className="p-4 text-xs text-muted-foreground">
                   No room data yet. Run a migration to see room status.
                 </p>
               ) : (
                 <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-slate-900">
-                    <tr className="border-b border-slate-800 text-left text-slate-500">
+                  <thead className="sticky top-0 bg-panel-bg">
+                    <tr className="border-b border-border text-left text-muted-foreground">
                       <th className="px-4 py-2 font-medium">Status</th>
                       <th className="px-4 py-2 font-medium">Room</th>
                       <th className="px-4 py-2 font-medium">Type</th>
@@ -428,25 +428,25 @@ export default function MigrationPage() {
                     {rooms.map((room) => (
                       <tr
                         key={room.rc_room_id}
-                        className="border-b border-slate-800/50 hover:bg-slate-800/30"
+                        className="border-b border-border/50 hover:bg-chat-hover"
                       >
                         <td className="px-4 py-1.5">
                           {isRunning && !room.latest_export ? (
-                            <Clock className="size-4 text-blue-400 animate-pulse" />
+                            <Clock className="size-4 text-status-info animate-pulse" />
                           ) : (
                             <RoomStatusIcon room={room} />
                           )}
                         </td>
-                        <td className="px-4 py-1.5 text-slate-200">
+                        <td className="px-4 py-1.5 text-foreground">
                           {room.rc_room_name || room.rc_room_id}
                         </td>
                         <td className="px-4 py-1.5">
                           <RoomTypeLabel type={room.rc_room_type} />
                         </td>
-                        <td className="px-4 py-1.5 text-right text-slate-300">
+                        <td className="px-4 py-1.5 text-right text-foreground">
                           {room.message_count.toLocaleString()}
                         </td>
-                        <td className="px-4 py-1.5 text-slate-500">
+                        <td className="px-4 py-1.5 text-muted-foreground">
                           {room.latest_export
                             ? new Date(room.latest_export).toLocaleString()
                             : '—'}

@@ -115,8 +115,8 @@ export default function ChatLayout({
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-950">
-        <p className="text-slate-400">Loading...</p>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -126,7 +126,7 @@ export default function ChatLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <main className="flex flex-1 overflow-hidden">{children}</main>
       {isPanelOpen && <AgentPanel />}

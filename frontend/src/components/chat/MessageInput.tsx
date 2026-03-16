@@ -210,16 +210,16 @@ export function MessageInput({ channelId, channelName, isConnected, threadId }: 
 
       {/* Upload progress */}
       {isUploading && uploadingFile && (
-        <div className="mb-2 flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-1.5 text-xs text-slate-400">
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-chat-input-border bg-secondary/50 px-3 py-1.5 text-xs text-muted-foreground">
           <Paperclip className="size-3.5" />
           <span className="truncate">{uploadingFile.name}</span>
-          <span className="text-slate-500">Uploading...</span>
+          <span className="text-muted-foreground">Uploading...</span>
         </div>
       )}
 
       {/* Rich input container */}
       <form onSubmit={handleSubmit}>
-        <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 focus-within:border-slate-600 focus-within:ring-1 focus-within:ring-slate-600">
+        <div className="overflow-hidden rounded-xl border border-chat-input-border bg-chat-input-bg focus-within:border-chat-input-focus focus-within:ring-1 focus-within:ring-chat-input-focus">
           <textarea
             ref={textareaRef}
             value={content}
@@ -228,10 +228,10 @@ export function MessageInput({ channelId, channelName, isConnected, threadId }: 
             placeholder={`Message #${channelName}`}
             disabled={!isConnected}
             rows={1}
-            className="block w-full resize-none bg-transparent px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            className="block w-full resize-none bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
           {/* Bottom toolbar */}
-          <div className="flex items-center gap-1 border-t border-slate-700/50 px-3 py-1.5">
+          <div className="flex items-center gap-1 border-t border-border/50 px-3 py-1.5">
             <input
               ref={fileInputRef}
               type="file"
@@ -242,7 +242,7 @@ export function MessageInput({ channelId, channelName, isConnected, threadId }: 
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || !isConnected}
-              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-700 hover:text-slate-200 disabled:opacity-50"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
               title="Attach file"
             >
               <Paperclip className="size-4" />

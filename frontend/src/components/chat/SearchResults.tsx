@@ -58,20 +58,20 @@ export function SearchResults({ onClose }: SearchResultsProps) {
   }
 
   return (
-    <div className="flex h-full w-[400px] shrink-0 flex-col border-l border-slate-800 bg-slate-950">
+    <div className="flex h-full w-[400px] shrink-0 flex-col border-l border-border bg-chat-bg">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-100">Search</h3>
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h3 className="text-sm font-semibold text-foreground">Search</h3>
         <button
           onClick={onClose}
-          className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
           <X className="size-3.5" />
         </button>
       </div>
 
       {/* Search input */}
-      <div className="border-b border-slate-800 p-4">
+      <div className="border-b border-border p-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -85,12 +85,12 @@ export function SearchResults({ onClose }: SearchResultsProps) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search messages..."
             autoFocus
-            className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+            className="flex-1 rounded-lg border border-chat-input-border bg-chat-input-bg px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-chat-input-focus focus:outline-none focus:ring-1 focus:ring-chat-input-focus"
           />
           <button
             type="submit"
             disabled={!query.trim() || isSearching}
-            className="rounded-lg bg-indigo-600 p-1.5 text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="rounded-lg bg-accent-primary p-1.5 text-accent-primary-text hover:bg-accent-primary-hover disabled:opacity-50"
           >
             <Search className="size-4" />
           </button>
@@ -100,29 +100,29 @@ export function SearchResults({ onClose }: SearchResultsProps) {
       {/* Results */}
       <div className="flex-1 overflow-y-auto">
         {isSearching && (
-          <p className="py-4 text-center text-xs text-slate-500">Searching...</p>
+          <p className="py-4 text-center text-xs text-muted-foreground">Searching...</p>
         )}
         {!isSearching && hasSearched && results.length === 0 && (
-          <p className="py-4 text-center text-xs text-slate-500">No results found</p>
+          <p className="py-4 text-center text-xs text-muted-foreground">No results found</p>
         )}
         {results.map((r) => (
           <button
             key={r.id}
             onClick={() => handleResultClick(r)}
-            className="w-full border-b border-slate-800/50 px-4 py-3 text-left hover:bg-slate-800/30"
+            className="w-full border-b border-border/50 px-4 py-3 text-left hover:bg-chat-hover"
           >
             <div className="flex items-baseline gap-2">
-              <span className="text-xs font-medium text-slate-300">
+              <span className="text-xs font-medium text-muted-foreground">
                 {r.display_name || r.username}
               </span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-muted-foreground">
                 {getChannelName(r.channel_id)}
               </span>
-              <span className="text-[10px] text-slate-600">
+              <span className="text-[10px] text-muted-foreground">
                 {formatDate(r.created_at)}
               </span>
             </div>
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {truncate(r.content, 120)}
             </p>
           </button>

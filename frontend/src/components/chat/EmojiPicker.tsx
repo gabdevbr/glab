@@ -72,11 +72,11 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   return (
     <div
       ref={ref}
-      className="max-h-64 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-xl"
+      className="max-h-64 overflow-y-auto rounded-lg border border-border bg-panel-bg p-2 shadow-xl"
     >
       {customEmojis.length > 0 && (
         <>
-          <div className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">
+          <div className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             Custom
           </div>
           <div className="mb-2 grid grid-cols-8 gap-0.5">
@@ -85,7 +85,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
                 key={item.name}
                 onClick={() => onSelect(`:${item.name}:`)}
                 title={item.name}
-                className="flex size-8 items-center justify-center rounded hover:bg-slate-700"
+                className="flex size-8 items-center justify-center rounded hover:bg-muted"
               >
                 <img
                   src={`${API_URL}${item.url}`}
@@ -97,7 +97,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
           </div>
         </>
       )}
-      <div className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">
+      <div className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         Emoji
       </div>
       <div className="grid grid-cols-8 gap-0.5">
@@ -106,7 +106,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
             key={item.label}
             onClick={() => onSelect(item.emoji)}
             title={item.label}
-            className="flex size-8 items-center justify-center rounded text-lg hover:bg-slate-700"
+            className="flex size-8 items-center justify-center rounded text-lg hover:bg-muted"
           >
             {item.emoji}
           </button>

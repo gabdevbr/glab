@@ -100,7 +100,7 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
   if (messages.length === 0 && !isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-slate-500">No messages yet. Start the conversation!</p>
+        <p className="text-sm text-muted-foreground">No messages yet. Start the conversation!</p>
       </div>
     );
   }
@@ -112,7 +112,7 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
       className="flex-1 overflow-y-auto"
     >
       {isLoading && (
-        <div className="py-4 text-center text-xs text-slate-500">Loading...</div>
+        <div className="py-4 text-center text-xs text-muted-foreground">Loading...</div>
       )}
       <div
         style={{

@@ -134,30 +134,30 @@ export function AgentPanel() {
   }
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-slate-800 bg-slate-950">
+    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-border bg-chat-bg">
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-slate-800 px-3 py-2.5">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
         <span className="text-lg">{activeAgent.emoji}</span>
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-slate-100">
+          <h3 className="text-sm font-semibold text-foreground">
             {activeAgent.name}
           </h3>
           {activeAgent.description && (
-            <p className="truncate text-[11px] text-slate-500">
+            <p className="truncate text-[11px] text-muted-foreground">
               {activeAgent.description}
             </p>
           )}
         </div>
         <button
           onClick={handleNewChat}
-          className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
           title="New chat"
         >
           <MessageSquare className="size-3.5" />
         </button>
         <button
           onClick={closePanel}
-          className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
           <X className="size-3.5" />
         </button>
@@ -165,8 +165,8 @@ export function AgentPanel() {
 
       {/* Session list (collapsible) */}
       {sessions.length > 0 && !activeSessionId && panelMessages.length === 0 && (
-        <div className="border-b border-slate-800 px-3 py-2">
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+        <div className="border-b border-border px-3 py-2">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Recent sessions
           </p>
           <div className="max-h-32 space-y-0.5 overflow-y-auto">
@@ -174,7 +174,7 @@ export function AgentPanel() {
               <button
                 key={s.id}
                 onClick={() => handleSessionClick(s.id)}
-                className="w-full truncate rounded px-2 py-1 text-left text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                className="w-full truncate rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 {s.title || 'Untitled session'}
               </button>
@@ -188,10 +188,10 @@ export function AgentPanel() {
         {panelMessages.length === 0 && !streamingContent && (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <span className="text-3xl">{activeAgent.emoji}</span>
-            <p className="mt-2 text-sm font-medium text-slate-300">
+            <p className="mt-2 text-sm font-medium text-foreground">
               {activeAgent.name}
             </p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               {activeAgent.description || 'Ask me anything!'}
             </p>
           </div>
@@ -206,8 +206,8 @@ export function AgentPanel() {
               className={cn(
                 'rounded-lg px-3 py-2 text-sm',
                 msg.is_bot
-                  ? 'bg-slate-800 text-slate-200'
-                  : 'bg-indigo-600 text-white',
+                  ? 'bg-secondary text-foreground'
+                  : 'bg-accent-primary text-accent-primary-text',
               )}
             >
               {msg.is_bot ? (
@@ -224,11 +224,11 @@ export function AgentPanel() {
         {/* Streaming response */}
         {streamingContent && (
           <div className="mb-3 pr-6">
-            <div className="rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-200">
+            <div className="rounded-lg bg-secondary px-3 py-2 text-sm text-foreground">
               <div className="prose prose-invert prose-sm max-w-none">
                 <ReactMarkdown>{streamingContent}</ReactMarkdown>
               </div>
-              <span className="inline-block h-4 w-0.5 animate-pulse bg-slate-400" />
+              <span className="inline-block h-4 w-0.5 animate-pulse bg-muted-foreground" />
             </div>
           </div>
         )}
@@ -237,7 +237,7 @@ export function AgentPanel() {
       </div>
 
       {/* Input */}
-      <div className="border-t border-slate-800 px-3 py-2">
+      <div className="border-t border-border px-3 py-2">
         <form onSubmit={handleSubmit} className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
@@ -253,13 +253,13 @@ export function AgentPanel() {
             placeholder={`Ask ${activeAgent.name}...`}
             rows={1}
             disabled={isStreaming}
-            className="flex-1 resize-none rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex-1 resize-none rounded-lg border border-chat-input-border bg-chat-input-bg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-chat-input-focus focus:outline-none focus:ring-1 focus:ring-chat-input-focus disabled:cursor-not-allowed disabled:opacity-50"
           />
           {isStreaming ? (
             <button
               type="button"
               onClick={handleStop}
-              className="shrink-0 rounded-lg bg-red-600 p-2 text-white hover:bg-red-500"
+              className="shrink-0 rounded-lg bg-destructive p-2 text-foreground hover:bg-destructive/90"
               title="Stop generating"
             >
               <X className="size-4" />
@@ -268,7 +268,7 @@ export function AgentPanel() {
             <button
               type="submit"
               disabled={!content.trim()}
-              className="shrink-0 rounded-lg bg-indigo-600 p-2 text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="shrink-0 rounded-lg bg-accent-primary p-2 text-accent-primary-text hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send className="size-4" />
             </button>

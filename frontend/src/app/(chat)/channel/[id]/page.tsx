@@ -189,15 +189,15 @@ export default function ChannelPage() {
   return (
     <div className="flex h-full flex-1 min-w-0">
       {/* Main chat area */}
-      <div className="flex flex-1 flex-col bg-slate-950">
+      <div className="flex flex-1 flex-col bg-chat-bg">
         {/* Channel header */}
-        <header className="flex flex-col border-b border-slate-800 px-5 py-3">
+        <header className="flex flex-col border-b border-border px-5 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {!isDM && <Hash className="size-5 text-slate-400" />}
-              <h2 className="text-[15px] font-bold text-slate-100">{channelName}</h2>
+              {!isDM && <Hash className="size-5 text-muted-foreground" />}
+              <h2 className="text-[15px] font-bold text-foreground">{channelName}</h2>
               {channel?.member_count != null && (
-                <span className="flex items-center gap-1 rounded-md bg-slate-800/50 px-2 py-0.5 text-xs text-slate-400">
+                <span className="flex items-center gap-1 rounded-md bg-secondary/50 px-2 py-0.5 text-xs text-muted-foreground">
                   <Users className="size-3.5" />
                   {channel.member_count}
                 </span>
@@ -210,7 +210,7 @@ export default function ChannelPage() {
                     p.type === 'pinned' ? { type: 'none' } : { type: 'pinned' },
                   )
                 }
-                className="rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
                 title="Pinned messages"
               >
                 <Pin className="size-4" />
@@ -221,7 +221,7 @@ export default function ChannelPage() {
                     p.type === 'search' ? { type: 'none' } : { type: 'search' },
                   )
                 }
-                className="rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
                 title="Search"
               >
                 <Search className="size-4" />
@@ -229,7 +229,7 @@ export default function ChannelPage() {
             </div>
           </div>
           {channel?.topic && (
-            <p className="mt-1 truncate text-[13px] text-slate-500">{channel.topic}</p>
+            <p className="mt-1 truncate text-[13px] text-muted-foreground">{channel.topic}</p>
           )}
         </header>
 

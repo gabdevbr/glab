@@ -196,15 +196,15 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
               }
               if (e.key === 'Escape') handleEditCancel();
             }}
-            className="w-full resize-none rounded border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-slate-100 focus:border-slate-500 focus:outline-none"
+            className="w-full resize-none rounded border border-chat-input-focus bg-chat-input-bg px-2 py-1 text-sm text-foreground focus:border-chat-input-focus focus:outline-none"
             rows={2}
             autoFocus
           />
           <div className="mt-1 flex gap-2 text-[10px]">
-            <button onClick={handleEditSave} className="text-indigo-400 hover:text-indigo-300">
+            <button onClick={handleEditSave} className="text-link-text hover:text-link-hover">
               Save
             </button>
-            <button onClick={handleEditCancel} className="text-slate-500 hover:text-slate-400">
+            <button onClick={handleEditCancel} className="text-muted-foreground hover:text-muted-foreground">
               Cancel
             </button>
           </div>
@@ -221,7 +221,7 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
               <img
                 src={`${API_URL}/api/v1/files/${message.file.id}/thumbnail`}
                 alt={message.file.original_name}
-                className="max-w-xs rounded-lg border border-slate-700"
+                className="max-w-xs rounded-lg border border-border"
               />
             </a>
           ) : (
@@ -229,10 +229,10 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
               href={`${API_URL}/api/v1/files/${message.file.id}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-indigo-400 hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-link-text hover:bg-secondary"
             >
               <span>{message.file.original_name}</span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-muted-foreground">
                 ({formatFileSize(message.file.size_bytes)})
               </span>
             </a>
@@ -243,20 +243,20 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
 
     if (message.is_bot) {
       return (
-        <div className="prose prose-invert prose-sm max-w-none text-sm text-slate-200">
+        <div className="prose prose-invert prose-sm max-w-none text-sm text-foreground">
           <ReactMarkdown>{message.content}</ReactMarkdown>
           {message.edited_at && (
-            <span className="ml-1 text-[10px] text-slate-500">(edited)</span>
+            <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>
           )}
         </div>
       );
     }
 
     return (
-      <p className="whitespace-pre-wrap break-words text-sm text-slate-200">
+      <p className="whitespace-pre-wrap break-words text-sm text-foreground">
         {renderWithCustomEmojis(message.content)}
         {message.edited_at && (
-          <span className="ml-1 text-[10px] text-slate-500">(edited)</span>
+          <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>
         )}
       </p>
     );
@@ -276,8 +276,8 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
             className={cn(
               'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors',
               g.hasOwn
-                ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-300'
-                : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600',
+                ? 'border-reaction-own-border bg-reaction-own-bg text-reaction-own-text'
+                : 'border-border bg-secondary/50 text-muted-foreground hover:border-chat-input-focus',
             )}
           >
             <span>
@@ -303,7 +303,7 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
     return (
       <button
         onClick={() => onThreadOpen?.(message.id)}
-        className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300"
+        className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-link-text hover:text-link-hover"
       >
         <MessageSquare className="size-3" />
         <span>
@@ -315,23 +315,23 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
   };
 
   const actionBar = (
-    <div className="absolute -top-4 right-4 hidden gap-0.5 rounded-lg border border-slate-700 bg-slate-900 shadow-lg group-hover:flex">
+    <div className="absolute -top-4 right-4 hidden gap-0.5 rounded-lg border border-border bg-panel-bg shadow-lg group-hover:flex">
       <button
         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-        className="p-1.5 text-slate-400 hover:text-slate-200"
+        className="p-1.5 text-muted-foreground hover:text-foreground"
         title="Add reaction"
       >
         <SmilePlus className="size-4" />
       </button>
       <button
         onClick={() => onThreadOpen?.(message.id)}
-        className="p-1.5 text-slate-400 hover:text-slate-200"
+        className="p-1.5 text-muted-foreground hover:text-foreground"
         title="Reply in thread"
       >
         <MessageSquare className="size-4" />
       </button>
       <DropdownMenu>
-        <DropdownMenuTrigger className="p-1.5 text-slate-400 hover:text-slate-200">
+        <DropdownMenuTrigger className="p-1.5 text-muted-foreground hover:text-foreground">
           <MoreHorizontal className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[140px]">
@@ -348,7 +348,7 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
             </DropdownMenuItem>
           )}
           {(isOwnMessage || user?.role === 'admin') && (
-            <DropdownMenuItem onClick={handleDelete} className="text-red-400 focus:text-red-400">
+            <DropdownMenuItem onClick={handleDelete} className="text-status-error focus:text-status-error">
               <Trash2 className="mr-2 size-3.5" /> Delete
             </DropdownMenuItem>
           )}
@@ -359,9 +359,9 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
 
   if (isCompact) {
     return (
-      <div className="group relative flex items-start gap-3 px-5 py-[3px] hover:bg-slate-800/30">
+      <div className="group relative flex items-start gap-3 px-5 py-[3px] hover:bg-chat-hover">
         <div className="flex w-9 shrink-0 items-center justify-end">
-          <span className="hidden text-[10px] text-slate-500 group-hover:inline">
+          <span className="hidden text-[10px] text-muted-foreground group-hover:inline">
             {formatTime(message.created_at)}
           </span>
         </div>
@@ -385,9 +385,9 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
     : message.username.charAt(0).toUpperCase();
 
   return (
-    <div className="group relative flex items-start gap-3 px-5 pt-5 pb-1 hover:bg-slate-800/30">
+    <div className="group relative flex items-start gap-3 px-5 pt-5 pb-1 hover:bg-chat-hover">
       {/* Avatar */}
-      <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-medium text-slate-300">
+      <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-avatar-bg text-sm font-medium text-avatar-text">
         {message.avatar_url ? (
           <img
             src={message.avatar_url}
@@ -402,24 +402,24 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
       {/* Body */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold text-slate-100">
+          <span className="text-sm font-semibold text-foreground">
             {message.display_name || message.username}
           </span>
           {message.is_bot && (
             <span
               className={cn(
                 'inline-flex items-center rounded px-1 py-0.5 text-[10px] font-medium leading-none',
-                'bg-indigo-500/20 text-indigo-300',
+                'bg-bot-badge-bg text-bot-badge-text',
               )}
             >
               BOT
             </span>
           )}
           {message.is_pinned && (
-            <Pin className="size-3 text-amber-400" />
+            <Pin className="size-3 text-pin-color" />
           )}
           <span
-            className="text-[11px] text-slate-500"
+            className="text-[11px] text-muted-foreground"
             title={formatFullDate(message.created_at)}
           >
             {formatTime(message.created_at)}

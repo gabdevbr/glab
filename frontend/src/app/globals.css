@@ -5,6 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* -- Existing shadcn mappings -- */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -45,8 +46,60 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* -- Chat surfaces -- */
+  --color-chat-bg: var(--chat-bg);
+  --color-chat-hover: var(--chat-hover);
+  --color-chat-input-bg: var(--chat-input-bg);
+  --color-chat-input-border: var(--chat-input-border);
+  --color-chat-input-focus: var(--chat-input-focus);
+
+  /* -- Sidebar extensions -- */
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-section-text: var(--sidebar-section-text);
+  --color-sidebar-item-text: var(--sidebar-item-text);
+  --color-sidebar-item-active: var(--sidebar-item-active);
+  --color-sidebar-item-active-text: var(--sidebar-item-active-text);
+  --color-sidebar-item-active-border: var(--sidebar-item-active-border);
+
+  /* -- Panels -- */
+  --color-panel-bg: var(--panel-bg);
+  --color-panel-header-text: var(--panel-header-text);
+
+  /* -- Brand accent (replaces hardcoded indigo) -- */
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-primary-hover: var(--accent-primary-hover);
+  --color-accent-primary-text: var(--accent-primary-text);
+  --color-accent-primary-subtle: var(--accent-primary-subtle);
+  --color-accent-primary-subtle-text: var(--accent-primary-subtle-text);
+
+  /* -- Status indicators -- */
+  --color-status-online: var(--status-online);
+  --color-status-away: var(--status-away);
+  --color-status-offline: var(--status-offline);
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
+  --color-status-info: var(--status-info);
+
+  /* -- Component-specific -- */
+  --color-avatar-bg: var(--avatar-bg);
+  --color-avatar-text: var(--avatar-text);
+  --color-bot-badge-bg: var(--bot-badge-bg);
+  --color-bot-badge-text: var(--bot-badge-text);
+  --color-reaction-own-border: var(--reaction-own-border);
+  --color-reaction-own-bg: var(--reaction-own-bg);
+  --color-reaction-own-text: var(--reaction-own-text);
+  --color-badge-bg: var(--badge-bg);
+  --color-badge-text: var(--badge-text);
+  --color-link-text: var(--link-text);
+  --color-link-hover: var(--link-hover);
+  --color-pin-color: var(--pin-color);
 }
 
+/* ============================================================
+   Base light (shadcn defaults — serves as fallback for :root)
+   ============================================================ */
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -82,6 +135,9 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* ============================================================
+   Base dark (shadcn defaults — applied when .dark class present)
+   ============================================================ */
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -116,6 +172,317 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ============================================================
+   Theme: Classic Dark — preserves current slate/indigo look
+   ============================================================ */
+[data-theme="classic-dark"] {
+  /* Override shadcn vars to use slate (blue-gray) tones */
+  --background: oklch(0.13 0.028 261);
+  --foreground: oklch(0.97 0.004 264);
+  --card: oklch(0.21 0.027 264);
+  --card-foreground: oklch(0.97 0.004 264);
+  --popover: oklch(0.21 0.027 264);
+  --popover-foreground: oklch(0.97 0.004 264);
+  --secondary: oklch(0.28 0.027 263);
+  --secondary-foreground: oklch(0.97 0.004 264);
+  --muted: oklch(0.28 0.027 263);
+  --muted-foreground: oklch(0.7 0.025 256);
+  --border: oklch(0.37 0.028 258);
+  --input: oklch(0.37 0.028 258);
+  --ring: oklch(0.55 0.22 276);
+  --sidebar: oklch(0.21 0.027 264);
+  --sidebar-foreground: oklch(0.97 0.004 264);
+  --sidebar-border: oklch(0.28 0.027 263);
+  --sidebar-accent: oklch(0.28 0.027 263);
+  --sidebar-accent-foreground: oklch(0.97 0.004 264);
+
+  /* Chat surfaces */
+  --chat-bg: oklch(0.13 0.028 261);
+  --chat-hover: oklch(0.28 0.027 263 / 30%);
+  --chat-input-bg: oklch(0.28 0.027 263);
+  --chat-input-border: oklch(0.37 0.028 258);
+  --chat-input-focus: oklch(0.45 0.028 258);
+
+  /* Sidebar */
+  --sidebar-hover: oklch(0.37 0.028 258 / 50%);
+  --sidebar-section-text: oklch(0.7 0.025 256);
+  --sidebar-item-text: oklch(0.7 0.025 256);
+  --sidebar-item-active: oklch(0.28 0.027 263 / 50%);
+  --sidebar-item-active-text: oklch(0.97 0.004 264);
+  --sidebar-item-active-border: oklch(0.55 0.22 276);
+
+  /* Panels */
+  --panel-bg: oklch(0.21 0.027 264);
+  --panel-header-text: oklch(0.97 0.004 264);
+
+  /* Accent — indigo */
+  --accent-primary: oklch(0.55 0.22 276);
+  --accent-primary-hover: oklch(0.59 0.21 277);
+  --accent-primary-text: oklch(1 0 0);
+  --accent-primary-subtle: oklch(0.59 0.21 277 / 20%);
+  --accent-primary-subtle-text: oklch(0.75 0.13 276);
+
+  /* Status */
+  --status-online: oklch(0.72 0.22 150);
+  --status-away: oklch(0.83 0.19 84);
+  --status-offline: oklch(0.55 0.03 258);
+  --status-success: oklch(0.72 0.22 150);
+  --status-warning: oklch(0.83 0.19 84);
+  --status-error: oklch(0.7 0.19 22);
+  --status-info: oklch(0.67 0.17 277);
+
+  /* Components */
+  --avatar-bg: oklch(0.37 0.028 258);
+  --avatar-text: oklch(0.83 0.015 255);
+  --bot-badge-bg: oklch(0.59 0.21 277 / 20%);
+  --bot-badge-text: oklch(0.75 0.13 276);
+  --reaction-own-border: oklch(0.59 0.21 277 / 50%);
+  --reaction-own-bg: oklch(0.59 0.21 277 / 10%);
+  --reaction-own-text: oklch(0.75 0.13 276);
+  --badge-bg: oklch(0.59 0.21 277 / 20%);
+  --badge-text: oklch(0.75 0.13 276);
+  --link-text: oklch(0.67 0.17 277);
+  --link-hover: oklch(0.75 0.13 276);
+  --pin-color: oklch(0.83 0.19 84);
+}
+
+/* ============================================================
+   Theme: Geovendas Dark — brand teal #06F4E4 on dark
+   ============================================================ */
+[data-theme="geovendas-dark"] {
+  /* Same dark base as classic, with subtle teal undertone */
+  --background: oklch(0.14 0.015 240);
+  --foreground: oklch(0.97 0.004 264);
+  --card: oklch(0.20 0.018 250);
+  --card-foreground: oklch(0.97 0.004 264);
+  --popover: oklch(0.20 0.018 250);
+  --popover-foreground: oklch(0.97 0.004 264);
+  --primary: oklch(0.89 0.155 180);
+  --primary-foreground: oklch(0.16 0.03 200);
+  --secondary: oklch(0.26 0.018 250);
+  --secondary-foreground: oklch(0.97 0.004 264);
+  --muted: oklch(0.26 0.018 250);
+  --muted-foreground: oklch(0.7 0.02 250);
+  --accent: oklch(0.26 0.018 250);
+  --accent-foreground: oklch(0.97 0.004 264);
+  --border: oklch(0.35 0.02 250);
+  --input: oklch(0.35 0.02 250);
+  --ring: oklch(0.89 0.155 180);
+  --sidebar: oklch(0.18 0.018 245);
+  --sidebar-foreground: oklch(0.97 0.004 264);
+  --sidebar-border: oklch(0.26 0.018 250);
+  --sidebar-accent: oklch(0.26 0.018 250);
+  --sidebar-accent-foreground: oklch(0.97 0.004 264);
+
+  /* Chat surfaces */
+  --chat-bg: oklch(0.14 0.015 240);
+  --chat-hover: oklch(0.26 0.018 250 / 30%);
+  --chat-input-bg: oklch(0.26 0.018 250);
+  --chat-input-border: oklch(0.35 0.02 250);
+  --chat-input-focus: oklch(0.89 0.155 180 / 40%);
+
+  /* Sidebar */
+  --sidebar-hover: oklch(0.35 0.02 250 / 50%);
+  --sidebar-section-text: oklch(0.65 0.02 250);
+  --sidebar-item-text: oklch(0.7 0.02 250);
+  --sidebar-item-active: oklch(0.89 0.155 180 / 12%);
+  --sidebar-item-active-text: oklch(0.89 0.155 180);
+  --sidebar-item-active-border: oklch(0.89 0.155 180);
+
+  /* Panels */
+  --panel-bg: oklch(0.18 0.018 245);
+  --panel-header-text: oklch(0.97 0.004 264);
+
+  /* Accent — geovendas teal */
+  --accent-primary: oklch(0.89 0.155 180);
+  --accent-primary-hover: oklch(0.82 0.14 180);
+  --accent-primary-text: oklch(0.16 0.03 200);
+  --accent-primary-subtle: oklch(0.89 0.155 180 / 15%);
+  --accent-primary-subtle-text: oklch(0.89 0.155 180);
+
+  /* Status */
+  --status-online: oklch(0.72 0.22 150);
+  --status-away: oklch(0.83 0.19 84);
+  --status-offline: oklch(0.55 0.02 250);
+  --status-success: oklch(0.72 0.22 150);
+  --status-warning: oklch(0.83 0.19 84);
+  --status-error: oklch(0.7 0.19 22);
+  --status-info: oklch(0.89 0.155 180);
+
+  /* Components */
+  --avatar-bg: oklch(0.89 0.155 180);
+  --avatar-text: oklch(0.16 0.03 200);
+  --bot-badge-bg: oklch(0.89 0.155 180 / 15%);
+  --bot-badge-text: oklch(0.89 0.155 180);
+  --reaction-own-border: oklch(0.89 0.155 180 / 40%);
+  --reaction-own-bg: oklch(0.89 0.155 180 / 10%);
+  --reaction-own-text: oklch(0.89 0.155 180);
+  --badge-bg: oklch(0.89 0.155 180 / 15%);
+  --badge-text: oklch(0.89 0.155 180);
+  --link-text: oklch(0.89 0.155 180);
+  --link-hover: oklch(0.82 0.14 180);
+  --pin-color: oklch(0.83 0.19 84);
+}
+
+/* ============================================================
+   Theme: Light — clean light with teal accent
+   ============================================================ */
+[data-theme="light"] {
+  --background: oklch(0.99 0.002 248);
+  --foreground: oklch(0.13 0.028 261);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.13 0.028 261);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.13 0.028 261);
+  --primary: oklch(0.6 0.118 184);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.96 0.005 250);
+  --secondary-foreground: oklch(0.21 0.027 264);
+  --muted: oklch(0.96 0.005 250);
+  --muted-foreground: oklch(0.55 0.03 258);
+  --accent: oklch(0.96 0.005 250);
+  --accent-foreground: oklch(0.21 0.027 264);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.9 0.01 255);
+  --input: oklch(0.9 0.01 255);
+  --ring: oklch(0.6 0.118 184);
+  --sidebar: oklch(0.97 0.005 250);
+  --sidebar-foreground: oklch(0.13 0.028 261);
+  --sidebar-border: oklch(0.9 0.01 255);
+  --sidebar-accent: oklch(0.94 0.01 250);
+  --sidebar-accent-foreground: oklch(0.21 0.027 264);
+
+  /* Chat surfaces */
+  --chat-bg: oklch(0.99 0.002 248);
+  --chat-hover: oklch(0.96 0.005 250);
+  --chat-input-bg: oklch(0.97 0.005 250);
+  --chat-input-border: oklch(0.87 0.012 255);
+  --chat-input-focus: oklch(0.6 0.118 184);
+
+  /* Sidebar */
+  --sidebar-hover: oklch(0.94 0.008 255);
+  --sidebar-section-text: oklch(0.55 0.03 258);
+  --sidebar-item-text: oklch(0.4 0.03 258);
+  --sidebar-item-active: oklch(0.6 0.118 184 / 10%);
+  --sidebar-item-active-text: oklch(0.6 0.118 184);
+  --sidebar-item-active-border: oklch(0.6 0.118 184);
+
+  /* Panels */
+  --panel-bg: oklch(0.97 0.005 250);
+  --panel-header-text: oklch(0.13 0.028 261);
+
+  /* Accent — teal-600 for contrast on light */
+  --accent-primary: oklch(0.6 0.118 184);
+  --accent-primary-hover: oklch(0.52 0.105 184);
+  --accent-primary-text: oklch(1 0 0);
+  --accent-primary-subtle: oklch(0.6 0.118 184 / 10%);
+  --accent-primary-subtle-text: oklch(0.6 0.118 184);
+
+  /* Status */
+  --status-online: oklch(0.6 0.2 150);
+  --status-away: oklch(0.7 0.18 84);
+  --status-offline: oklch(0.7 0.025 256);
+  --status-success: oklch(0.6 0.2 150);
+  --status-warning: oklch(0.7 0.18 84);
+  --status-error: oklch(0.577 0.245 27.325);
+  --status-info: oklch(0.6 0.118 184);
+
+  /* Components */
+  --avatar-bg: oklch(0.6 0.118 184);
+  --avatar-text: oklch(1 0 0);
+  --bot-badge-bg: oklch(0.6 0.118 184 / 12%);
+  --bot-badge-text: oklch(0.52 0.105 184);
+  --reaction-own-border: oklch(0.6 0.118 184 / 40%);
+  --reaction-own-bg: oklch(0.6 0.118 184 / 8%);
+  --reaction-own-text: oklch(0.6 0.118 184);
+  --badge-bg: oklch(0.6 0.118 184 / 12%);
+  --badge-text: oklch(0.52 0.105 184);
+  --link-text: oklch(0.6 0.118 184);
+  --link-hover: oklch(0.52 0.105 184);
+  --pin-color: oklch(0.7 0.18 84);
+}
+
+/* ============================================================
+   Theme: Dracula — purple-heavy fun dark theme
+   ============================================================ */
+[data-theme="dracula"] {
+  --background: oklch(0.22 0.019 280);
+  --foreground: oklch(0.98 0.003 106);
+  --card: oklch(0.28 0.019 278);
+  --card-foreground: oklch(0.98 0.003 106);
+  --popover: oklch(0.28 0.019 278);
+  --popover-foreground: oklch(0.98 0.003 106);
+  --primary: oklch(0.72 0.14 295);
+  --primary-foreground: oklch(0.22 0.019 280);
+  --secondary: oklch(0.34 0.021 275);
+  --secondary-foreground: oklch(0.98 0.003 106);
+  --muted: oklch(0.34 0.021 275);
+  --muted-foreground: oklch(0.52 0.05 265);
+  --accent: oklch(0.34 0.021 275);
+  --accent-foreground: oklch(0.98 0.003 106);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(0.42 0.025 275);
+  --input: oklch(0.42 0.025 275);
+  --ring: oklch(0.72 0.14 295);
+  --sidebar: oklch(0.20 0.019 282);
+  --sidebar-foreground: oklch(0.98 0.003 106);
+  --sidebar-border: oklch(0.34 0.021 275);
+  --sidebar-accent: oklch(0.34 0.021 275);
+  --sidebar-accent-foreground: oklch(0.98 0.003 106);
+
+  /* Chat surfaces */
+  --chat-bg: oklch(0.22 0.019 280);
+  --chat-hover: oklch(0.34 0.021 275 / 40%);
+  --chat-input-bg: oklch(0.28 0.019 278);
+  --chat-input-border: oklch(0.42 0.025 275);
+  --chat-input-focus: oklch(0.72 0.14 295 / 40%);
+
+  /* Sidebar */
+  --sidebar-hover: oklch(0.34 0.021 275 / 60%);
+  --sidebar-section-text: oklch(0.52 0.05 265);
+  --sidebar-item-text: oklch(0.7 0.03 270);
+  --sidebar-item-active: oklch(0.72 0.14 295 / 15%);
+  --sidebar-item-active-text: oklch(0.72 0.14 295);
+  --sidebar-item-active-border: oklch(0.72 0.14 295);
+
+  /* Panels */
+  --panel-bg: oklch(0.20 0.019 282);
+  --panel-header-text: oklch(0.98 0.003 106);
+
+  /* Accent — dracula purple */
+  --accent-primary: oklch(0.72 0.14 295);
+  --accent-primary-hover: oklch(0.66 0.16 295);
+  --accent-primary-text: oklch(0.22 0.019 280);
+  --accent-primary-subtle: oklch(0.72 0.14 295 / 18%);
+  --accent-primary-subtle-text: oklch(0.72 0.14 295);
+
+  /* Status — dracula palette */
+  --status-online: oklch(0.86 0.2 150);
+  --status-away: oklch(0.83 0.14 70);
+  --status-offline: oklch(0.52 0.05 265);
+  --status-success: oklch(0.86 0.2 150);
+  --status-warning: oklch(0.83 0.14 70);
+  --status-error: oklch(0.65 0.22 25);
+  --status-info: oklch(0.86 0.13 205);
+
+  /* Components */
+  --avatar-bg: oklch(0.72 0.14 295);
+  --avatar-text: oklch(0.22 0.019 280);
+  --bot-badge-bg: oklch(0.86 0.13 205 / 18%);
+  --bot-badge-text: oklch(0.86 0.13 205);
+  --reaction-own-border: oklch(0.72 0.14 295 / 40%);
+  --reaction-own-bg: oklch(0.72 0.14 295 / 12%);
+  --reaction-own-text: oklch(0.72 0.14 295);
+  --badge-bg: oklch(0.72 0.14 295 / 18%);
+  --badge-text: oklch(0.72 0.14 295);
+  --link-text: oklch(0.86 0.13 205);
+  --link-hover: oklch(0.72 0.18 350);
+  --pin-color: oklch(0.95 0.1 105);
+}
+
+/* ============================================================
+   Base layer
+   ============================================================ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -128,7 +495,9 @@
   }
 }
 
-/* Typing indicator bouncing dots */
+/* ============================================================
+   Typing indicator bouncing dots
+   ============================================================ */
 .typing-dots {
   display: inline-flex;
   gap: 2px;
@@ -164,4 +533,20 @@
     transform: translateY(-3px);
     opacity: 1;
   }
+}
+
+/* ============================================================
+   Prose theming for markdown (bot messages)
+   ============================================================ */
+[data-theme="light"] .prose-themed {
+  --tw-prose-body: oklch(0.28 0.027 263);
+  --tw-prose-headings: oklch(0.13 0.028 261);
+  --tw-prose-links: var(--link-text);
+  --tw-prose-code: oklch(0.13 0.028 261);
+}
+.dark .prose-themed {
+  --tw-prose-invert-body: oklch(0.93 0.008 255);
+  --tw-prose-invert-headings: oklch(0.97 0.004 264);
+  --tw-prose-invert-links: var(--link-text);
+  --tw-prose-invert-code: oklch(0.97 0.004 264);
 }

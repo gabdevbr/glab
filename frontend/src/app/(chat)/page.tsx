@@ -21,8 +21,8 @@ export default function ChatHome() {
   return (
     <div className="flex flex-1 items-center justify-center">
       <div className="text-center">
-        <h2 className="text-xl font-semibold text-slate-200">Welcome to Glab</h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <h2 className="text-xl font-semibold text-foreground">Welcome to Glab</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
           {isLoading
             ? 'Loading channels...'
             : channels.length > 0

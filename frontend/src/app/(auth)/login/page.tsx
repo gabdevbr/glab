@@ -36,13 +36,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950">
-      <Card className="w-full max-w-sm border-slate-800 bg-slate-900">
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Card className="w-full max-w-sm border-border bg-card">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-slate-50">
+          <CardTitle className="text-2xl font-bold text-foreground">
             Glab
           </CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription className="text-muted-foreground">
             Sign in to your workspace
           </CardDescription>
         </CardHeader>
@@ -51,7 +51,7 @@ export default function LoginPage() {
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="username"
-                className="text-sm font-medium text-slate-300"
+                className="text-sm font-medium text-foreground"
               >
                 Username
               </label>
@@ -63,13 +63,13 @@ export default function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 autoComplete="username"
-                className="border-slate-700 bg-slate-800 text-slate-50 placeholder:text-slate-500"
+                className="border-chat-input-border bg-chat-input-bg text-foreground placeholder:text-muted-foreground"
               />
             </div>
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="password"
-                className="text-sm font-medium text-slate-300"
+                className="text-sm font-medium text-foreground"
               >
                 Password
               </label>
@@ -81,16 +81,16 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="border-slate-700 bg-slate-800 text-slate-50 placeholder:text-slate-500"
+                className="border-chat-input-border bg-chat-input-bg text-foreground placeholder:text-muted-foreground"
               />
             </div>
             {error && (
-              <p className="text-sm text-red-400">{error}</p>
+              <p className="text-sm text-status-error">{error}</p>
             )}
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-slate-50 text-slate-900 hover:bg-slate-200"
+              className="w-full bg-foreground text-background hover:bg-foreground/90"
             >
               {isSubmitting ? 'Signing in...' : 'Sign in'}
             </Button>

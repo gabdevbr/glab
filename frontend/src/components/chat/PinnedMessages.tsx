@@ -29,14 +29,14 @@ export function PinnedMessages({ channelId, onClose }: PinnedMessagesProps) {
   }, [channelId]);
 
   return (
-    <div className="flex h-full w-[400px] shrink-0 flex-col border-l border-slate-800 bg-slate-950">
+    <div className="flex h-full w-[400px] shrink-0 flex-col border-l border-border bg-background">
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-slate-800 px-4 py-3">
-        <Pin className="size-4 text-amber-400" />
-        <h3 className="flex-1 text-sm font-semibold text-slate-100">Pinned Messages</h3>
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <Pin className="size-4 text-pin-color" />
+        <h3 className="flex-1 text-sm font-semibold text-foreground">Pinned Messages</h3>
         <button
           onClick={onClose}
-          className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
           <X className="size-4" />
         </button>
@@ -45,15 +45,15 @@ export function PinnedMessages({ channelId, onClose }: PinnedMessagesProps) {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         {isLoading && (
-          <p className="py-4 text-center text-xs text-slate-500">Loading...</p>
+          <p className="py-4 text-center text-xs text-muted-foreground">Loading...</p>
         )}
         {!isLoading && messages.length === 0 && (
-          <p className="py-4 text-center text-xs text-slate-500">
+          <p className="py-4 text-center text-xs text-muted-foreground">
             No pinned messages
           </p>
         )}
         {messages.map((msg) => (
-          <div key={msg.id} className="border-b border-slate-800/50">
+          <div key={msg.id} className="border-b border-border/50">
             <MessageItem message={msg} isCompact={false} />
           </div>
         ))}

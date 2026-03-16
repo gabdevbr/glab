@@ -26,10 +26,10 @@ export function AgentList() {
           onClick={() => openPanel(agent)}
           className={cn(
             'flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm',
-            'hover:bg-slate-800/60',
+            'hover:bg-sidebar-hover',
             activeAgent?.id === agent.id
-              ? 'bg-slate-800 text-slate-100'
-              : 'text-slate-400',
+              ? 'bg-secondary text-foreground'
+              : 'text-muted-foreground',
           )}
         >
           <span className="text-base leading-none">{agent.emoji}</span>

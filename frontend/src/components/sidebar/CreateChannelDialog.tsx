@@ -69,21 +69,21 @@ export function CreateChannelDialog() {
     >
       <DialogTrigger
         render={
-          <button className="rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-200" />
+          <button className="rounded p-0.5 text-sidebar-section-text transition-colors hover:bg-sidebar-hover hover:text-foreground" />
         }
       >
         <Plus className="size-4" />
       </DialogTrigger>
-      <DialogContent className="border-slate-700 bg-slate-900 text-slate-100 sm:max-w-md">
+      <DialogContent className="border-border bg-panel-bg text-foreground sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-slate-100">Create a channel</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogTitle className="text-foreground">Create a channel</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Channels are where your team communicates.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <label htmlFor="channel-name" className="text-sm font-medium text-slate-300">
+            <label htmlFor="channel-name" className="text-sm font-medium text-muted-foreground">
               Name
             </label>
             <Input
@@ -92,12 +92,12 @@ export function CreateChannelDialog() {
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. engineering"
               required
-              className="border-slate-700 bg-slate-800 text-slate-50 placeholder:text-slate-500"
+              className="border-chat-input-border bg-chat-input-bg text-foreground placeholder:text-muted-foreground"
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label htmlFor="channel-desc" className="text-sm font-medium text-slate-300">
-              Description <span className="text-slate-500">(optional)</span>
+            <label htmlFor="channel-desc" className="text-sm font-medium text-muted-foreground">
+              Description <span className="text-muted-foreground">(optional)</span>
             </label>
             <textarea
               id="channel-desc"
@@ -105,28 +105,28 @@ export function CreateChannelDialog() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What is this channel about?"
               rows={2}
-              className="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              className="rounded-md border border-chat-input-border bg-chat-input-bg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-chat-input-focus focus:outline-none focus:ring-1 focus:ring-chat-input-focus"
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label htmlFor="channel-type" className="text-sm font-medium text-slate-300">
+            <label htmlFor="channel-type" className="text-sm font-medium text-muted-foreground">
               Type
             </label>
             <select
               id="channel-type"
               value={type}
               onChange={(e) => setType(e.target.value as 'public' | 'private')}
-              className="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-50 focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              className="rounded-md border border-chat-input-border bg-chat-input-bg px-3 py-2 text-sm text-foreground focus:border-chat-input-focus focus:outline-none focus:ring-1 focus:ring-chat-input-focus"
             >
               <option value="public">Public</option>
               <option value="private">Private</option>
             </select>
           </div>
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-status-error">{error}</p>}
           <Button
             type="submit"
             disabled={isSubmitting || !name.trim()}
-            className="w-full bg-slate-50 text-slate-900 hover:bg-slate-200"
+            className="w-full bg-accent-primary text-accent-primary-text hover:bg-accent-primary-hover"
           >
             {isSubmitting ? 'Creating...' : 'Create Channel'}
           </Button>

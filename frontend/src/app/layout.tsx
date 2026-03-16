@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ThemeProvider } from '@/components/ThemeProvider';
 import './globals.css';
 
 const inter = Inter({
@@ -13,15 +14,24 @@ export const metadata: Metadata = {
   description: 'Internal communication platform',
 };
 
+// Inline script to prevent FOUC — runs before first paint.
+// Content is a static string constant, not user input — safe to inline.
+const themeInitScript = `(function(){try{var t=localStorage.getItem('glab_theme');var valid=['geovendas-dark','classic-dark','light','dracula'];if(!t||valid.indexOf(t)===-1)t='geovendas-dark';document.documentElement.setAttribute('data-theme',t);if(t!=='light')document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark')}catch(e){}})()`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR" data-theme="geovendas-dark" className="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <TooltipProvider>{children}</TooltipProvider>
+        <ThemeProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

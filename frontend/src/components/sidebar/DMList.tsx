@@ -8,10 +8,10 @@ import { cn } from '@/lib/utils';
 function PresenceDot({ status }: { status: string }) {
   const color =
     status === 'online'
-      ? 'bg-green-500'
+      ? 'bg-status-online'
       : status === 'away'
-        ? 'bg-yellow-500'
-        : 'bg-slate-600';
+        ? 'bg-status-warning'
+        : 'bg-muted';
 
   return (
     <span
@@ -37,7 +37,7 @@ export function DMList() {
 
   if (dmChannels.length === 0) {
     return (
-      <p className="px-3 py-1 text-xs text-slate-500">No conversations yet</p>
+      <p className="px-3 py-1 text-xs text-muted-foreground">No conversations yet</p>
     );
   }
 
@@ -55,18 +55,18 @@ export function DMList() {
             <button
               onClick={() => handleClick(channel.id)}
               className={cn(
-                'flex w-full items-center gap-2.5 rounded-md mx-1 px-2 py-1.5 text-sm transition-colors hover:bg-slate-700/50 hover:text-slate-100',
+                'flex w-full items-center gap-2.5 rounded-md mx-1 px-2 py-1.5 text-sm transition-colors hover:bg-sidebar-hover hover:text-foreground',
                 isActive
-                  ? 'bg-indigo-600/20 text-white font-semibold'
+                  ? 'bg-accent-primary-subtle text-foreground font-semibold'
                   : unread > 0
-                    ? 'text-white font-semibold'
-                    : 'text-slate-300',
+                    ? 'text-foreground font-semibold'
+                    : 'text-muted-foreground',
               )}
             >
               <PresenceDot status={presenceStatus} />
               <span className="flex-1 truncate text-left">{channel.name}</span>
               {unread > 0 && (
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text">
                   {unread > 99 ? '99+' : unread}
                 </span>
               )}

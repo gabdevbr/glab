@@ -21,7 +21,7 @@ export function ChannelList() {
 
   if (nonDmChannels.length === 0) {
     return (
-      <p className="px-3 py-1 text-xs text-slate-500">No channels yet</p>
+      <p className="px-3 py-1 text-xs text-muted-foreground">No channels yet</p>
     );
   }
 
@@ -35,18 +35,18 @@ export function ChannelList() {
             <button
               onClick={() => handleClick(channel.id)}
               className={cn(
-                'flex w-full items-center gap-2 rounded-md mx-1 px-2 py-1.5 text-sm transition-colors hover:bg-slate-700/50 hover:text-slate-100',
+                'flex w-full items-center gap-2 rounded-md mx-1 px-2 py-1.5 text-sm transition-colors hover:bg-sidebar-hover hover:text-foreground',
                 isActive
-                  ? 'bg-indigo-600/20 text-white font-semibold border-l-2 border-indigo-400'
+                  ? 'bg-accent-primary-subtle text-foreground font-semibold border-l-2 border-accent-primary'
                   : unread > 0
-                    ? 'text-white font-semibold'
-                    : 'text-slate-300',
+                    ? 'text-foreground font-semibold'
+                    : 'text-muted-foreground',
               )}
             >
-              <Hash className="size-4 shrink-0 text-slate-400" />
+              <Hash className="size-4 shrink-0 text-sidebar-section-text" />
               <span className="flex-1 truncate text-left">{channel.name}</span>
               {unread > 0 && (
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text">
                   {unread > 99 ? '99+' : unread}
                 </span>
               )}

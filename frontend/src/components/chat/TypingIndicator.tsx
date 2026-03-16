@@ -28,7 +28,7 @@ export function TypingIndicator({ channelId }: TypingIndicatorProps) {
   return (
     <div className="h-6 px-5">
       {text && (
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-muted-foreground">
           {text}
           <span className="ml-0.5 inline-flex w-5">
             <span className="typing-dots" />
