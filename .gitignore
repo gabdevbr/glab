@@ -4,6 +4,10 @@
 # Go
 backend/tmp/
 backend/vendor/
+migrate/vendor/
+
+# SSL certs
+nginx/ssl/
 
 # Uploads
 uploads/

@@ -1,4 +1,4 @@
-.PHONY: dev dev-down migrate-up migrate-down sqlc backend frontend build up down
+.PHONY: dev dev-down migrate-up migrate-down sqlc backend frontend build up down deploy
 
 # Development infrastructure (postgres + redis only)
 dev:
@@ -36,3 +36,7 @@ up:
 
 down:
 	docker compose down
+
+# Deploy to production
+deploy:
+	./deploy.sh
