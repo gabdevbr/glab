@@ -1,0 +1,27 @@
+# Environment
+.env
+
+# Go
+backend/tmp/
+backend/vendor/
+
+# Uploads
+uploads/
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node (frontend)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Docker volumes
+pgdata*/
+redis-data*/
