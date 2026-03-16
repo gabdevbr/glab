@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net"
@@ -18,10 +19,14 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/geovendas/glab/backend/internal/auth"
 	"github.com/geovendas/glab/backend/internal/config"
 	"github.com/geovendas/glab/backend/internal/db"
+	"github.com/geovendas/glab/backend/internal/handler"
+	"github.com/geovendas/glab/backend/internal/repository"
 )
 
 func main() {
@@ -68,6 +73,17 @@ func main() {
 	}
 	slog.Info("connected to redis")
 
+	// Create repository and handlers
+	queries := repository.New(pool)
+
+	// Seed admin user if no users exist
+	seedAdminUser(ctx, queries)
+
+	authHandler := handler.NewAuthHandler(queries, cfg.JWTSecret, cfg.JWTExpiry)
+	userHandler := handler.NewUserHandler(queries)
+	channelHandler := handler.NewChannelHandler(queries)
+	messageHandler := handler.NewMessageHandler(queries)
+
 	// Setup router
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -88,6 +104,39 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
+
+	// Public routes
+	r.Post("/api/v1/auth/login", authHandler.Login)
+	r.Post("/api/v1/auth/logout", authHandler.Logout)
+
+	// Protected routes
+	r.Group(func(r chi.Router) {
+		r.Use(auth.Middleware(cfg.JWTSecret))
+
+		// Auth
+		r.Get("/api/v1/auth/me", authHandler.Me)
+
+		// Users
+		r.Get("/api/v1/users", userHandler.List)
+		r.Get("/api/v1/users/{id}", userHandler.GetByID)
+		r.Patch("/api/v1/users/{id}", userHandler.Update)
+
+		// Channels
+		r.Get("/api/v1/channels", channelHandler.List)
+		r.Post("/api/v1/channels", channelHandler.Create)
+		r.Get("/api/v1/channels/{id}", channelHandler.GetByID)
+		r.Patch("/api/v1/channels/{id}", channelHandler.Update)
+		r.Delete("/api/v1/channels/{id}", channelHandler.Delete)
+		r.Post("/api/v1/channels/{id}/join", channelHandler.Join)
+		r.Post("/api/v1/channels/{id}/leave", channelHandler.Leave)
+		r.Post("/api/v1/channels/{id}/members", channelHandler.AddMember)
+		r.Delete("/api/v1/channels/{id}/members/{uid}", channelHandler.RemoveMember)
+
+		// Messages
+		r.Get("/api/v1/channels/{id}/messages", messageHandler.ListChannelMessages)
+		r.Get("/api/v1/channels/{id}/messages/pinned", messageHandler.ListPinnedMessages)
+		r.Get("/api/v1/messages/{id}/thread", messageHandler.ListThreadMessages)
 	})
 
 	// Start server
@@ -137,4 +186,41 @@ func runMigrations(databaseURL string) error {
 		return err
 	}
 	return nil
+}
+
+// seedAdminUser creates an admin user if no users exist in the database.
+func seedAdminUser(ctx context.Context, queries *repository.Queries) {
+	// Check if admin user already exists
+	_, err := queries.GetUserByUsername(ctx, "admin")
+	if err == nil {
+		// Admin already exists
+		return
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		slog.Error("failed to check for admin user", "error", err)
+		return
+	}
+
+	// No admin found, create one
+	hash, err := auth.HashPassword("admin123")
+	if err != nil {
+		slog.Error("failed to hash admin password", "error", err)
+		return
+	}
+
+	_, err = queries.CreateUser(ctx, repository.CreateUserParams{
+		Username:     "admin",
+		Email:        "admin@glab.local",
+		DisplayName:  "Admin",
+		PasswordHash: hash,
+		Role:         "admin",
+		IsBot:        false,
+		BotConfig:    json.RawMessage("null"),
+	})
+	if err != nil {
+		slog.Error("failed to seed admin user", "error", err)
+		return
+	}
+
+	slog.Info("admin user seeded", "username", "admin", "password", "admin123")
 }
