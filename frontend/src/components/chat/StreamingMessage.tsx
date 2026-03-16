@@ -14,7 +14,7 @@ export function StreamingMessage({
   content,
 }: StreamingMessageProps) {
   return (
-    <div className="group flex items-start gap-2 px-4 pt-2 pb-0.5 bg-slate-800/20">
+    <div className="group flex items-start gap-3 px-5 pt-5 pb-1 bg-slate-800/20">
       {/* Avatar */}
       <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-indigo-600/20 text-base">
         {agentEmoji}

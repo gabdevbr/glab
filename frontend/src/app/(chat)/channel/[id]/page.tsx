@@ -191,47 +191,46 @@ export default function ChannelPage() {
       {/* Main chat area */}
       <div className="flex flex-1 flex-col bg-slate-950">
         {/* Channel header */}
-        <header className="flex items-center gap-3 border-b border-slate-800 px-4 py-2.5">
-          <div className="flex items-center gap-1.5">
-            {!isDM && <Hash className="size-4 text-slate-400" />}
-            <h2 className="text-sm font-semibold text-slate-100">{channelName}</h2>
+        <header className="flex flex-col border-b border-slate-800 px-5 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {!isDM && <Hash className="size-5 text-slate-400" />}
+              <h2 className="text-[15px] font-bold text-slate-100">{channelName}</h2>
+              {channel?.member_count != null && (
+                <span className="flex items-center gap-1 rounded-md bg-slate-800/50 px-2 py-0.5 text-xs text-slate-400">
+                  <Users className="size-3.5" />
+                  {channel.member_count}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() =>
+                  setRightPanel((p) =>
+                    p.type === 'pinned' ? { type: 'none' } : { type: 'pinned' },
+                  )
+                }
+                className="rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                title="Pinned messages"
+              >
+                <Pin className="size-4" />
+              </button>
+              <button
+                onClick={() =>
+                  setRightPanel((p) =>
+                    p.type === 'search' ? { type: 'none' } : { type: 'search' },
+                  )
+                }
+                className="rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                title="Search"
+              >
+                <Search className="size-4" />
+              </button>
+            </div>
           </div>
           {channel?.topic && (
-            <>
-              <div className="h-4 w-px bg-slate-700" />
-              <span className="truncate text-xs text-slate-400">{channel.topic}</span>
-            </>
+            <p className="mt-1 truncate text-[13px] text-slate-500">{channel.topic}</p>
           )}
-          <div className="ml-auto flex items-center gap-1">
-            <button
-              onClick={() =>
-                setRightPanel((p) =>
-                  p.type === 'pinned' ? { type: 'none' } : { type: 'pinned' },
-                )
-              }
-              className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-              title="Pinned messages"
-            >
-              <Pin className="size-3.5" />
-            </button>
-            <button
-              onClick={() =>
-                setRightPanel((p) =>
-                  p.type === 'search' ? { type: 'none' } : { type: 'search' },
-                )
-              }
-              className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-              title="Search"
-            >
-              <Search className="size-3.5" />
-            </button>
-            {channel?.member_count != null && (
-              <span className="flex items-center gap-1 text-xs text-slate-500">
-                <Users className="size-3.5" />
-                {channel.member_count}
-              </span>
-            )}
-          </div>
         </header>
 
         {/* Messages */}

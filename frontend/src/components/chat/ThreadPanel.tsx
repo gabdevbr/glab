@@ -82,10 +82,10 @@ export function ThreadPanel({ parentMessageId, channelId, onClose }: ThreadPanel
   }
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-slate-800 bg-slate-950">
+    <aside className="flex h-full w-[400px] shrink-0 flex-col border-l border-slate-800 bg-slate-950">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2.5">
-        <h3 className="text-sm font-semibold text-slate-100">Thread</h3>
+      <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+        <h3 className="text-sm font-bold text-slate-100">Thread</h3>
         <button
           onClick={onClose}
           className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
@@ -104,10 +104,19 @@ export function ThreadPanel({ parentMessageId, channelId, onClose }: ThreadPanel
           <>
             {/* Parent message */}
             {parent && (
-              <div className="border-b border-slate-800 pb-2">
+              <div className="border-b border-slate-800 pb-3">
                 <MessageItem message={parent} isCompact={false} />
               </div>
             )}
+
+            {/* Replies count divider */}
+            <div className="flex items-center gap-3 px-5 py-3">
+              <div className="h-px flex-1 bg-slate-800" />
+              <span className="text-xs text-slate-500">
+                {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+              </span>
+              <div className="h-px flex-1 bg-slate-800" />
+            </div>
 
             {/* Replies */}
             <div className="px-0 py-1">
@@ -126,29 +135,33 @@ export function ThreadPanel({ parentMessageId, channelId, onClose }: ThreadPanel
       </div>
 
       {/* Input */}
-      <div className="border-t border-slate-800 px-3 py-2">
-        <form onSubmit={handleSubmit} className="flex items-end gap-2">
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => {
-              setContent(e.target.value);
-              const ta = e.target;
-              ta.style.height = 'auto';
-              ta.style.height = `${Math.min(ta.scrollHeight, 100)}px`;
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Reply..."
-            rows={1}
-            className="flex-1 resize-none rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-          />
-          <button
-            type="submit"
-            disabled={!content.trim()}
-            className="shrink-0 rounded-lg bg-indigo-600 p-2 text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Send className="size-4" />
-          </button>
+      <div className="border-t border-slate-800 px-4 py-3">
+        <form onSubmit={handleSubmit}>
+          <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-800 focus-within:border-slate-600 focus-within:ring-1 focus-within:ring-slate-600">
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                const ta = e.target;
+                ta.style.height = 'auto';
+                ta.style.height = `${Math.min(ta.scrollHeight, 100)}px`;
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Reply..."
+              rows={1}
+              className="block w-full resize-none bg-transparent px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+            />
+            <div className="flex items-center justify-end border-t border-slate-700/50 px-3 py-1.5">
+              <button
+                type="submit"
+                disabled={!content.trim()}
+                className="shrink-0 rounded-lg bg-indigo-600 p-1.5 text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Send className="size-4" />
+              </button>
+            </div>
+          </div>
         </form>
       </div>
     </aside>

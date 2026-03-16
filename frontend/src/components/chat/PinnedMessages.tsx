@@ -29,16 +29,16 @@ export function PinnedMessages({ channelId, onClose }: PinnedMessagesProps) {
   }, [channelId]);
 
   return (
-    <div className="flex h-full w-80 shrink-0 flex-col border-l border-slate-800 bg-slate-950">
+    <div className="flex h-full w-[400px] shrink-0 flex-col border-l border-slate-800 bg-slate-950">
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-slate-800 px-3 py-2.5">
-        <Pin className="size-3.5 text-amber-400" />
+      <div className="flex items-center gap-2 border-b border-slate-800 px-4 py-3">
+        <Pin className="size-4 text-amber-400" />
         <h3 className="flex-1 text-sm font-semibold text-slate-100">Pinned Messages</h3>
         <button
           onClick={onClose}
           className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
         >
-          <X className="size-3.5" />
+          <X className="size-4" />
         </button>
       </div>
 

@@ -7,8 +7,10 @@ interface TypingIndicatorProps {
   channelId: string;
 }
 
+const EMPTY_IDS: string[] = [];
+
 export function TypingIndicator({ channelId }: TypingIndicatorProps) {
-  const typingUserIds = usePresenceStore((s) => s.typing[channelId] || []);
+  const typingUserIds = usePresenceStore((s) => s.typing[channelId] ?? EMPTY_IDS);
   const currentUserId = useAuthStore((s) => s.user?.id);
 
   // Filter out current user
@@ -24,7 +26,7 @@ export function TypingIndicator({ channelId }: TypingIndicatorProps) {
   }
 
   return (
-    <div className="h-6 px-4">
+    <div className="h-6 px-5">
       {text && (
         <p className="text-xs text-slate-400">
           {text}

@@ -191,7 +191,7 @@ export function MessageInput({ channelId, channelName, isConnected, threadId }: 
   }
 
   return (
-    <div className="relative border-t border-slate-800 px-4 py-3">
+    <div className="relative px-5 pb-5 pt-2">
       {/* Mention autocomplete */}
       {mentionQuery !== null && (
         <MentionAutocomplete
@@ -217,32 +217,39 @@ export function MessageInput({ channelId, channelName, isConnected, threadId }: 
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex items-end gap-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading || !isConnected}
-          className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-50"
-          title="Attach file"
-        >
-          <Paperclip className="size-4" />
-        </button>
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => handleInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={`Message #${channelName}`}
-          disabled={!isConnected}
-          rows={1}
-          className="w-full resize-none rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
-        />
+      {/* Rich input container */}
+      <form onSubmit={handleSubmit}>
+        <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 focus-within:border-slate-600 focus-within:ring-1 focus-within:ring-slate-600">
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => handleInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={`Message #${channelName}`}
+            disabled={!isConnected}
+            rows={1}
+            className="block w-full resize-none bg-transparent px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          {/* Bottom toolbar */}
+          <div className="flex items-center gap-1 border-t border-slate-700/50 px-3 py-1.5">
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || !isConnected}
+              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-700 hover:text-slate-200 disabled:opacity-50"
+              title="Attach file"
+            >
+              <Paperclip className="size-4" />
+            </button>
+            <div className="flex-1" />
+          </div>
+        </div>
       </form>
     </div>
   );

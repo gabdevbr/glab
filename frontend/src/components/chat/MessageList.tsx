@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMessageStore } from '@/stores/messageStore';
 import { useAIStreamStore } from '@/stores/aiStreamStore';
+import { Message } from '@/lib/types';
 import { MessageItem } from './MessageItem';
 import { StreamingMessage } from './StreamingMessage';
 
@@ -13,9 +14,10 @@ interface MessageListProps {
 }
 
 const COMPACT_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const EMPTY_MESSAGES: Message[] = [];
 
 export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
-  const messages = useMessageStore((s) => s.messages[channelId] || []);
+  const messages = useMessageStore((s) => s.messages[channelId] ?? EMPTY_MESSAGES);
   const isLoading = useMessageStore((s) => s.isLoading);
   const activeStream = useAIStreamStore((s) => s.channelStreams[channelId]);
 
@@ -35,10 +37,12 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
     return timeDiff < COMPACT_THRESHOLD_MS;
   }
 
+  const getScrollElement = useCallback(() => parentRef.current, []);
+
   const virtualizer = useVirtualizer({
     count: messages.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: (index) => (isCompact(index) ? 24 : 44),
+    getScrollElement,
+    estimateSize: (index) => (isCompact(index) ? 28 : 52),
     overscan: 20,
   });
 
@@ -108,7 +112,7 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
       className="flex-1 overflow-y-auto"
     >
       {isLoading && (
-        <div className="py-3 text-center text-xs text-slate-500">Loading...</div>
+        <div className="py-4 text-center text-xs text-slate-500">Loading...</div>
       )}
       <div
         style={{

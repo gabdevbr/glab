@@ -58,9 +58,9 @@ export function SearchResults({ onClose }: SearchResultsProps) {
   }
 
   return (
-    <div className="flex h-full w-80 shrink-0 flex-col border-l border-slate-800 bg-slate-950">
+    <div className="flex h-full w-[400px] shrink-0 flex-col border-l border-slate-800 bg-slate-950">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2.5">
+      <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
         <h3 className="text-sm font-semibold text-slate-100">Search</h3>
         <button
           onClick={onClose}
@@ -71,7 +71,7 @@ export function SearchResults({ onClose }: SearchResultsProps) {
       </div>
 
       {/* Search input */}
-      <div className="border-b border-slate-800 p-3">
+      <div className="border-b border-slate-800 p-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -109,7 +109,7 @@ export function SearchResults({ onClose }: SearchResultsProps) {
           <button
             key={r.id}
             onClick={() => handleResultClick(r)}
-            className="w-full border-b border-slate-800/50 px-3 py-2.5 text-left hover:bg-slate-800/30"
+            className="w-full border-b border-slate-800/50 px-4 py-3 text-left hover:bg-slate-800/30"
           >
             <div className="flex items-baseline gap-2">
               <span className="text-xs font-medium text-slate-300">

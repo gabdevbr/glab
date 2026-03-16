@@ -201,7 +201,7 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
     if (groups.length === 0) return null;
 
     return (
-      <div className="mt-1 flex flex-wrap gap-1">
+      <div className="mt-1.5 flex flex-wrap gap-1">
         {groups.map((g) => (
           <button
             key={g.emoji}
@@ -227,7 +227,7 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
     return (
       <button
         onClick={() => onThreadOpen?.(message.id)}
-        className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300"
+        className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300"
       >
         <MessageSquare className="size-3" />
         <span>
@@ -239,24 +239,24 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
   };
 
   const actionBar = (
-    <div className="absolute -top-3 right-2 hidden rounded border border-slate-700 bg-slate-900 shadow-md group-hover:flex">
+    <div className="absolute -top-4 right-4 hidden gap-0.5 rounded-lg border border-slate-700 bg-slate-900 shadow-lg group-hover:flex">
       <button
         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-        className="p-1 text-slate-400 hover:text-slate-200"
+        className="p-1.5 text-slate-400 hover:text-slate-200"
         title="Add reaction"
       >
-        <SmilePlus className="size-3.5" />
+        <SmilePlus className="size-4" />
       </button>
       <button
         onClick={() => onThreadOpen?.(message.id)}
-        className="p-1 text-slate-400 hover:text-slate-200"
+        className="p-1.5 text-slate-400 hover:text-slate-200"
         title="Reply in thread"
       >
-        <MessageSquare className="size-3.5" />
+        <MessageSquare className="size-4" />
       </button>
       <DropdownMenu>
-        <DropdownMenuTrigger className="p-1 text-slate-400 hover:text-slate-200">
-          <MoreHorizontal className="size-3.5" />
+        <DropdownMenuTrigger className="p-1.5 text-slate-400 hover:text-slate-200">
+          <MoreHorizontal className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[140px]">
           <DropdownMenuItem onClick={handlePin}>
@@ -283,7 +283,7 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
 
   if (isCompact) {
     return (
-      <div className="group relative flex items-start gap-2 px-4 py-0.5 hover:bg-slate-800/30">
+      <div className="group relative flex items-start gap-3 px-5 py-[3px] hover:bg-slate-800/30">
         <div className="flex w-9 shrink-0 items-center justify-end">
           <span className="hidden text-[10px] text-slate-500 group-hover:inline">
             {formatTime(message.created_at)}
@@ -309,9 +309,9 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
     : message.username.charAt(0).toUpperCase();
 
   return (
-    <div className="group relative flex items-start gap-2 px-4 pt-2 pb-0.5 hover:bg-slate-800/30">
+    <div className="group relative flex items-start gap-3 px-5 pt-5 pb-1 hover:bg-slate-800/30">
       {/* Avatar */}
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-medium text-slate-300">
+      <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-medium text-slate-300">
         {message.avatar_url ? (
           <img
             src={message.avatar_url}
