@@ -1,0 +1,171 @@
+package ws
+
+import "encoding/json"
+
+// Envelope is the wire format for all WebSocket messages.
+type Envelope struct {
+	Type    string          `json:"type"`
+	ID      string          `json:"id,omitempty"`
+	Payload json.RawMessage `json:"payload,omitempty"`
+}
+
+// Client -> Server events.
+const (
+	EventMessageSend    = "message.send"
+	EventMessageEdit    = "message.edit"
+	EventMessageDelete  = "message.delete"
+	EventMessagePin     = "message.pin"
+	EventMessageUnpin   = "message.unpin"
+	EventReactionAdd    = "reaction.add"
+	EventReactionRemove = "reaction.remove"
+	EventTypingStart    = "typing.start"
+	EventTypingStop     = "typing.stop"
+	EventPresenceUpdate = "presence.update"
+	EventChannelRead    = "channel.read"
+	EventSubscribe      = "subscribe"
+	EventUnsubscribe    = "unsubscribe"
+)
+
+// Server -> Client events.
+const (
+	EventAck             = "ack"
+	EventHello           = "hello"
+	EventMessageNew      = "message.new"
+	EventMessageEdited   = "message.edited"
+	EventMessageDeleted  = "message.deleted"
+	EventMessagePinned   = "message.pinned"
+	EventMessageUnpinned = "message.unpinned"
+	EventReactionUpdated = "reaction.updated"
+	EventTyping          = "typing"
+	EventPresence        = "presence"
+	EventNotification    = "notification"
+)
+
+// --- Client -> Server payloads ---
+
+// MessageSendPayload is sent by the client to create a new message.
+type MessageSendPayload struct {
+	ChannelID string `json:"channel_id"`
+	Content   string `json:"content"`
+	ThreadID  string `json:"thread_id,omitempty"`
+}
+
+// MessageEditPayload is sent by the client to edit an existing message.
+type MessageEditPayload struct {
+	MessageID string `json:"message_id"`
+	Content   string `json:"content"`
+}
+
+// MessageDeletePayload is sent by the client to delete a message.
+type MessageDeletePayload struct {
+	MessageID string `json:"message_id"`
+}
+
+// PinPayload is sent by the client to pin or unpin a message.
+type PinPayload struct {
+	MessageID string `json:"message_id"`
+}
+
+// ReactionPayload is sent by the client to add or remove a reaction.
+type ReactionPayload struct {
+	MessageID string `json:"message_id"`
+	Emoji     string `json:"emoji"`
+}
+
+// SubscribePayload is sent by the client to subscribe to channels.
+type SubscribePayload struct {
+	ChannelIDs []string `json:"channel_ids"`
+}
+
+// UnsubscribePayload is sent by the client to unsubscribe from channels.
+type UnsubscribePayload struct {
+	ChannelIDs []string `json:"channel_ids"`
+}
+
+// ChannelReadPayload is sent by the client to mark a channel as read.
+type ChannelReadPayload struct {
+	ChannelID string `json:"channel_id"`
+	MessageID string `json:"message_id"`
+}
+
+// TypingPayload is sent by the client to indicate typing status.
+type TypingPayload struct {
+	ChannelID string `json:"channel_id"`
+}
+
+// PresenceUpdatePayload is sent by the client to update their presence status.
+type PresenceUpdatePayload struct {
+	Status string `json:"status"`
+}
+
+// --- Server -> Client payloads ---
+
+// HelloPayload is sent to the client after a successful connection.
+type HelloPayload struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+}
+
+// AckPayload is sent to the client to acknowledge a request.
+type AckPayload struct {
+	OK    bool            `json:"ok"`
+	Error string          `json:"error,omitempty"`
+	Data  json.RawMessage `json:"data,omitempty"`
+}
+
+// MessageNewPayload is broadcast when a new message is created.
+type MessageNewPayload struct {
+	ID          string `json:"id"`
+	ChannelID   string `json:"channel_id"`
+	UserID      string `json:"user_id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url,omitempty"`
+	Content     string `json:"content"`
+	ContentType string `json:"content_type"`
+	ThreadID    string `json:"thread_id,omitempty"`
+	IsBot       bool   `json:"is_bot"`
+	CreatedAt   string `json:"created_at"`
+}
+
+// MessageEditedPayload is broadcast when a message is edited.
+type MessageEditedPayload struct {
+	ID        string `json:"id"`
+	ChannelID string `json:"channel_id"`
+	Content   string `json:"content"`
+	EditedAt  string `json:"edited_at"`
+}
+
+// MessageDeletedPayload is broadcast when a message is deleted.
+type MessageDeletedPayload struct {
+	ID        string `json:"id"`
+	ChannelID string `json:"channel_id"`
+}
+
+// TypingBroadcast is broadcast to indicate a user's typing status.
+type TypingBroadcast struct {
+	ChannelID   string `json:"channel_id"`
+	UserID      string `json:"user_id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	IsTyping    bool   `json:"is_typing"`
+}
+
+// PresenceBroadcast is broadcast to indicate a user's presence status.
+type PresenceBroadcast struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	Status   string `json:"status"`
+}
+
+// MakeEnvelope creates an Envelope with the given event type and payload.
+func MakeEnvelope(eventType string, payload interface{}) (Envelope, error) {
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return Envelope{}, err
+	}
+	return Envelope{
+		Type:    eventType,
+		Payload: raw,
+	}, nil
+}

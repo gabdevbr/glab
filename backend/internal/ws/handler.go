@@ -1,0 +1,612 @@
+package ws
+
+import (
+	"context"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/geovendas/glab/backend/internal/auth"
+	"github.com/geovendas/glab/backend/internal/repository"
+)
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Auth is done via query param token.
+	},
+}
+
+// MessageHandler dispatches incoming WebSocket messages to the correct business logic.
+type MessageHandler struct {
+	hub       *Hub
+	queries   *repository.Queries
+	presence  *PresenceService
+	jwtSecret string
+}
+
+// NewMessageHandler creates a new MessageHandler.
+func NewMessageHandler(hub *Hub, queries *repository.Queries, presence *PresenceService, jwtSecret string) *MessageHandler {
+	return &MessageHandler{
+		hub:       hub,
+		queries:   queries,
+		presence:  presence,
+		jwtSecret: jwtSecret,
+	}
+}
+
+// ServeWS handles the HTTP upgrade to WebSocket.
+func (h *MessageHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		http.Error(w, "missing token", http.StatusUnauthorized)
+		return
+	}
+
+	claims, err := auth.ValidateToken(token, h.jwtSecret)
+	if err != nil {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		slog.Error("ws: upgrade failed", "error", err)
+		return
+	}
+
+	// Look up user to get display_name.
+	ctx := context.Background()
+	userUUID, err := parseUUID(claims.UserID)
+	if err != nil {
+		slog.Error("ws: invalid user_id in claims", "user_id", claims.UserID, "error", err)
+		conn.Close()
+		return
+	}
+
+	user, err := h.queries.GetUserByID(ctx, userUUID)
+	if err != nil {
+		slog.Error("ws: failed to get user", "user_id", claims.UserID, "error", err)
+		conn.Close()
+		return
+	}
+
+	client := newClient(h.hub, conn, claims.UserID, claims.Username, user.DisplayName, claims.Role)
+
+	h.hub.Register(client)
+
+	// Load user's channels and auto-subscribe.
+	channels, err := h.queries.ListChannelsForUser(ctx, userUUID)
+	if err != nil {
+		slog.Error("ws: failed to list channels for user", "user_id", claims.UserID, "error", err)
+	} else {
+		channelIDs := make([]string, len(channels))
+		for i, ch := range channels {
+			channelIDs[i] = uuidToString(ch.ID)
+		}
+		h.hub.Subscribe(client, channelIDs)
+	}
+
+	// Send hello.
+	helloEnv, err := MakeEnvelope(EventHello, HelloPayload{
+		UserID:   claims.UserID,
+		Username: claims.Username,
+	})
+	if err == nil {
+		client.sendEnvelope(helloEnv)
+	}
+
+	// Send initial presence snapshot.
+	onlineUsers := h.presence.GetOnlineUsers()
+	for uid, status := range onlineUsers {
+		env, err := MakeEnvelope(EventPresence, PresenceBroadcast{
+			UserID: uid,
+			Status: status,
+		})
+		if err == nil {
+			client.sendEnvelope(env)
+		}
+	}
+
+	// Set user online.
+	h.presence.SetOnline(claims.UserID, claims.Username)
+
+	// Start pumps.
+	go client.writePump()
+	go client.readPump(h)
+}
+
+// onDisconnect is called when a client disconnects.
+func (h *MessageHandler) onDisconnect(c *Client) {
+	h.presence.SetOffline(c.userID, c.username)
+}
+
+// HandleMessage dispatches an incoming WebSocket message to the correct handler.
+func (h *MessageHandler) HandleMessage(client *Client, env Envelope) {
+	switch env.Type {
+	case EventMessageSend:
+		h.handleMessageSend(client, env)
+	case EventMessageEdit:
+		h.handleMessageEdit(client, env)
+	case EventMessageDelete:
+		h.handleMessageDelete(client, env)
+	case EventMessagePin:
+		h.handleMessagePin(client, env)
+	case EventMessageUnpin:
+		h.handleMessageUnpin(client, env)
+	case EventSubscribe:
+		h.handleSubscribe(client, env)
+	case EventUnsubscribe:
+		h.handleUnsubscribe(client, env)
+	case EventChannelRead:
+		h.handleChannelRead(client, env)
+	case EventTypingStart:
+		h.handleTypingStart(client, env)
+	case EventTypingStop:
+		h.handleTypingStop(client, env)
+	case EventPresenceUpdate:
+		h.handlePresenceUpdate(client, env)
+	case EventReactionAdd, EventReactionRemove:
+		slog.Info("ws: reaction events not yet implemented", "type", env.Type, "user_id", client.userID)
+		h.sendAck(client, env.ID, false, "reactions not yet implemented", nil)
+	default:
+		slog.Warn("ws: unknown event type", "type", env.Type, "user_id", client.userID)
+		h.sendAck(client, env.ID, false, "unknown event type", nil)
+	}
+}
+
+func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
+	var payload MessageSendPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	if payload.Content == "" || payload.ChannelID == "" {
+		h.sendAck(client, env.ID, false, "content and channel_id are required", nil)
+		return
+	}
+
+	// Verify client is subscribed to the channel.
+	if !client.IsSubscribed(payload.ChannelID) {
+		h.sendAck(client, env.ID, false, "not subscribed to channel", nil)
+		return
+	}
+
+	ctx := context.Background()
+	channelUUID, err := parseUUID(payload.ChannelID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "invalid channel_id", nil)
+		return
+	}
+
+	userUUID, err := parseUUID(client.userID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "internal error", nil)
+		return
+	}
+
+	// Parse optional thread ID.
+	var threadUUID pgtype.UUID
+	if payload.ThreadID != "" {
+		threadUUID, err = parseUUID(payload.ThreadID)
+		if err != nil {
+			h.sendAck(client, env.ID, false, "invalid thread_id", nil)
+			return
+		}
+	}
+
+	msg, err := h.queries.CreateMessage(ctx, repository.CreateMessageParams{
+		ChannelID:   channelUUID,
+		UserID:      userUUID,
+		ThreadID:    threadUUID,
+		Content:     payload.Content,
+		ContentType: "text",
+		Metadata:    json.RawMessage("null"),
+	})
+	if err != nil {
+		slog.Error("ws: failed to create message", "error", err)
+		h.sendAck(client, env.ID, false, "failed to create message", nil)
+		return
+	}
+
+	// Fetch full message with user info for broadcast.
+	fullMsg, err := h.queries.GetMessageByID(ctx, msg.ID)
+	if err != nil {
+		slog.Error("ws: failed to fetch created message", "error", err)
+		h.sendAck(client, env.ID, false, "message created but failed to fetch", nil)
+		return
+	}
+
+	newPayload := messageRowToNewPayload(fullMsg)
+
+	broadcastEnv, err := MakeEnvelope(EventMessageNew, newPayload)
+	if err != nil {
+		slog.Error("ws: failed to make broadcast envelope", "error", err)
+		h.sendAck(client, env.ID, false, "internal error", nil)
+		return
+	}
+	h.hub.BroadcastToChannel(payload.ChannelID, broadcastEnv)
+
+	// Send ack with the new message ID.
+	ackData, _ := json.Marshal(map[string]string{"message_id": uuidToString(msg.ID)})
+	h.sendAck(client, env.ID, true, "", ackData)
+}
+
+func (h *MessageHandler) handleMessageEdit(client *Client, env Envelope) {
+	var payload MessageEditPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	if payload.MessageID == "" || payload.Content == "" {
+		h.sendAck(client, env.ID, false, "message_id and content are required", nil)
+		return
+	}
+
+	ctx := context.Background()
+	msgUUID, err := parseUUID(payload.MessageID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "invalid message_id", nil)
+		return
+	}
+
+	// Verify sender owns the message.
+	existing, err := h.queries.GetMessageByID(ctx, msgUUID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "message not found", nil)
+		return
+	}
+
+	if uuidToString(existing.UserID) != client.userID {
+		h.sendAck(client, env.ID, false, "cannot edit another user's message", nil)
+		return
+	}
+
+	updated, err := h.queries.UpdateMessageContent(ctx, repository.UpdateMessageContentParams{
+		ID:      msgUUID,
+		Content: payload.Content,
+	})
+	if err != nil {
+		slog.Error("ws: failed to update message", "error", err)
+		h.sendAck(client, env.ID, false, "failed to update message", nil)
+		return
+	}
+
+	channelID := uuidToString(existing.ChannelID)
+	editedEnv, err := MakeEnvelope(EventMessageEdited, MessageEditedPayload{
+		ID:        payload.MessageID,
+		ChannelID: channelID,
+		Content:   payload.Content,
+		EditedAt:  timestampToString(updated.EditedAt),
+	})
+	if err == nil {
+		h.hub.BroadcastToChannel(channelID, editedEnv)
+	}
+
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+func (h *MessageHandler) handleMessageDelete(client *Client, env Envelope) {
+	var payload MessageDeletePayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	if payload.MessageID == "" {
+		h.sendAck(client, env.ID, false, "message_id is required", nil)
+		return
+	}
+
+	ctx := context.Background()
+	msgUUID, err := parseUUID(payload.MessageID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "invalid message_id", nil)
+		return
+	}
+
+	// Verify ownership or admin role.
+	existing, err := h.queries.GetMessageByID(ctx, msgUUID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "message not found", nil)
+		return
+	}
+
+	if uuidToString(existing.UserID) != client.userID && client.role != "admin" {
+		h.sendAck(client, env.ID, false, "not authorized to delete this message", nil)
+		return
+	}
+
+	if err := h.queries.DeleteMessage(ctx, msgUUID); err != nil {
+		slog.Error("ws: failed to delete message", "error", err)
+		h.sendAck(client, env.ID, false, "failed to delete message", nil)
+		return
+	}
+
+	channelID := uuidToString(existing.ChannelID)
+	deletedEnv, err := MakeEnvelope(EventMessageDeleted, MessageDeletedPayload{
+		ID:        payload.MessageID,
+		ChannelID: channelID,
+	})
+	if err == nil {
+		h.hub.BroadcastToChannel(channelID, deletedEnv)
+	}
+
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+func (h *MessageHandler) handleMessagePin(client *Client, env Envelope) {
+	var payload PinPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	ctx := context.Background()
+	msgUUID, err := parseUUID(payload.MessageID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "invalid message_id", nil)
+		return
+	}
+
+	existing, err := h.queries.GetMessageByID(ctx, msgUUID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "message not found", nil)
+		return
+	}
+
+	if err := h.queries.PinMessage(ctx, msgUUID); err != nil {
+		slog.Error("ws: failed to pin message", "error", err)
+		h.sendAck(client, env.ID, false, "failed to pin message", nil)
+		return
+	}
+
+	channelID := uuidToString(existing.ChannelID)
+	pinnedEnv, err := MakeEnvelope(EventMessagePinned, MessageDeletedPayload{
+		ID:        payload.MessageID,
+		ChannelID: channelID,
+	})
+	if err == nil {
+		h.hub.BroadcastToChannel(channelID, pinnedEnv)
+	}
+
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+func (h *MessageHandler) handleMessageUnpin(client *Client, env Envelope) {
+	var payload PinPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	ctx := context.Background()
+	msgUUID, err := parseUUID(payload.MessageID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "invalid message_id", nil)
+		return
+	}
+
+	existing, err := h.queries.GetMessageByID(ctx, msgUUID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "message not found", nil)
+		return
+	}
+
+	if err := h.queries.UnpinMessage(ctx, msgUUID); err != nil {
+		slog.Error("ws: failed to unpin message", "error", err)
+		h.sendAck(client, env.ID, false, "failed to unpin message", nil)
+		return
+	}
+
+	channelID := uuidToString(existing.ChannelID)
+	unpinnedEnv, err := MakeEnvelope(EventMessageUnpinned, MessageDeletedPayload{
+		ID:        payload.MessageID,
+		ChannelID: channelID,
+	})
+	if err == nil {
+		h.hub.BroadcastToChannel(channelID, unpinnedEnv)
+	}
+
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+func (h *MessageHandler) handleSubscribe(client *Client, env Envelope) {
+	var payload SubscribePayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	ctx := context.Background()
+	userUUID, err := parseUUID(client.userID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "internal error", nil)
+		return
+	}
+
+	// Verify membership for each channel before subscribing.
+	verified := make([]string, 0, len(payload.ChannelIDs))
+	for _, chID := range payload.ChannelIDs {
+		chUUID, err := parseUUID(chID)
+		if err != nil {
+			continue
+		}
+		isMember, err := h.queries.IsChannelMember(ctx, repository.IsChannelMemberParams{
+			ChannelID: chUUID,
+			UserID:    userUUID,
+		})
+		if err != nil || !isMember {
+			continue
+		}
+		verified = append(verified, chID)
+	}
+
+	h.hub.Subscribe(client, verified)
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+func (h *MessageHandler) handleUnsubscribe(client *Client, env Envelope) {
+	var payload UnsubscribePayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	h.hub.Unsubscribe(client, payload.ChannelIDs)
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+func (h *MessageHandler) handleChannelRead(client *Client, env Envelope) {
+	var payload ChannelReadPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	ctx := context.Background()
+	chUUID, err := parseUUID(payload.ChannelID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "invalid channel_id", nil)
+		return
+	}
+
+	userUUID, err := parseUUID(client.userID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "internal error", nil)
+		return
+	}
+
+	msgUUID, err := parseUUID(payload.MessageID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "invalid message_id", nil)
+		return
+	}
+
+	if err := h.queries.UpdateLastRead(ctx, repository.UpdateLastReadParams{
+		ChannelID:     chUUID,
+		UserID:        userUUID,
+		LastReadMsgID: msgUUID,
+	}); err != nil {
+		slog.Error("ws: failed to update last read", "error", err)
+		h.sendAck(client, env.ID, false, "failed to update last read", nil)
+		return
+	}
+
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+func (h *MessageHandler) handleTypingStart(client *Client, env Envelope) {
+	var payload TypingPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		return
+	}
+	h.presence.SetTyping(payload.ChannelID, client.userID, client.username, client.displayName)
+}
+
+func (h *MessageHandler) handleTypingStop(client *Client, env Envelope) {
+	var payload TypingPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		return
+	}
+	h.presence.StopTyping(payload.ChannelID, client.userID, client.username, client.displayName)
+}
+
+func (h *MessageHandler) handlePresenceUpdate(client *Client, env Envelope) {
+	var payload PresenceUpdatePayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	// Also update DB status.
+	ctx := context.Background()
+	userUUID, err := parseUUID(client.userID)
+	if err == nil {
+		_ = h.queries.UpdateUserStatus(ctx, repository.UpdateUserStatusParams{
+			ID:     userUUID,
+			Status: payload.Status,
+		})
+	}
+
+	h.presence.SetStatus(client.userID, client.username, payload.Status)
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+// sendAck sends an acknowledgment envelope to a client.
+func (h *MessageHandler) sendAck(client *Client, id string, ok bool, errMsg string, data json.RawMessage) {
+	ack := AckPayload{
+		OK:    ok,
+		Error: errMsg,
+		Data:  data,
+	}
+	env, err := MakeEnvelope(EventAck, ack)
+	if err != nil {
+		return
+	}
+	env.ID = id
+	client.sendEnvelope(env)
+}
+
+// --- UUID/Timestamp helpers (duplicated from handler to avoid circular deps) ---
+
+func parseUUID(s string) (pgtype.UUID, error) {
+	var u pgtype.UUID
+	clean := ""
+	for _, c := range s {
+		if c != '-' {
+			clean += string(c)
+		}
+	}
+	if len(clean) != 32 {
+		return u, fmt.Errorf("invalid UUID: %s", s)
+	}
+	b, err := hex.DecodeString(clean)
+	if err != nil {
+		return u, fmt.Errorf("invalid UUID hex: %w", err)
+	}
+	copy(u.Bytes[:], b)
+	u.Valid = true
+	return u, nil
+}
+
+func uuidToString(u pgtype.UUID) string {
+	if !u.Valid {
+		return ""
+	}
+	b := u.Bytes
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+func timestampToString(t pgtype.Timestamptz) string {
+	if !t.Valid {
+		return ""
+	}
+	return t.Time.Format(time.RFC3339)
+}
+
+// messageRowToNewPayload converts a GetMessageByIDRow to a MessageNewPayload.
+func messageRowToNewPayload(m repository.GetMessageByIDRow) MessageNewPayload {
+	return MessageNewPayload{
+		ID:          uuidToString(m.ID),
+		ChannelID:   uuidToString(m.ChannelID),
+		UserID:      uuidToString(m.UserID),
+		Username:    m.Username,
+		DisplayName: m.DisplayName,
+		AvatarURL:   m.AvatarUrl.String,
+		Content:     m.Content,
+		ContentType: m.ContentType,
+		ThreadID:    uuidToString(m.ThreadID),
+		IsBot:       m.IsBot,
+		CreatedAt:   timestampToString(m.CreatedAt),
+	}
+}

@@ -27,6 +27,7 @@ import (
 	"github.com/geovendas/glab/backend/internal/db"
 	"github.com/geovendas/glab/backend/internal/handler"
 	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/geovendas/glab/backend/internal/ws"
 )
 
 func main() {
@@ -84,6 +85,12 @@ func main() {
 	channelHandler := handler.NewChannelHandler(queries)
 	messageHandler := handler.NewMessageHandler(queries)
 
+	// WebSocket hub, presence service, and handler
+	hub := ws.NewHub()
+	go hub.Run()
+	presenceService := ws.NewPresenceService(rdb, hub)
+	wsHandler := ws.NewMessageHandler(hub, queries, presenceService, cfg.JWTSecret)
+
 	// Setup router
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -105,6 +112,9 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	// WebSocket route (auth via query param, not middleware)
+	r.Get("/ws", wsHandler.ServeWS)
 
 	// Public routes
 	r.Post("/api/v1/auth/login", authHandler.Login)
