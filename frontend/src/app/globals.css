@@ -127,3 +127,41 @@
     @apply font-sans;
   }
 }
+
+/* Typing indicator bouncing dots */
+.typing-dots {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+.typing-dots::before,
+.typing-dots::after,
+.typing-dots {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: typing-bounce 1.2s infinite;
+}
+.typing-dots::before {
+  animation-delay: 0s;
+}
+.typing-dots {
+  animation-delay: 0.2s;
+}
+.typing-dots::after {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}

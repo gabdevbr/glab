@@ -1,30 +1,33 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useChannelStore } from '@/stores/channelStore';
-import { useWebSocket } from '@/hooks/useWebSocket';
 
 export default function ChatHome() {
-  const { channels, isLoading, fetchChannels } = useChannelStore();
-  const { isConnected } = useWebSocket();
+  const router = useRouter();
+  const channels = useChannelStore((s) => s.channels);
+  const isLoading = useChannelStore((s) => s.isLoading);
 
+  // Redirect to first available channel
   useEffect(() => {
-    fetchChannels();
-  }, [fetchChannels]);
+    if (!isLoading && channels.length > 0) {
+      const firstNonDm = channels.find((c) => c.type !== 'dm');
+      const target = firstNonDm || channels[0];
+      router.replace(`/channel/${target.id}`);
+    }
+  }, [channels, isLoading, router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950">
+    <div className="flex h-full items-center justify-center">
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-slate-50">Glab</h1>
-        <p className="mt-2 text-slate-400">
+        <h2 className="text-xl font-semibold text-slate-200">Welcome to Glab</h2>
+        <p className="mt-2 text-sm text-slate-400">
           {isLoading
             ? 'Loading channels...'
             : channels.length > 0
-              ? 'Select a channel from the sidebar to get started'
-              : 'No channels yet. Create one to get started.'}
-        </p>
-        <p className="mt-1 text-xs text-slate-500">
-          WebSocket: {isConnected ? 'Connected' : 'Disconnected'}
+              ? 'Redirecting...'
+              : 'No channels yet. Create one from the sidebar to get started.'}
         </p>
       </div>
     </div>

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { useWSStore } from '@/stores/wsStore';
 import { wsClient } from '@/lib/ws';
 
 export function useWebSocket() {
   const token = useAuthStore((s) => s.token);
-  const [isConnected, setIsConnected] = useState(false);
+  const setConnected = useWSStore((s) => s.setConnected);
 
   useEffect(() => {
     if (!token) return;
@@ -14,21 +15,19 @@ export function useWebSocket() {
     wsClient.connect(token);
 
     const unsubHello = wsClient.on('hello', () => {
-      setIsConnected(true);
+      setConnected(true);
     });
 
-    // Track connection state via close
+    // Track connection state via polling (WS has no close callback exposed)
     const checkInterval = setInterval(() => {
-      setIsConnected(wsClient.isConnected);
+      setConnected(wsClient.isConnected);
     }, 2000);
 
     return () => {
       unsubHello();
       clearInterval(checkInterval);
       wsClient.disconnect();
-      setIsConnected(false);
+      setConnected(false);
     };
-  }, [token]);
-
-  return { isConnected };
+  }, [token, setConnected]);
 }

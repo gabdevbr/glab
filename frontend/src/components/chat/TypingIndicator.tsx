@@ -1,0 +1,38 @@
+'use client';
+
+import { usePresenceStore } from '@/stores/presenceStore';
+import { useAuthStore } from '@/stores/authStore';
+
+interface TypingIndicatorProps {
+  channelId: string;
+}
+
+export function TypingIndicator({ channelId }: TypingIndicatorProps) {
+  const typingUserIds = usePresenceStore((s) => s.typing[channelId] || []);
+  const currentUserId = useAuthStore((s) => s.user?.id);
+
+  // Filter out current user
+  const others = typingUserIds.filter((id) => id !== currentUserId);
+
+  let text = '';
+  if (others.length === 1) {
+    text = 'Someone is typing';
+  } else if (others.length === 2) {
+    text = '2 people are typing';
+  } else if (others.length > 2) {
+    text = `${others.length} people are typing`;
+  }
+
+  return (
+    <div className="h-6 px-4">
+      {text && (
+        <p className="text-xs text-slate-400">
+          {text}
+          <span className="ml-0.5 inline-flex w-5">
+            <span className="typing-dots" />
+          </span>
+        </p>
+      )}
+    </div>
+  );
+}
