@@ -6,16 +6,20 @@ interface ChannelState {
   channels: Channel[];
   activeChannelId: string | null;
   isLoading: boolean;
+  unreadCounts: Record<string, number>;
   fetchChannels: () => Promise<void>;
   setActiveChannel: (id: string) => void;
   addChannel: (channel: Channel) => void;
   updateChannel: (id: string, partial: Partial<Channel>) => void;
+  incrementUnread: (channelId: string) => void;
+  clearUnread: (channelId: string) => void;
 }
 
 export const useChannelStore = create<ChannelState>((set) => ({
   channels: [],
   activeChannelId: null,
   isLoading: false,
+  unreadCounts: {},
   fetchChannels: async () => {
     set({ isLoading: true });
     try {
@@ -33,5 +37,16 @@ export const useChannelStore = create<ChannelState>((set) => ({
       channels: s.channels.map((c) =>
         c.id === id ? { ...c, ...partial } : c,
       ),
+    })),
+  incrementUnread: (channelId) =>
+    set((s) => ({
+      unreadCounts: {
+        ...s.unreadCounts,
+        [channelId]: (s.unreadCounts[channelId] || 0) + 1,
+      },
+    })),
+  clearUnread: (channelId) =>
+    set((s) => ({
+      unreadCounts: { ...s.unreadCounts, [channelId]: 0 },
     })),
 }));

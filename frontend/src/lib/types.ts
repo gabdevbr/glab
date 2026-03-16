@@ -23,6 +23,31 @@ export interface Channel {
   member_count?: number;
 }
 
+export interface Reaction {
+  emoji: string;
+  user_id: string;
+  username: string;
+}
+
+export interface ThreadSummary {
+  message_id: string;
+  reply_count: number;
+  last_reply_at: string;
+}
+
+export interface FileAttachment {
+  id: string;
+  message_id?: string;
+  user_id: string;
+  channel_id: string;
+  filename: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  has_thumbnail: boolean;
+  created_at: string;
+}
+
 export interface Message {
   id: string;
   channel_id: string;
@@ -38,6 +63,23 @@ export interface Message {
   is_pinned: boolean;
   metadata?: Record<string, unknown>;
   created_at: string;
+  reactions?: Reaction[];
+  thread_summary?: ThreadSummary;
+  file?: FileAttachment;
+}
+
+export interface SearchResult {
+  id: string;
+  channel_id: string;
+  user_id: string;
+  content: string;
+  content_type: string;
+  created_at: string;
+  username: string;
+  display_name: string;
+  avatar_url?: string;
+  is_bot: boolean;
+  rank: number;
 }
 
 export interface WSEnvelope {

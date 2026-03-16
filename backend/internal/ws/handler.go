@@ -189,9 +189,10 @@ func (h *MessageHandler) HandleMessage(client *Client, env Envelope) {
 		h.handleAIPrompt(client, env)
 	case EventAIStop:
 		h.handleAIStop(client, env)
-	case EventReactionAdd, EventReactionRemove:
-		slog.Info("ws: reaction events not yet implemented", "type", env.Type, "user_id", client.userID)
-		h.sendAck(client, env.ID, false, "reactions not yet implemented", nil)
+	case EventReactionAdd:
+		h.handleReactionAdd(client, env)
+	case EventReactionRemove:
+		h.handleReactionRemove(client, env)
 	default:
 		slog.Warn("ws: unknown event type", "type", env.Type, "user_id", client.userID)
 		h.sendAck(client, env.ID, false, "unknown event type", nil)
@@ -270,6 +271,52 @@ func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
 		return
 	}
 	h.hub.BroadcastToChannel(payload.ChannelID, broadcastEnv)
+
+	// If this is a thread reply, update the thread summary.
+	if payload.ThreadID != "" {
+		parentUUID, err := parseUUID(payload.ThreadID)
+		if err == nil {
+			_ = h.queries.UpsertThreadSummary(ctx, repository.UpsertThreadSummaryParams{
+				MessageID: parentUUID,
+				UserID:    userUUID,
+			})
+
+			// Broadcast thread.updated so clients can update thread badges.
+			summary, err := h.queries.GetThreadSummary(ctx, parentUUID)
+			if err == nil {
+				threadEnv, err := MakeEnvelope(EventThreadUpdated, ThreadUpdatedPayload{
+					MessageID:   payload.ThreadID,
+					ChannelID:   payload.ChannelID,
+					ReplyCount:  summary.ReplyCount,
+					LastReplyAt: timestampToString(summary.LastReplyAt),
+				})
+				if err == nil {
+					h.hub.BroadcastToChannel(payload.ChannelID, threadEnv)
+				}
+			}
+		}
+	}
+
+	// Parse @user mentions and create mention records.
+	mentionedUserIDs := h.parseUserMentions(ctx, payload.Content, channelUUID)
+	for _, mentionUID := range mentionedUserIDs {
+		_ = h.queries.CreateMention(ctx, repository.CreateMentionParams{
+			MessageID: msg.ID,
+			UserID:    mentionUID,
+			ChannelID: channelUUID,
+		})
+		// Notify mentioned user via WS.
+		mentionEnv, err := MakeEnvelope(EventNotification, map[string]string{
+			"type":       "mention",
+			"message_id": uuidToString(msg.ID),
+			"channel_id": payload.ChannelID,
+			"from":       client.username,
+			"content":    payload.Content,
+		})
+		if err == nil {
+			h.hub.SendToUser(uuidToString(mentionUID), mentionEnv)
+		}
+	}
 
 	// Send ack with the new message ID.
 	ackData, _ := json.Marshal(map[string]string{"message_id": uuidToString(msg.ID)})
@@ -554,6 +601,12 @@ func (h *MessageHandler) handleChannelRead(client *Client, env Envelope) {
 		return
 	}
 
+	// Also mark mentions in this channel as read.
+	_ = h.queries.MarkMentionsRead(ctx, repository.MarkMentionsReadParams{
+		UserID:    userUUID,
+		ChannelID: chUUID,
+	})
+
 	h.sendAck(client, env.ID, true, "", nil)
 }
 
@@ -721,6 +774,154 @@ func trimTrailingPunct(s string) string {
 		}
 	}
 	return s
+}
+
+// handleReactionAdd processes a reaction.add event.
+func (h *MessageHandler) handleReactionAdd(client *Client, env Envelope) {
+	var payload ReactionPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	if payload.MessageID == "" || payload.Emoji == "" {
+		h.sendAck(client, env.ID, false, "message_id and emoji are required", nil)
+		return
+	}
+
+	ctx := context.Background()
+	msgUUID, err := parseUUID(payload.MessageID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "invalid message_id", nil)
+		return
+	}
+
+	userUUID, err := parseUUID(client.userID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "internal error", nil)
+		return
+	}
+
+	// Get message to find channel.
+	existing, err := h.queries.GetMessageByID(ctx, msgUUID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "message not found", nil)
+		return
+	}
+
+	if err := h.queries.AddReaction(ctx, repository.AddReactionParams{
+		MessageID: msgUUID,
+		UserID:    userUUID,
+		Emoji:     payload.Emoji,
+	}); err != nil {
+		slog.Error("ws: failed to add reaction", "error", err)
+		h.sendAck(client, env.ID, false, "failed to add reaction", nil)
+		return
+	}
+
+	channelID := uuidToString(existing.ChannelID)
+	broadcastEnv, err := MakeEnvelope(EventReactionUpdated, ReactionUpdatedPayload{
+		MessageID: payload.MessageID,
+		ChannelID: channelID,
+		Emoji:     payload.Emoji,
+		UserID:    client.userID,
+		Username:  client.username,
+		Action:    "add",
+	})
+	if err == nil {
+		h.hub.BroadcastToChannel(channelID, broadcastEnv)
+	}
+
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+// handleReactionRemove processes a reaction.remove event.
+func (h *MessageHandler) handleReactionRemove(client *Client, env Envelope) {
+	var payload ReactionPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.sendAck(client, env.ID, false, "invalid payload", nil)
+		return
+	}
+
+	if payload.MessageID == "" || payload.Emoji == "" {
+		h.sendAck(client, env.ID, false, "message_id and emoji are required", nil)
+		return
+	}
+
+	ctx := context.Background()
+	msgUUID, err := parseUUID(payload.MessageID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "invalid message_id", nil)
+		return
+	}
+
+	userUUID, err := parseUUID(client.userID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "internal error", nil)
+		return
+	}
+
+	existing, err := h.queries.GetMessageByID(ctx, msgUUID)
+	if err != nil {
+		h.sendAck(client, env.ID, false, "message not found", nil)
+		return
+	}
+
+	if err := h.queries.RemoveReaction(ctx, repository.RemoveReactionParams{
+		MessageID: msgUUID,
+		UserID:    userUUID,
+		Emoji:     payload.Emoji,
+	}); err != nil {
+		slog.Error("ws: failed to remove reaction", "error", err)
+		h.sendAck(client, env.ID, false, "failed to remove reaction", nil)
+		return
+	}
+
+	channelID := uuidToString(existing.ChannelID)
+	broadcastEnv, err := MakeEnvelope(EventReactionUpdated, ReactionUpdatedPayload{
+		MessageID: payload.MessageID,
+		ChannelID: channelID,
+		Emoji:     payload.Emoji,
+		UserID:    client.userID,
+		Username:  client.username,
+		Action:    "remove",
+	})
+	if err == nil {
+		h.hub.BroadcastToChannel(channelID, broadcastEnv)
+	}
+
+	h.sendAck(client, env.ID, true, "", nil)
+}
+
+// parseUserMentions extracts @username mentions from message content that match real users.
+// Returns a list of user UUIDs to mention.
+func (h *MessageHandler) parseUserMentions(ctx context.Context, content string, channelUUID pgtype.UUID) []pgtype.UUID {
+	words := splitMentions(content)
+	seen := make(map[string]bool)
+	var userIDs []pgtype.UUID
+
+	for _, word := range words {
+		if len(word) < 2 || word[0] != '@' {
+			continue
+		}
+		username := word[1:]
+		username = trimTrailingPunct(username)
+		if username == "" || seen[username] {
+			continue
+		}
+		// Skip agent mentions (handled separately).
+		if h.agentSlugs[username] {
+			continue
+		}
+		seen[username] = true
+
+		user, err := h.queries.GetUserByUsername(ctx, username)
+		if err != nil {
+			continue
+		}
+		userIDs = append(userIDs, user.ID)
+	}
+	return userIDs
 }
 
 // --- UUID/Timestamp helpers (duplicated from handler to avoid circular deps) ---

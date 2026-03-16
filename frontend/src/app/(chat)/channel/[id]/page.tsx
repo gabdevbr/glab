@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useChannelStore } from '@/stores/channelStore';
 import { useMessageStore } from '@/stores/messageStore';
@@ -11,7 +11,16 @@ import { Message } from '@/lib/types';
 import { MessageList } from '@/components/chat/MessageList';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
-import { Hash, Users } from 'lucide-react';
+import { ThreadPanel } from '@/components/chat/ThreadPanel';
+import { PinnedMessages } from '@/components/chat/PinnedMessages';
+import { SearchResults } from '@/components/chat/SearchResults';
+import { Hash, Users, Pin, Search } from 'lucide-react';
+
+type RightPanel =
+  | { type: 'none' }
+  | { type: 'thread'; messageId: string }
+  | { type: 'pinned' }
+  | { type: 'search' };
 
 export default function ChannelPage() {
   const params = useParams<{ id: string }>();
@@ -19,12 +28,21 @@ export default function ChannelPage() {
 
   const channels = useChannelStore((s) => s.channels);
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
+  const clearUnread = useChannelStore((s) => s.clearUnread);
+  const incrementUnread = useChannelStore((s) => s.incrementUnread);
   const fetchMessages = useMessageStore((s) => s.fetchMessages);
   const addMessage = useMessageStore((s) => s.addMessage);
   const updateMessage = useMessageStore((s) => s.updateMessage);
   const deleteMessage = useMessageStore((s) => s.deleteMessage);
+  const addReaction = useMessageStore((s) => s.addReaction);
+  const removeReaction = useMessageStore((s) => s.removeReaction);
+  const updateThreadSummary = useMessageStore((s) => s.updateThreadSummary);
+  const pinMessage = useMessageStore((s) => s.pinMessage);
+  const unpinMessage = useMessageStore((s) => s.unpinMessage);
   const setTyping = usePresenceStore((s) => s.setTyping);
   const isConnected = useWSStore((s) => s.isConnected);
+
+  const [rightPanel, setRightPanel] = useState<RightPanel>({ type: 'none' });
 
   const channel = channels.find((c) => c.id === channelId);
 
@@ -32,7 +50,17 @@ export default function ChannelPage() {
   useEffect(() => {
     setActiveChannel(channelId);
     fetchMessages(channelId);
-  }, [channelId, setActiveChannel, fetchMessages]);
+    clearUnread(channelId);
+  }, [channelId, setActiveChannel, fetchMessages, clearUnread]);
+
+  // Close right panel on channel switch
+  useEffect(() => {
+    setRightPanel({ type: 'none' });
+  }, [channelId]);
+
+  const handleThreadOpen = useCallback((messageId: string) => {
+    setRightPanel({ type: 'thread', messageId });
+  }, []);
 
   // Wire WS event handlers
   useEffect(() => {
@@ -40,6 +68,14 @@ export default function ChannelPage() {
       const msg = payload as Message;
       if (msg.channel_id === channelId) {
         addMessage(channelId, msg);
+        // Mark as read since user is viewing
+        wsClient.send('channel.read', {
+          channel_id: channelId,
+          message_id: msg.id,
+        });
+      } else {
+        // Increment unread for other channels
+        incrementUnread(msg.channel_id);
       }
     });
 
@@ -60,6 +96,54 @@ export default function ChannelPage() {
       }
     });
 
+    const unsubPinned = wsClient.on('message.pinned', (payload: unknown) => {
+      const data = payload as { id: string; channel_id: string };
+      if (data.channel_id === channelId) {
+        pinMessage(channelId, data.id);
+      }
+    });
+
+    const unsubUnpinned = wsClient.on('message.unpinned', (payload: unknown) => {
+      const data = payload as { id: string; channel_id: string };
+      if (data.channel_id === channelId) {
+        unpinMessage(channelId, data.id);
+      }
+    });
+
+    const unsubReaction = wsClient.on('reaction.updated', (payload: unknown) => {
+      const data = payload as {
+        message_id: string;
+        channel_id: string;
+        emoji: string;
+        user_id: string;
+        username: string;
+        action: 'add' | 'remove';
+      };
+      if (data.channel_id === channelId) {
+        if (data.action === 'add') {
+          addReaction(channelId, data.message_id, {
+            emoji: data.emoji,
+            user_id: data.user_id,
+            username: data.username,
+          });
+        } else {
+          removeReaction(channelId, data.message_id, data.emoji, data.user_id);
+        }
+      }
+    });
+
+    const unsubThread = wsClient.on('thread.updated', (payload: unknown) => {
+      const data = payload as {
+        message_id: string;
+        channel_id: string;
+        reply_count: number;
+        last_reply_at: string;
+      };
+      if (data.channel_id === channelId) {
+        updateThreadSummary(channelId, data.message_id, data.reply_count, data.last_reply_at);
+      }
+    });
+
     const unsubTyping = wsClient.on('typing', (payload: unknown) => {
       const data = payload as {
         channel_id: string;
@@ -75,9 +159,17 @@ export default function ChannelPage() {
       unsubNewMsg();
       unsubEditMsg();
       unsubDeleteMsg();
+      unsubPinned();
+      unsubUnpinned();
+      unsubReaction();
+      unsubThread();
       unsubTyping();
     };
-  }, [channelId, addMessage, updateMessage, deleteMessage, setTyping]);
+  }, [
+    channelId, addMessage, updateMessage, deleteMessage, setTyping,
+    addReaction, removeReaction, updateThreadSummary, pinMessage, unpinMessage,
+    incrementUnread,
+  ]);
 
   // Mark channel as read when viewing
   useEffect(() => {
@@ -95,39 +187,84 @@ export default function ChannelPage() {
   const channelName = channel?.name || 'loading';
 
   return (
-    <div className="flex h-full flex-col bg-slate-950">
-      {/* Channel header */}
-      <header className="flex items-center gap-3 border-b border-slate-800 px-4 py-2.5">
-        <div className="flex items-center gap-1.5">
-          {!isDM && <Hash className="size-4 text-slate-400" />}
-          <h2 className="text-sm font-semibold text-slate-100">{channelName}</h2>
-        </div>
-        {channel?.topic && (
-          <>
-            <div className="h-4 w-px bg-slate-700" />
-            <span className="truncate text-xs text-slate-400">{channel.topic}</span>
-          </>
-        )}
-        <div className="ml-auto flex items-center gap-1 text-xs text-slate-500">
-          {channel?.member_count != null && (
-            <span className="flex items-center gap-1">
-              <Users className="size-3.5" />
-              {channel.member_count}
-            </span>
+    <div className="flex h-full">
+      {/* Main chat area */}
+      <div className="flex flex-1 flex-col bg-slate-950">
+        {/* Channel header */}
+        <header className="flex items-center gap-3 border-b border-slate-800 px-4 py-2.5">
+          <div className="flex items-center gap-1.5">
+            {!isDM && <Hash className="size-4 text-slate-400" />}
+            <h2 className="text-sm font-semibold text-slate-100">{channelName}</h2>
+          </div>
+          {channel?.topic && (
+            <>
+              <div className="h-4 w-px bg-slate-700" />
+              <span className="truncate text-xs text-slate-400">{channel.topic}</span>
+            </>
           )}
-        </div>
-      </header>
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              onClick={() =>
+                setRightPanel((p) =>
+                  p.type === 'pinned' ? { type: 'none' } : { type: 'pinned' },
+                )
+              }
+              className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+              title="Pinned messages"
+            >
+              <Pin className="size-3.5" />
+            </button>
+            <button
+              onClick={() =>
+                setRightPanel((p) =>
+                  p.type === 'search' ? { type: 'none' } : { type: 'search' },
+                )
+              }
+              className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+              title="Search"
+            >
+              <Search className="size-3.5" />
+            </button>
+            {channel?.member_count != null && (
+              <span className="flex items-center gap-1 text-xs text-slate-500">
+                <Users className="size-3.5" />
+                {channel.member_count}
+              </span>
+            )}
+          </div>
+        </header>
 
-      {/* Messages */}
-      <MessageList channelId={channelId} />
+        {/* Messages */}
+        <MessageList channelId={channelId} onThreadOpen={handleThreadOpen} />
 
-      {/* Typing + Input */}
-      <TypingIndicator channelId={channelId} />
-      <MessageInput
-        channelId={channelId}
-        channelName={channelName}
-        isConnected={isConnected}
-      />
+        {/* Typing + Input */}
+        <TypingIndicator channelId={channelId} />
+        <MessageInput
+          channelId={channelId}
+          channelName={channelName}
+          isConnected={isConnected}
+        />
+      </div>
+
+      {/* Right panel */}
+      {rightPanel.type === 'thread' && (
+        <ThreadPanel
+          parentMessageId={rightPanel.messageId}
+          channelId={channelId}
+          onClose={() => setRightPanel({ type: 'none' })}
+        />
+      )}
+      {rightPanel.type === 'pinned' && (
+        <PinnedMessages
+          channelId={channelId}
+          onClose={() => setRightPanel({ type: 'none' })}
+        />
+      )}
+      {rightPanel.type === 'search' && (
+        <SearchResults
+          onClose={() => setRightPanel({ type: 'none' })}
+        />
+      )}
     </div>
   );
 }

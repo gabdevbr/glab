@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api';
-import { Message } from '@/lib/types';
+import { Message, Reaction } from '@/lib/types';
 
 interface MessageState {
   messages: Record<string, Message[]>;
@@ -18,6 +18,25 @@ interface MessageState {
   ) => void;
   deleteMessage: (channelId: string, messageId: string) => void;
   prependMessages: (channelId: string, messages: Message[]) => void;
+  addReaction: (
+    channelId: string,
+    messageId: string,
+    reaction: Reaction,
+  ) => void;
+  removeReaction: (
+    channelId: string,
+    messageId: string,
+    emoji: string,
+    userId: string,
+  ) => void;
+  updateThreadSummary: (
+    channelId: string,
+    messageId: string,
+    replyCount: number,
+    lastReplyAt: string,
+  ) => void;
+  pinMessage: (channelId: string, messageId: string) => void;
+  unpinMessage: (channelId: string, messageId: string) => void;
 }
 
 export const useMessageStore = create<MessageState>((set) => ({
@@ -69,6 +88,71 @@ export const useMessageStore = create<MessageState>((set) => ({
       messages: {
         ...s.messages,
         [channelId]: [...messages, ...(s.messages[channelId] || [])],
+      },
+    })),
+  addReaction: (channelId, messageId, reaction) =>
+    set((s) => ({
+      messages: {
+        ...s.messages,
+        [channelId]: (s.messages[channelId] || []).map((m) => {
+          if (m.id !== messageId) return m;
+          const existing = m.reactions || [];
+          // Don't add duplicate
+          if (existing.some((r) => r.emoji === reaction.emoji && r.user_id === reaction.user_id)) {
+            return m;
+          }
+          return { ...m, reactions: [...existing, reaction] };
+        }),
+      },
+    })),
+  removeReaction: (channelId, messageId, emoji, userId) =>
+    set((s) => ({
+      messages: {
+        ...s.messages,
+        [channelId]: (s.messages[channelId] || []).map((m) => {
+          if (m.id !== messageId) return m;
+          return {
+            ...m,
+            reactions: (m.reactions || []).filter(
+              (r) => !(r.emoji === emoji && r.user_id === userId),
+            ),
+          };
+        }),
+      },
+    })),
+  updateThreadSummary: (channelId, messageId, replyCount, lastReplyAt) =>
+    set((s) => ({
+      messages: {
+        ...s.messages,
+        [channelId]: (s.messages[channelId] || []).map((m) => {
+          if (m.id !== messageId) return m;
+          return {
+            ...m,
+            thread_summary: {
+              message_id: messageId,
+              reply_count: replyCount,
+              last_reply_at: lastReplyAt,
+            },
+          };
+        }),
+      },
+    })),
+  pinMessage: (channelId, messageId) =>
+    set((s) => ({
+      messages: {
+        ...s.messages,
+        [channelId]: (s.messages[channelId] || []).map((m) =>
+          m.id === messageId ? { ...m, is_pinned: true } : m,
+        ),
+      },
+    })),
+  unpinMessage: (channelId, messageId) =>
+    set((s) => ({
+      messages: {
+        ...s.messages,
+        [channelId]: (s.messages[channelId] || []).map((m) =>
+          m.id === messageId ? { ...m, is_pinned: false } : m,
+        ),
       },
     })),
 }));

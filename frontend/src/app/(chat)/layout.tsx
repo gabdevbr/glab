@@ -6,10 +6,12 @@ import { useAuthStore } from '@/stores/authStore';
 import { useChannelStore } from '@/stores/channelStore';
 import { usePresenceStore } from '@/stores/presenceStore';
 import { useAIStreamStore } from '@/stores/aiStreamStore';
+import { useAgentStore } from '@/stores/agentStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { wsClient } from '@/lib/ws';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { AgentPanel } from '@/components/ai/AgentPanel';
+import { Message } from '@/lib/types';
 
 export default function ChatLayout({
   children,
@@ -19,10 +21,13 @@ export default function ChatLayout({
   const router = useRouter();
   const { user, isLoading, loadFromStorage } = useAuthStore();
   const fetchChannels = useChannelStore((s) => s.fetchChannels);
+  const incrementUnread = useChannelStore((s) => s.incrementUnread);
+  const activeChannelId = useChannelStore((s) => s.activeChannelId);
   const setStatus = usePresenceStore((s) => s.setStatus);
   const bulkSetStatus = usePresenceStore((s) => s.bulkSetStatus);
   const appendChunk = useAIStreamStore((s) => s.appendChunk);
   const clearStream = useAIStreamStore((s) => s.clearStream);
+  const isPanelOpen = useAgentStore((s) => s.isPanelOpen);
 
   // Connect WebSocket
   useWebSocket();
@@ -63,6 +68,19 @@ export default function ChatLayout({
       unsubSnapshot();
     };
   }, [setStatus, bulkSetStatus]);
+
+  // Wire global unread tracking for messages arriving in non-active channels
+  useEffect(() => {
+    const unsub = wsClient.on('message.new', (payload: unknown) => {
+      const msg = payload as Message;
+      // Only increment unread for channels not currently being viewed
+      // (The channel page handles its own channel)
+      if (msg.channel_id !== activeChannelId) {
+        incrementUnread(msg.channel_id);
+      }
+    });
+    return unsub;
+  }, [activeChannelId, incrementUnread]);
 
   // Wire AI channel stream events
   useEffect(() => {
@@ -110,8 +128,8 @@ export default function ChatLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950">
       <Sidebar />
-      <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
-      <AgentPanel />
+      <main className="flex flex-1 overflow-hidden">{children}</main>
+      {isPanelOpen && <AgentPanel />}
     </div>
   );
 }

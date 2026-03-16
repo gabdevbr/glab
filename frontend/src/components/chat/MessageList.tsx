@@ -9,11 +9,12 @@ import { StreamingMessage } from './StreamingMessage';
 
 interface MessageListProps {
   channelId: string;
+  onThreadOpen?: (messageId: string) => void;
 }
 
 const COMPACT_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
-export function MessageList({ channelId }: MessageListProps) {
+export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
   const messages = useMessageStore((s) => s.messages[channelId] || []);
   const isLoading = useMessageStore((s) => s.isLoading);
   const activeStream = useAIStreamStore((s) => s.channelStreams[channelId]);
@@ -132,6 +133,7 @@ export function MessageList({ channelId }: MessageListProps) {
             <MessageItem
               message={messages[virtualItem.index]}
               isCompact={isCompact(virtualItem.index)}
+              onThreadOpen={onThreadOpen}
             />
           </div>
         ))}

@@ -29,6 +29,7 @@ import (
 	"github.com/geovendas/glab/backend/internal/db"
 	"github.com/geovendas/glab/backend/internal/handler"
 	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/geovendas/glab/backend/internal/storage"
 	"github.com/geovendas/glab/backend/internal/ws"
 )
 
@@ -85,11 +86,20 @@ func main() {
 	// Seed AI agents
 	seedAgents(ctx, queries)
 
+	// File storage service
+	fileService := storage.NewFileService(cfg.UploadDir)
+	if err := fileService.EnsureDir(); err != nil {
+		slog.Error("failed to create upload directory", "error", err)
+		os.Exit(1)
+	}
+
 	authHandler := handler.NewAuthHandler(queries, cfg.JWTSecret, cfg.JWTExpiry)
 	userHandler := handler.NewUserHandler(queries)
 	channelHandler := handler.NewChannelHandler(queries)
 	messageHandler := handler.NewMessageHandler(queries)
 	agentHandler := handler.NewAgentHandler(queries)
+	fileHandler := handler.NewFileHandler(queries, fileService)
+	searchHandler := handler.NewSearchHandler(queries)
 
 	// WebSocket hub, presence service, and handler
 	hub := ws.NewHub()
@@ -158,6 +168,14 @@ func main() {
 		r.Get("/api/v1/channels/{id}/messages", messageHandler.ListChannelMessages)
 		r.Get("/api/v1/channels/{id}/messages/pinned", messageHandler.ListPinnedMessages)
 		r.Get("/api/v1/messages/{id}/thread", messageHandler.ListThreadMessages)
+
+		// Files
+		r.Post("/api/v1/channels/{id}/upload", fileHandler.Upload)
+		r.Get("/api/v1/files/{id}", fileHandler.ServeFile)
+		r.Get("/api/v1/files/{id}/thumbnail", fileHandler.ServeThumbnail)
+
+		// Search
+		r.Get("/api/v1/search", searchHandler.Search)
 
 		// Agents
 		r.Get("/api/v1/agents", agentHandler.List)

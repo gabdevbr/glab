@@ -40,6 +40,7 @@ const (
 	EventMessagePinned   = "message.pinned"
 	EventMessageUnpinned = "message.unpinned"
 	EventReactionUpdated = "reaction.updated"
+	EventThreadUpdated   = "thread.updated"
 	EventTyping          = "typing"
 	EventPresence        = "presence"
 	EventNotification    = "notification"
@@ -165,6 +166,24 @@ type PresenceBroadcast struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Status   string `json:"status"`
+}
+
+// ReactionUpdatedPayload is broadcast when a reaction is added or removed.
+type ReactionUpdatedPayload struct {
+	MessageID string `json:"message_id"`
+	ChannelID string `json:"channel_id"`
+	Emoji     string `json:"emoji"`
+	UserID    string `json:"user_id"`
+	Username  string `json:"username"`
+	Action    string `json:"action"` // "add" or "remove"
+}
+
+// ThreadUpdatedPayload is broadcast when a thread summary changes.
+type ThreadUpdatedPayload struct {
+	MessageID    string `json:"message_id"`
+	ChannelID    string `json:"channel_id"`
+	ReplyCount   int32  `json:"reply_count"`
+	LastReplyAt  string `json:"last_reply_at"`
 }
 
 // --- AI payloads ---
