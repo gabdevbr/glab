@@ -12,18 +12,7 @@ import (
 type StorageMigrator interface {
 	Start(ctx context.Context, source, dest string) error
 	Cancel()
-	Status() StorageMigrationStatus
-}
-
-// StorageMigrationStatus holds migration progress for the API response.
-type StorageMigrationStatus struct {
-	Running   bool   `json:"running"`
-	Source    string `json:"source"`
-	Dest      string `json:"dest"`
-	Total     int64  `json:"total"`
-	Migrated  int64  `json:"migrated"`
-	Failed    int64  `json:"failed"`
-	ErrorMsg  string `json:"error,omitempty"`
+	Status() storage.MigrationProgress
 }
 
 // StorageAdminHandler handles /api/v1/admin/storage/* endpoints.
@@ -179,7 +168,7 @@ func (h *StorageAdminHandler) MigrationStatus(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if h.migrator == nil {
-		respondJSON(w, http.StatusOK, StorageMigrationStatus{})
+		respondJSON(w, http.StatusOK, storage.MigrationProgress{})
 		return
 	}
 
@@ -191,12 +180,12 @@ func (h *StorageAdminHandler) MigrationStatus(w http.ResponseWriter, r *http.Req
 	}
 
 	type response struct {
-		StorageMigrationStatus
+		storage.MigrationProgress
 		FileCounts map[string]int64 `json:"file_counts"`
 	}
 	respondJSON(w, http.StatusOK, response{
-		StorageMigrationStatus: h.migrator.Status(),
-		FileCounts:             backendCounts,
+		MigrationProgress: h.migrator.Status(),
+		FileCounts:        backendCounts,
 	})
 }
 

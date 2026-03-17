@@ -86,13 +86,6 @@ func main() {
 	// Seed AI agents
 	seedAgents(ctx, queries)
 
-	// File storage service (legacy — used until Phase 5 handler migration)
-	fileService := storage.NewFileService(cfg.UploadDir)
-	if err := fileService.EnsureDir(); err != nil {
-		slog.Error("failed to create upload directory", "error", err)
-		os.Exit(1)
-	}
-
 	// Storage config service + SwappableBackend
 	storageCfgSvc := storage.NewStorageConfigService(queries)
 	storageCfg, err := storageCfgSvc.Load(ctx)
@@ -130,10 +123,10 @@ func main() {
 	channelHandler := handler.NewChannelHandler(queries)
 	messageHandler := handler.NewMessageHandler(queries)
 	agentHandler := handler.NewAgentHandler(queries)
-	fileHandler := handler.NewFileHandler(queries, fileService, hub)
+	fileHandler := handler.NewFileHandler(queries, storageSvc, hub)
 	searchHandler := handler.NewSearchHandler(queries)
 	apiTokenHandler := handler.NewAPITokenHandler(queries, hub)
-	emojiHandler := handler.NewEmojiHandler(queries, cfg.UploadDir)
+	emojiHandler := handler.NewEmojiHandler(queries, storageSvc)
 	presenceService := ws.NewPresenceService(rdb, hub)
 	wsHandler := ws.NewMessageHandler(hub, queries, presenceService, cfg.JWTSecret)
 
@@ -144,15 +137,14 @@ func main() {
 
 	// Admin handler
 	adminHandler := handler.NewAdminHandler(queries, presenceService)
-	storageAdminHandler := handler.NewStorageAdminHandler(queries, storageCfgSvc, swappable, nil)
+	storageMigrator := storage.NewMigrator(queries, localBackend, swappable, hub)
+	storageAdminHandler := handler.NewStorageAdminHandler(queries, storageCfgSvc, swappable, storageMigrator)
 	aiAdminHandler := handler.NewAIAdminHandler(queries, aiCfgSvc)
 
 	// Migration engine
 	migrationEngine := migration.NewEngine(pool, queries, hub, cfg.UploadDir)
 	migrationHandler := handler.NewMigrationHandler(migrationEngine, queries)
 
-	// Suppress unused variable warnings during transition (storageSvc used in Phase 5)
-	_ = storageSvc
 
 	// Setup router
 	r := chi.NewRouter()

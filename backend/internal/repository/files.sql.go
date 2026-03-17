@@ -41,20 +41,21 @@ func (q *Queries) CountFilesByBackend(ctx context.Context) ([]CountFilesByBacken
 }
 
 const createFile = `-- name: CreateFile :one
-INSERT INTO files (message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at, storage_backend
+INSERT INTO files (message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, storage_backend)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at, storage_backend
 `
 
 type CreateFileParams struct {
-	MessageID     pgtype.UUID `json:"message_id"`
-	UserID        pgtype.UUID `json:"user_id"`
-	ChannelID     pgtype.UUID `json:"channel_id"`
-	Filename      string      `json:"filename"`
-	OriginalName  string      `json:"original_name"`
-	MimeType      string      `json:"mime_type"`
-	SizeBytes     int64       `json:"size_bytes"`
-	StoragePath   string      `json:"storage_path"`
-	ThumbnailPath pgtype.Text `json:"thumbnail_path"`
+	MessageID      pgtype.UUID `json:"message_id"`
+	UserID         pgtype.UUID `json:"user_id"`
+	ChannelID      pgtype.UUID `json:"channel_id"`
+	Filename       string      `json:"filename"`
+	OriginalName   string      `json:"original_name"`
+	MimeType       string      `json:"mime_type"`
+	SizeBytes      int64       `json:"size_bytes"`
+	StoragePath    string      `json:"storage_path"`
+	ThumbnailPath  pgtype.Text `json:"thumbnail_path"`
+	StorageBackend string      `json:"storage_backend"`
 }
 
 func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
@@ -68,6 +69,7 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		arg.SizeBytes,
 		arg.StoragePath,
 		arg.ThumbnailPath,
+		arg.StorageBackend,
 	)
 	var i File
 	err := row.Scan(

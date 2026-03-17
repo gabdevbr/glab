@@ -1,6 +1,6 @@
 -- name: CreateFile :one
-INSERT INTO files (message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
+INSERT INTO files (message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, storage_backend)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;
 
 -- name: GetFileByID :one
 SELECT * FROM files WHERE id = $1;
