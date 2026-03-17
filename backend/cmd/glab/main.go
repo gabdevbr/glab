@@ -86,12 +86,40 @@ func main() {
 	// Seed AI agents
 	seedAgents(ctx, queries)
 
-	// File storage service
+	// File storage service (legacy — used until Phase 5 handler migration)
 	fileService := storage.NewFileService(cfg.UploadDir)
 	if err := fileService.EnsureDir(); err != nil {
 		slog.Error("failed to create upload directory", "error", err)
 		os.Exit(1)
 	}
+
+	// Storage config service + SwappableBackend
+	storageCfgSvc := storage.NewStorageConfigService(queries)
+	storageCfg, err := storageCfgSvc.Load(ctx)
+	if err != nil {
+		// On first boot (before migration 000008 runs), fall back to local.
+		slog.Warn("could not load storage config from DB, using local default", "error", err)
+		storageCfg = storage.StorageConfig{
+			Backend: "local",
+			Local:   storage.LocalStorageConfig{BaseDir: cfg.UploadDir},
+		}
+	}
+	localBackend := storage.NewLocalBackend(cfg.UploadDir)
+	if err := localBackend.EnsureDir(); err != nil {
+		slog.Error("failed to create local storage directory", "error", err)
+		os.Exit(1)
+	}
+	activeBackend, err := storage.BuildBackend(ctx, storageCfg)
+	if err != nil {
+		slog.Warn("failed to build configured storage backend, falling back to local", "error", err)
+		activeBackend = localBackend
+	}
+	swappable := storage.NewSwappableBackend(activeBackend)
+	storageSvc := storage.NewStorageService(swappable, localBackend)
+	slog.Info("storage backend active", "type", swappable.Type())
+
+	// AI config service
+	aiCfgSvc := ai.NewGatewayConfigService(queries)
 
 	// WebSocket hub (created early so handlers can reference it)
 	hub := ws.NewHub()
@@ -116,10 +144,15 @@ func main() {
 
 	// Admin handler
 	adminHandler := handler.NewAdminHandler(queries, presenceService)
+	storageAdminHandler := handler.NewStorageAdminHandler(queries, storageCfgSvc, swappable, nil)
+	aiAdminHandler := handler.NewAIAdminHandler(queries, aiCfgSvc)
 
 	// Migration engine
 	migrationEngine := migration.NewEngine(pool, queries, hub, cfg.UploadDir)
 	migrationHandler := handler.NewMigrationHandler(migrationEngine, queries)
+
+	// Suppress unused variable warnings during transition (storageSvc used in Phase 5)
+	_ = storageSvc
 
 	// Setup router
 	r := chi.NewRouter()
@@ -210,6 +243,19 @@ func main() {
 		r.Patch("/api/v1/admin/users/{id}/role", adminHandler.ChangeRole)
 		r.Post("/api/v1/admin/users/{id}/reset-password", adminHandler.ResetPassword)
 		r.Get("/api/v1/admin/channels", adminHandler.ListChannels)
+
+		// Admin — storage config
+		r.Get("/api/v1/admin/storage/config", storageAdminHandler.GetConfig)
+		r.Put("/api/v1/admin/storage/config", storageAdminHandler.PutConfig)
+		r.Post("/api/v1/admin/storage/test", storageAdminHandler.TestConnection)
+		r.Post("/api/v1/admin/storage/migrate", storageAdminHandler.StartMigration)
+		r.Get("/api/v1/admin/storage/migrate/status", storageAdminHandler.MigrationStatus)
+		r.Post("/api/v1/admin/storage/migrate/cancel", storageAdminHandler.CancelMigration)
+
+		// Admin — AI gateway config
+		r.Get("/api/v1/admin/ai/config", aiAdminHandler.GetConfig)
+		r.Put("/api/v1/admin/ai/config", aiAdminHandler.PutConfig)
+		r.Post("/api/v1/admin/ai/test", aiAdminHandler.TestConnection)
 
 		// Admin — migration
 		r.Post("/api/v1/admin/migration/start", migrationHandler.Start)
