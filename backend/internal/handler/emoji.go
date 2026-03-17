@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 
@@ -10,12 +11,13 @@ import (
 
 // EmojiHandler handles custom emoji endpoints.
 type EmojiHandler struct {
-	queries *repository.Queries
+	queries   *repository.Queries
+	uploadDir string
 }
 
 // NewEmojiHandler creates an EmojiHandler.
-func NewEmojiHandler(q *repository.Queries) *EmojiHandler {
-	return &EmojiHandler{queries: q}
+func NewEmojiHandler(q *repository.Queries, uploadDir string) *EmojiHandler {
+	return &EmojiHandler{queries: q, uploadDir: uploadDir}
 }
 
 // List handles GET /api/v1/emojis/custom — returns all custom emojis.
@@ -49,7 +51,13 @@ func (h *EmojiHandler) Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Resolve storage path: if relative, prepend upload dir
+	path := emoji.StoragePath
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(h.uploadDir, "emojis", filepath.Base(path))
+	}
+
 	w.Header().Set("Content-Type", emoji.MimeType)
 	w.Header().Set("Cache-Control", "public, max-age=86400")
-	http.ServeFile(w, r, emoji.StoragePath)
+	http.ServeFile(w, r, path)
 }

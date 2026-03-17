@@ -106,7 +106,7 @@ func main() {
 	fileHandler := handler.NewFileHandler(queries, fileService, hub)
 	searchHandler := handler.NewSearchHandler(queries)
 	apiTokenHandler := handler.NewAPITokenHandler(queries, hub)
-	emojiHandler := handler.NewEmojiHandler(queries)
+	emojiHandler := handler.NewEmojiHandler(queries, cfg.UploadDir)
 	presenceService := ws.NewPresenceService(rdb, hub)
 	wsHandler := ws.NewMessageHandler(hub, queries, presenceService, cfg.JWTSecret)
 
@@ -119,7 +119,7 @@ func main() {
 	adminHandler := handler.NewAdminHandler(queries, presenceService)
 
 	// Migration engine
-	migrationEngine := migration.NewEngine(pool, queries, hub)
+	migrationEngine := migration.NewEngine(pool, queries, hub, cfg.UploadDir)
 	migrationHandler := handler.NewMigrationHandler(migrationEngine, queries)
 
 	// Setup router

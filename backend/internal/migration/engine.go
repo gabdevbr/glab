@@ -52,20 +52,22 @@ type Progress struct {
 
 // Engine manages the lifecycle of a migration run.
 type Engine struct {
-	pool    *pgxpool.Pool
-	queries *repository.Queries
-	hub     *ws.Hub
-	mu      sync.Mutex
-	cancel  context.CancelFunc
-	jobID   pgtype.UUID
+	pool      *pgxpool.Pool
+	queries   *repository.Queries
+	hub       *ws.Hub
+	uploadDir string
+	mu        sync.Mutex
+	cancel    context.CancelFunc
+	jobID     pgtype.UUID
 }
 
 // NewEngine creates a migration engine. On creation it recovers orphaned running jobs.
-func NewEngine(pool *pgxpool.Pool, queries *repository.Queries, hub *ws.Hub) *Engine {
+func NewEngine(pool *pgxpool.Pool, queries *repository.Queries, hub *ws.Hub, uploadDir string) *Engine {
 	e := &Engine{
-		pool:    pool,
-		queries: queries,
-		hub:     hub,
+		pool:      pool,
+		queries:   queries,
+		hub:       hub,
+		uploadDir: uploadDir,
 	}
 	e.recoverOrphanedJobs()
 	return e
@@ -166,7 +168,7 @@ func (e *Engine) run(ctx context.Context, cfg Config, jobID pgtype.UUID) {
 	}()
 
 	rc := NewRCClient(cfg.RCURL, cfg.RCToken, cfg.RCUserID)
-	loader := NewLoader(e.pool)
+	loader := NewLoader(e.pool, e.uploadDir)
 	idMap := NewIDMap()
 	progress := &Progress{}
 

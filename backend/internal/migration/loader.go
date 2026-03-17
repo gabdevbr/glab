@@ -14,11 +14,12 @@ import (
 // Loader handles bulk inserts into the Glab database.
 // Uses the backend's shared connection pool.
 type Loader struct {
-	pool *pgxpool.Pool
+	pool      *pgxpool.Pool
+	uploadDir string
 }
 
-func NewLoader(pool *pgxpool.Pool) *Loader {
-	return &Loader{pool: pool}
+func NewLoader(pool *pgxpool.Pool, uploadDir string) *Loader {
+	return &Loader{pool: pool, uploadDir: uploadDir}
 }
 
 func (l *Loader) UpsertUsers(ctx context.Context, users []GlabUser) error {
@@ -289,7 +290,7 @@ func (l *Loader) insertMentions(ctx context.Context, tx pgx.Tx, mentions []GlabM
 
 // SaveEmojiFile saves a custom emoji image to disk and returns the storage path.
 func (l *Loader) SaveEmojiFile(name, extension string, body io.ReadCloser) (string, error) {
-	dir := filepath.Join("uploads", "emojis")
+	dir := filepath.Join(l.uploadDir, "emojis")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("creating emoji dir: %w", err)
 	}
