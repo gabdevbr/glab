@@ -413,7 +413,7 @@ You are free to use, modify, and distribute this software. If you run a modified
 
 <p align="center">
   <sub>
-    Built with care by the <a href="https://geovendas.com">Geovendas</a> engineering team.<br/>
+    Built with care by <a href="https://gab.dev.br">gab.dev.br</a><br/>
     If Glab helps your team, consider giving it a star.
   </sub>
 </p>
