@@ -176,10 +176,10 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
   const firstAgentIndex = results.findIndex((r) => r.kind === 'agent');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] animate-in fade-in-0 duration-150" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50" />
       <div
-        className="relative w-full max-w-lg rounded-xl border border-border bg-panel-bg shadow-2xl"
+        className="relative w-full max-w-lg rounded-xl border border-border bg-panel-bg shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}

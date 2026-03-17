@@ -78,6 +78,13 @@ export default function ChatLayout({
     };
   }, [setStatus, bulkSetStatus]);
 
+  // Request notification permission once
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
   // Wire global unread tracking for messages arriving in non-active channels
   useEffect(() => {
     const unsub = wsClient.on('message.new', (payload: unknown) => {
@@ -90,6 +97,59 @@ export default function ChatLayout({
     });
     return unsub;
   }, [activeChannelId, incrementUnread]);
+
+  // Wire notification events (mentions) — browser notification when tab not focused
+  useEffect(() => {
+    const unsub = wsClient.on('notification', (payload: unknown) => {
+      const data = payload as {
+        type: string;
+        message_id: string;
+        channel_id: string;
+        from: string;
+        content: string;
+      };
+
+      // Play notification sound
+      try {
+        const audio = new Audio('/notification.mp3');
+        audio.volume = 0.3;
+        audio.play().catch(() => {});
+      } catch {
+        // ignore
+      }
+
+      // Show browser notification when tab is not focused
+      if (
+        document.hidden &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        const channelName =
+          useChannelStore.getState().channels.find((c) => c.id === data.channel_id)?.name || 'a channel';
+        const truncated = data.content.length > 80 ? data.content.slice(0, 80) + '...' : data.content;
+
+        const notif = new Notification(`@${data.from} in #${channelName}`, {
+          body: truncated,
+          icon: '/favicon.ico',
+          tag: data.message_id,
+        });
+
+        notif.onclick = () => {
+          window.focus();
+          router.push(`/channel/${data.channel_id}`);
+          notif.close();
+        };
+      }
+    });
+    return unsub;
+  }, [router]);
+
+  // Update document.title with total unread count
+  const unreadCounts = useChannelStore((s) => s.unreadCounts);
+  useEffect(() => {
+    const total = Object.values(unreadCounts).reduce((sum, n) => sum + n, 0);
+    document.title = total > 0 ? `(${total > 99 ? '99+' : total}) Glab` : 'Glab';
+  }, [unreadCounts]);
 
   // Wire AI channel stream events
   useEffect(() => {

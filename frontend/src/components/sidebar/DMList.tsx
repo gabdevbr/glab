@@ -15,7 +15,7 @@ function PresenceDot({ status }: { status: string }) {
 
   return (
     <span
-      className={cn('inline-block size-2.5 shrink-0 rounded-full', color)}
+      className={cn('inline-block size-2.5 shrink-0 rounded-full transition-colors duration-500', color)}
     />
   );
 }
@@ -55,7 +55,7 @@ export function DMList() {
             <button
               onClick={() => handleClick(channel.id)}
               className={cn(
-                'flex w-full items-center gap-2.5 rounded-md mx-1 px-2 py-1.5 text-sm transition-colors hover:bg-sidebar-hover hover:text-foreground',
+                'flex w-full items-center gap-2.5 rounded-md mx-1 px-2 py-1.5 text-sm transition-all duration-150 hover:bg-sidebar-hover hover:text-foreground hover:translate-x-0.5',
                 isActive
                   ? 'bg-accent-primary-subtle text-foreground font-semibold'
                   : unread > 0
@@ -66,7 +66,7 @@ export function DMList() {
               <PresenceDot status={presenceStatus} />
               <span className="flex-1 truncate text-left">{channel.name}</span>
               {unread > 0 && (
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text">
+                <span key={unread} className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text animate-badge-pulse">
                   {unread > 99 ? '99+' : unread}
                 </span>
               )}

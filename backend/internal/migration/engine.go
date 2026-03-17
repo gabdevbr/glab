@@ -334,7 +334,12 @@ func (e *Engine) run(ctx context.Context, cfg Config, jobID pgtype.UUID) {
 		}
 		latest := time.Now()
 
-		msgs, err := rc.GetMessages(ctx, room.ID, room.Type, oldest, latest)
+		e.emitLog(jobID, "info", "export_messages", fmt.Sprintf("[%d/%d] Fetching %s...", i+1, len(allRooms), roomName), nil)
+
+		// Per-room timeout: 10 minutes max per room to avoid blocking the entire migration.
+		roomCtx, roomCancel := context.WithTimeout(ctx, 10*time.Minute)
+		msgs, err := rc.GetMessages(roomCtx, room.ID, room.Type, oldest, latest)
+		roomCancel()
 		if err != nil {
 			e.emitLog(jobID, "warn", "export_messages", fmt.Sprintf("Room %s: failed to fetch messages: %v", roomName, err), nil)
 			progress.RoomsDone++

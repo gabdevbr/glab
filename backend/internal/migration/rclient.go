@@ -272,26 +272,29 @@ func (c *RCClient) GetMessages(ctx context.Context, roomID, roomType string, old
 		endpoint = "/api/v1/dm.history"
 	}
 
-	const pageSize = 100
+	const (
+		pageSize   = 100
+		maxBatches = 1000 // safety limit: 100k messages per room max
+	)
 	var all []RCMessage
 	latest_ := latest
+	seen := make(map[string]bool) // track message IDs to avoid duplicates
 
-	for {
+	for batch := 1; batch <= maxBatches; batch++ {
 		if err := ctx.Err(); err != nil {
 			return all, err
 		}
 
 		params := url.Values{
-			"roomId":    {roomID},
-			"oldest":    {oldest.Format(time.RFC3339)},
-			"latest":    {latest_.Format(time.RFC3339)},
-			"count":     {strconv.Itoa(pageSize)},
-			"inclusive": {"true"},
+			"roomId": {roomID},
+			"oldest": {oldest.Format(time.RFC3339Nano)},
+			"latest": {latest_.Format(time.RFC3339Nano)},
+			"count":  {strconv.Itoa(pageSize)},
 		}
 
 		body, err := c.doGet(ctx, endpoint, params)
 		if err != nil {
-			return nil, fmt.Errorf("fetching messages for room %s: %w", roomID, err)
+			return nil, fmt.Errorf("fetching messages for room %s (batch %d): %w", roomID, batch, err)
 		}
 
 		var resp struct {
@@ -305,8 +308,23 @@ func (c *RCClient) GetMessages(ctx context.Context, roomID, roomType string, old
 			break
 		}
 
-		all = append(all, resp.Messages...)
+		// Deduplicate messages using IDs
+		newCount := 0
+		for _, m := range resp.Messages {
+			if !seen[m.ID] {
+				seen[m.ID] = true
+				all = append(all, m)
+				newCount++
+			}
+		}
 
+		// No new messages means we're stuck in a loop
+		if newCount == 0 {
+			break
+		}
+
+		// Messages come in reverse chronological order.
+		// Move latest to the timestamp of the oldest message in this batch.
 		oldestInBatch := resp.Messages[len(resp.Messages)-1]
 		batchTime := time.UnixMilli(oldestInBatch.Timestamp.Date)
 		if !batchTime.Before(latest_) {

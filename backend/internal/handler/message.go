@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/geovendas/glab/backend/internal/auth"
 	"github.com/geovendas/glab/backend/internal/repository"
 )
 
@@ -81,10 +82,21 @@ func threadMessageRowToResponse(m repository.ListThreadMessagesRow) MessageRespo
 
 // ListChannelMessages handles GET /api/v1/channels/{id}/messages.
 func (h *MessageHandler) ListChannelMessages(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 	cid, err := parseUUID(id)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "invalid channel id")
+		return
+	}
+
+	if status, err := requireChannelMember(r.Context(), h.queries, cid, claims.UserID); err != nil {
+		respondError(w, status, err.Error())
 		return
 	}
 
@@ -123,10 +135,21 @@ func (h *MessageHandler) ListChannelMessages(w http.ResponseWriter, r *http.Requ
 
 // ListPinnedMessages handles GET /api/v1/channels/{id}/messages/pinned.
 func (h *MessageHandler) ListPinnedMessages(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 	cid, err := parseUUID(id)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "invalid channel id")
+		return
+	}
+
+	if status, err := requireChannelMember(r.Context(), h.queries, cid, claims.UserID); err != nil {
+		respondError(w, status, err.Error())
 		return
 	}
 

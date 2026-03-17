@@ -7,6 +7,7 @@ import { useAIStreamStore } from '@/stores/aiStreamStore';
 import { Message } from '@/lib/types';
 import { MessageItem } from './MessageItem';
 import { StreamingMessage } from './StreamingMessage';
+import { cn } from '@/lib/utils';
 
 interface MessageListProps {
   channelId: string;
@@ -18,6 +19,7 @@ const EMPTY_MESSAGES: Message[] = [];
 
 export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
   const messages = useMessageStore((s) => s.messages[channelId] ?? EMPTY_MESSAGES);
+  const newMessageIds = useMessageStore((s) => s.newMessageIds);
   const isLoading = useMessageStore((s) => s.isLoading);
   const activeStream = useAIStreamStore((s) => s.channelStreams[channelId]);
 
@@ -126,6 +128,10 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
             key={virtualItem.key}
             data-index={virtualItem.index}
             ref={virtualizer.measureElement}
+            className={cn(
+              newMessageIds.has(messages[virtualItem.index]?.id)
+                && 'animate-slide-up-fade animate-highlight-flash',
+            )}
             style={{
               position: 'absolute',
               top: 0,

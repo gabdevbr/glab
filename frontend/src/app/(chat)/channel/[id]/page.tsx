@@ -189,7 +189,7 @@ export default function ChannelPage() {
   return (
     <div className="flex h-full flex-1 min-w-0">
       {/* Main chat area */}
-      <div className="flex flex-1 flex-col bg-chat-bg">
+      <div key={channelId} className="flex flex-1 flex-col bg-chat-bg animate-in fade-in-0 duration-150">
         {/* Channel header */}
         <header className="flex flex-col border-b border-border px-5 py-3">
           <div className="flex items-center justify-between">

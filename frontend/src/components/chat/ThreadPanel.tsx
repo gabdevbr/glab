@@ -82,7 +82,7 @@ export function ThreadPanel({ parentMessageId, channelId, onClose }: ThreadPanel
   }
 
   return (
-    <aside className="flex h-full w-[400px] shrink-0 flex-col border-l border-border bg-chat-bg">
+    <aside className="flex h-full w-[400px] shrink-0 flex-col border-l border-border bg-chat-bg animate-slide-in-right">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h3 className="text-sm font-bold text-foreground">Thread</h3>

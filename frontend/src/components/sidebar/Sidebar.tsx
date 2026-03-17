@@ -8,7 +8,7 @@ import { DMList } from './DMList';
 import { AgentList } from './AgentList';
 import { CreateChannelDialog } from './CreateChannelDialog';
 import { NewDMDialog } from './NewDMDialog';
-import { LogOut, Bot, Settings, ChevronDown, Search } from 'lucide-react';
+import { LogOut, Bot, Settings, ChevronDown, Search, LayoutDashboard, Users, Hash, ArrowLeftRight, Key } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 
@@ -102,6 +102,22 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
         </div>
         <AgentList />
 
+        {/* Settings section */}
+        <div className="mt-5 mb-1 flex items-center gap-1 px-3 py-2">
+          <ChevronDown className="size-3 text-sidebar-section-text" />
+          <Settings className="size-3 text-sidebar-section-text" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-sidebar-section-text">
+            Settings
+          </span>
+        </div>
+        <Link
+          href="/settings/tokens"
+          className="mx-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-section-text transition-all duration-150 hover:bg-sidebar-hover hover:text-foreground hover:translate-x-0.5"
+        >
+          <Key className="size-3.5" />
+          API Tokens
+        </Link>
+
         {/* Admin section */}
         {user?.role === 'admin' && (
           <>
@@ -113,9 +129,31 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
               </span>
             </div>
             <Link
-              href="/admin/migration"
-              className="mx-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-section-text hover:bg-sidebar-hover hover:text-foreground"
+              href="/admin"
+              className="mx-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-section-text transition-all duration-150 hover:bg-sidebar-hover hover:text-foreground hover:translate-x-0.5"
             >
+              <LayoutDashboard className="size-3.5" />
+              Dashboard
+            </Link>
+            <Link
+              href="/admin/users"
+              className="mx-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-section-text transition-all duration-150 hover:bg-sidebar-hover hover:text-foreground hover:translate-x-0.5"
+            >
+              <Users className="size-3.5" />
+              Users
+            </Link>
+            <Link
+              href="/admin/channels"
+              className="mx-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-section-text transition-all duration-150 hover:bg-sidebar-hover hover:text-foreground hover:translate-x-0.5"
+            >
+              <Hash className="size-3.5" />
+              Channels
+            </Link>
+            <Link
+              href="/admin/migration"
+              className="mx-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-section-text transition-all duration-150 hover:bg-sidebar-hover hover:text-foreground hover:translate-x-0.5"
+            >
+              <ArrowLeftRight className="size-3.5" />
               Migration
             </Link>
           </>

@@ -10,8 +10,52 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/geovendas/glab/backend/internal/auth"
 	"github.com/geovendas/glab/backend/internal/repository"
 )
+
+// requireScope checks that the current request has the given API scope.
+// JWT sessions always pass. API tokens must have the scope.
+func requireScope(r *http.Request, scope string) bool {
+	claims := auth.UserFromContext(r.Context())
+	return auth.HasScope(claims, scope)
+}
+
+// requireChannelMember checks that the authenticated user is a member of the channel.
+// Public channels are accessible to all authenticated users.
+// Private and DM channels require membership.
+func requireChannelMember(ctx context.Context, queries *repository.Queries, channelID pgtype.UUID, userID string) (int, error) {
+	// Fetch channel to check type
+	ch, err := queries.GetChannelByID(ctx, channelID)
+	if err != nil {
+		return http.StatusNotFound, fmt.Errorf("channel not found")
+	}
+
+	// Public channels: any authenticated user can access
+	if ch.Type == "public" {
+		return 0, nil
+	}
+
+	// Private/DM: require membership
+	uid, err := parseUUID(userID)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("invalid user id")
+	}
+
+	isMember, err := queries.IsChannelMember(ctx, repository.IsChannelMemberParams{
+		ChannelID: channelID,
+		UserID:    uid,
+	})
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to check membership")
+	}
+
+	if !isMember {
+		return http.StatusForbidden, fmt.Errorf("not a member of this channel")
+	}
+
+	return 0, nil
+}
 
 // enrichMessagesWithFiles loads file records for any file-type messages and attaches them.
 func enrichMessagesWithFiles(ctx context.Context, queries *repository.Queries, msgs []MessageResponse) {

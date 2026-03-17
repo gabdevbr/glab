@@ -550,3 +550,85 @@
   --tw-prose-invert-links: var(--link-text);
   --tw-prose-invert-code: oklch(0.97 0.004 264);
 }
+
+/* ============================================================
+   Custom animations
+   ============================================================ */
+@keyframes slide-up-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pop-scale {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes badge-pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes highlight-flash {
+  0% {
+    background-color: var(--accent-primary-subtle, oklch(0.89 0.155 180 / 15%));
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-slide-up-fade {
+  animation: slide-up-fade 0.2s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.2s ease-out;
+}
+
+.animate-pop-scale {
+  animation: pop-scale 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-badge-pulse {
+  animation: badge-pulse 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-highlight-flash {
+  animation: highlight-flash 1.5s ease-out;
+}

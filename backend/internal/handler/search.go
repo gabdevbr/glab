@@ -48,6 +48,12 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	uid, err := parseUUID(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "invalid user id in token")
+		return
+	}
+
 	var channelUUID pgtype.UUID
 	if cidStr := r.URL.Query().Get("channel_id"); cidStr != "" {
 		parsed, err := parseUUID(cidStr)
@@ -58,9 +64,10 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		channelUUID = parsed
 	}
 
-	results, err := h.queries.SearchMessages(r.Context(), repository.SearchMessagesParams{
+	results, err := h.queries.SearchMessagesForUser(r.Context(), repository.SearchMessagesForUserParams{
 		Unaccent: q,
 		Column2:  channelUUID,
+		UserID:   uid,
 		Limit:    limit,
 		Offset:   offset,
 	})
@@ -71,7 +78,7 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]SearchResultResponse, len(results))
 	for i, m := range results {
-		items[i] = searchResultToResponse(m)
+		items[i] = searchResultForUserToResponse(m)
 	}
 
 	respondJSON(w, http.StatusOK, items)
@@ -92,7 +99,7 @@ type SearchResultResponse struct {
 	Rank        float32 `json:"rank"`
 }
 
-func searchResultToResponse(m repository.SearchMessagesRow) SearchResultResponse {
+func searchResultForUserToResponse(m repository.SearchMessagesForUserRow) SearchResultResponse {
 	return SearchResultResponse{
 		ID:          uuidToString(m.ID),
 		ChannelID:   uuidToString(m.ChannelID),

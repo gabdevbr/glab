@@ -14,7 +14,7 @@ import (
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, display_name, password_hash, role, is_bot, bot_config)
-VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated
 `
 
 type CreateUserParams struct {
@@ -52,12 +52,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.BotConfig,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsDeactivated,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at FROM users WHERE email = $1
+SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -77,12 +78,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.BotConfig,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsDeactivated,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at FROM users WHERE id = $1
+SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -102,12 +104,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.BotConfig,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsDeactivated,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at FROM users WHERE username = $1
+SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated FROM users WHERE username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -127,6 +130,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.BotConfig,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsDeactivated,
 	)
 	return i, err
 }
@@ -203,7 +207,7 @@ UPDATE users SET
     avatar_url = coalesce($3, avatar_url),
     status = coalesce($4, status),
     email = coalesce($5, email)
-WHERE id = $1 RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at
+WHERE id = $1 RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated
 `
 
 type UpdateUserParams struct {
@@ -237,6 +241,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.BotConfig,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsDeactivated,
 	)
 	return i, err
 }

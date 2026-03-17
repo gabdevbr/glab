@@ -29,7 +29,7 @@ export function PinnedMessages({ channelId, onClose }: PinnedMessagesProps) {
   }, [channelId]);
 
   return (
-    <div className="flex h-full w-[400px] shrink-0 flex-col border-l border-border bg-background">
+    <div className="flex h-full w-[400px] shrink-0 flex-col border-l border-border bg-background animate-slide-in-right">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Pin className="size-4 text-pin-color" />

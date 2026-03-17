@@ -4,6 +4,7 @@ import { Message, Reaction } from '@/lib/types';
 
 interface MessageState {
   messages: Record<string, Message[]>;
+  newMessageIds: Set<string>;
   isLoading: boolean;
   fetchMessages: (
     channelId: string,
@@ -41,6 +42,7 @@ interface MessageState {
 
 export const useMessageStore = create<MessageState>((set) => ({
   messages: {},
+  newMessageIds: new Set(),
   isLoading: false,
   fetchMessages: async (channelId, limit = 50, offset = 0) => {
     set({ isLoading: true });
@@ -58,13 +60,27 @@ export const useMessageStore = create<MessageState>((set) => ({
       set({ isLoading: false });
     }
   },
-  addMessage: (channelId, message) =>
-    set((s) => ({
-      messages: {
-        ...s.messages,
-        [channelId]: [...(s.messages[channelId] || []), message],
-      },
-    })),
+  addMessage: (channelId, message) => {
+    set((s) => {
+      const next = new Set(s.newMessageIds);
+      next.add(message.id);
+      return {
+        messages: {
+          ...s.messages,
+          [channelId]: [...(s.messages[channelId] || []), message],
+        },
+        newMessageIds: next,
+      };
+    });
+    // Clear the "new" flag after animation completes
+    setTimeout(() => {
+      set((s) => {
+        const next = new Set(s.newMessageIds);
+        next.delete(message.id);
+        return { newMessageIds: next };
+      });
+    }, 1500);
+  },
   updateMessage: (channelId, messageId, partial) =>
     set((s) => ({
       messages: {

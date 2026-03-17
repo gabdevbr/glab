@@ -126,9 +126,9 @@ function MentionPill({ name, isGroup }: { name: string; isGroup: boolean }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded px-0.5 font-medium text-[0.9em] transition-colors',
+        'inline-flex items-center rounded px-0.5 font-medium text-[0.9em] transition-all duration-150',
         'bg-accent-primary-subtle text-accent-primary-subtle-text',
-        isGroup ? 'cursor-default' : 'cursor-pointer hover:brightness-110',
+        isGroup ? 'cursor-default' : 'cursor-pointer hover:scale-105 hover:brightness-110',
       )}
     >
       @{name}
@@ -138,7 +138,7 @@ function MentionPill({ name, isGroup }: { name: string; isGroup: boolean }) {
 
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function formatFullDate(dateStr: string): string {
@@ -271,31 +271,39 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
       );
     }
 
-    if (isFile && message.file) {
-      const isImage = message.file.mime_type.startsWith('image/');
+    if (isFile) {
+      if (message.file) {
+        const isImage = message.file.mime_type.startsWith('image/');
+        return (
+          <div className="mt-1">
+            {isImage ? (
+              <a href={`${API_URL}/api/v1/files/${message.file.id}`} target="_blank" rel="noreferrer">
+                <img
+                  src={`${API_URL}/api/v1/files/${message.file.id}/thumbnail`}
+                  alt={message.file.original_name}
+                  className="max-w-xs rounded-lg border border-border"
+                />
+              </a>
+            ) : (
+              <a
+                href={`${API_URL}/api/v1/files/${message.file.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-link-text hover:bg-secondary"
+              >
+                <span>{message.file.original_name}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  ({formatFileSize(message.file.size_bytes)})
+                </span>
+              </a>
+            )}
+          </div>
+        );
+      }
+      // File message without metadata (e.g. migrated from RocketChat)
       return (
-        <div className="mt-1">
-          {isImage ? (
-            <a href={`${API_URL}/api/v1/files/${message.file.id}`} target="_blank" rel="noreferrer">
-              <img
-                src={`${API_URL}/api/v1/files/${message.file.id}/thumbnail`}
-                alt={message.file.original_name}
-                className="max-w-xs rounded-lg border border-border"
-              />
-            </a>
-          ) : (
-            <a
-              href={`${API_URL}/api/v1/files/${message.file.id}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-link-text hover:bg-secondary"
-            >
-              <span>{message.file.original_name}</span>
-              <span className="text-[10px] text-muted-foreground">
-                ({formatFileSize(message.file.size_bytes)})
-              </span>
-            </a>
-          )}
+        <div className="mt-1 inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-muted-foreground">
+          <span>{message.content}</span>
         </div>
       );
     }
@@ -329,11 +337,11 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
       <div className="mt-1.5 flex flex-wrap gap-1">
         {groups.map((g) => (
           <button
-            key={g.emoji}
+            key={`${g.emoji}-${g.count}`}
             onClick={() => handleReaction(g.emoji)}
             title={g.users.join(', ')}
             className={cn(
-              'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors',
+              'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors animate-pop-scale',
               g.hasOwn
                 ? 'border-reaction-own-border bg-reaction-own-bg text-reaction-own-text'
                 : 'border-border bg-secondary/50 text-muted-foreground hover:border-chat-input-focus',

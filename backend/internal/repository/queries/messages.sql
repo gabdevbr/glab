@@ -47,6 +47,17 @@ WHERE m.search_vector @@ websearch_to_tsquery('portuguese', unaccent($1))
 ORDER BY rank DESC
 LIMIT $3 OFFSET $4;
 
+-- name: SearchMessagesForUser :many
+SELECT m.*, u.username, u.display_name, u.avatar_url, u.is_bot,
+       ts_rank(m.search_vector, websearch_to_tsquery('portuguese', unaccent($1))) AS rank
+FROM messages m
+JOIN users u ON u.id = m.user_id
+JOIN channel_members cm ON cm.channel_id = m.channel_id AND cm.user_id = $3
+WHERE m.search_vector @@ websearch_to_tsquery('portuguese', unaccent($1))
+  AND ($2::uuid IS NULL OR m.channel_id = $2)
+ORDER BY rank DESC
+LIMIT $4 OFFSET $5;
+
 -- name: GetMessagesSince :many
 SELECT m.*, u.username, u.display_name, u.avatar_url, u.is_bot
 FROM messages m JOIN users u ON u.id = m.user_id

@@ -52,6 +52,11 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if status, err := requireChannelMember(r.Context(), h.queries, channelUUID, claims.UserID); err != nil {
+		respondError(w, status, err.Error())
+		return
+	}
+
 	// Limit request body size.
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 

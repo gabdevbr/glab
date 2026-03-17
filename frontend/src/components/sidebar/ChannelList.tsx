@@ -35,7 +35,7 @@ export function ChannelList() {
             <button
               onClick={() => handleClick(channel.id)}
               className={cn(
-                'flex w-full items-center gap-2 rounded-md mx-1 px-2 py-1.5 text-sm transition-colors hover:bg-sidebar-hover hover:text-foreground',
+                'flex w-full items-center gap-2 rounded-md mx-1 px-2 py-1.5 text-sm transition-all duration-150 hover:bg-sidebar-hover hover:text-foreground hover:translate-x-0.5',
                 isActive
                   ? 'bg-accent-primary-subtle text-foreground font-semibold border-l-2 border-accent-primary'
                   : unread > 0
@@ -46,7 +46,7 @@ export function ChannelList() {
               <Hash className="size-4 shrink-0 text-sidebar-section-text" />
               <span className="flex-1 truncate text-left">{channel.name}</span>
               {unread > 0 && (
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text">
+                <span key={unread} className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text animate-badge-pulse">
                   {unread > 99 ? '99+' : unread}
                 </span>
               )}

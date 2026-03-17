@@ -122,10 +122,22 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // GetByID handles GET /api/v1/channels/{id}.
 func (h *ChannelHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 	cid, err := parseUUID(id)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "invalid channel id")
+		return
+	}
+
+	// Check membership for private/dm channels
+	if status, err := requireChannelMember(r.Context(), h.queries, cid, claims.UserID); err != nil {
+		respondError(w, status, err.Error())
 		return
 	}
 

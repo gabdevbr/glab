@@ -61,6 +61,19 @@ type AgentUsage struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
+type ApiToken struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	Name        string             `json:"name"`
+	TokenHash   string             `json:"token_hash"`
+	TokenPrefix string             `json:"token_prefix"`
+	Scopes      []string           `json:"scopes"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	LastUsedAt  pgtype.Timestamptz `json:"last_used_at"`
+	IsRevoked   bool               `json:"is_revoked"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type Channel struct {
 	ID          pgtype.UUID        `json:"id"`
 	Name        string             `json:"name"`
@@ -181,17 +194,18 @@ type ThreadSummary struct {
 }
 
 type User struct {
-	ID           pgtype.UUID        `json:"id"`
-	Username     string             `json:"username"`
-	Email        string             `json:"email"`
-	DisplayName  string             `json:"display_name"`
-	AvatarUrl    pgtype.Text        `json:"avatar_url"`
-	PasswordHash string             `json:"password_hash"`
-	Role         string             `json:"role"`
-	Status       string             `json:"status"`
-	LastSeen     pgtype.Timestamptz `json:"last_seen"`
-	IsBot        bool               `json:"is_bot"`
-	BotConfig    json.RawMessage    `json:"bot_config"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	ID            pgtype.UUID        `json:"id"`
+	Username      string             `json:"username"`
+	Email         string             `json:"email"`
+	DisplayName   string             `json:"display_name"`
+	AvatarUrl     pgtype.Text        `json:"avatar_url"`
+	PasswordHash  string             `json:"password_hash"`
+	Role          string             `json:"role"`
+	Status        string             `json:"status"`
+	LastSeen      pgtype.Timestamptz `json:"last_seen"`
+	IsBot         bool               `json:"is_bot"`
+	BotConfig     json.RawMessage    `json:"bot_config"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	IsDeactivated bool               `json:"is_deactivated"`
 }

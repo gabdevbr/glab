@@ -7,11 +7,21 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// AuthType indicates how the request was authenticated.
+type AuthType string
+
+const (
+	AuthTypeJWT      AuthType = "jwt"
+	AuthTypeAPIToken AuthType = "api_token"
+)
+
 // Claims holds the JWT payload for authenticated users.
 type Claims struct {
-	UserID   string `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	UserID   string   `json:"user_id"`
+	Username string   `json:"username"`
+	Role     string   `json:"role"`
+	Auth     AuthType `json:"-"` // how the user authenticated
+	Scopes   []string `json:"-"` // scopes for API token auth (nil for JWT)
 	jwt.RegisteredClaims
 }
 

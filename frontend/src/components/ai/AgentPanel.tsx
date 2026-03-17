@@ -134,7 +134,7 @@ export function AgentPanel() {
   }
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-border bg-chat-bg">
+    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-border bg-chat-bg animate-slide-in-right">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
         <span className="text-lg">{activeAgent.emoji}</span>

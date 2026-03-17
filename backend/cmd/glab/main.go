@@ -105,6 +105,7 @@ func main() {
 	agentHandler := handler.NewAgentHandler(queries)
 	fileHandler := handler.NewFileHandler(queries, fileService, hub)
 	searchHandler := handler.NewSearchHandler(queries)
+	apiTokenHandler := handler.NewAPITokenHandler(queries, hub)
 	emojiHandler := handler.NewEmojiHandler(queries)
 	presenceService := ws.NewPresenceService(rdb, hub)
 	wsHandler := ws.NewMessageHandler(hub, queries, presenceService, cfg.JWTSecret)
@@ -113,6 +114,9 @@ func main() {
 	bridge := ai.NewBridgeClient()
 	dispatcher := ai.NewDispatcher(bridge, queries, hub)
 	wsHandler.SetAIDispatcher(dispatcher)
+
+	// Admin handler
+	adminHandler := handler.NewAdminHandler(queries, presenceService)
 
 	// Migration engine
 	migrationEngine := migration.NewEngine(pool, queries, hub)
@@ -149,7 +153,7 @@ func main() {
 
 	// Protected routes
 	r.Group(func(r chi.Router) {
-		r.Use(auth.Middleware(cfg.JWTSecret))
+		r.Use(auth.Middleware(cfg.JWTSecret, queries))
 
 		// Auth
 		r.Get("/api/v1/auth/me", authHandler.Me)
@@ -172,6 +176,7 @@ func main() {
 
 		// Messages
 		r.Get("/api/v1/channels/{id}/messages", messageHandler.ListChannelMessages)
+		r.Post("/api/v1/channels/{id}/messages", apiTokenHandler.SendMessage)
 		r.Get("/api/v1/channels/{id}/messages/pinned", messageHandler.ListPinnedMessages)
 		r.Get("/api/v1/messages/{id}/thread", messageHandler.ListThreadMessages)
 
@@ -192,6 +197,20 @@ func main() {
 		r.Get("/api/v1/agents/{slug}", agentHandler.GetBySlug)
 		r.Get("/api/v1/agents/{slug}/sessions", agentHandler.ListSessions)
 		r.Get("/api/v1/agents/{slug}/sessions/{id}/messages", agentHandler.GetSessionMessages)
+
+		// API Tokens
+		r.Get("/api/v1/tokens", apiTokenHandler.List)
+		r.Post("/api/v1/tokens", apiTokenHandler.Create)
+		r.Delete("/api/v1/tokens/{id}", apiTokenHandler.Revoke)
+
+		// Admin — dashboard & management
+		r.Get("/api/v1/admin/stats", adminHandler.Stats)
+		r.Get("/api/v1/admin/users", adminHandler.ListUsers)
+		r.Post("/api/v1/admin/users", adminHandler.CreateUser)
+		r.Delete("/api/v1/admin/users/{id}", adminHandler.DeactivateUser)
+		r.Patch("/api/v1/admin/users/{id}/role", adminHandler.ChangeRole)
+		r.Post("/api/v1/admin/users/{id}/reset-password", adminHandler.ResetPassword)
+		r.Get("/api/v1/admin/channels", adminHandler.ListChannels)
 
 		// Admin — migration
 		r.Post("/api/v1/admin/migration/start", migrationHandler.Start)

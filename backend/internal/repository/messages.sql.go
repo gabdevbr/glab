@@ -464,6 +464,90 @@ func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) 
 	return items, nil
 }
 
+const searchMessagesForUser = `-- name: SearchMessagesForUser :many
+SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, u.username, u.display_name, u.avatar_url, u.is_bot,
+       ts_rank(m.search_vector, websearch_to_tsquery('portuguese', unaccent($1))) AS rank
+FROM messages m
+JOIN users u ON u.id = m.user_id
+JOIN channel_members cm ON cm.channel_id = m.channel_id AND cm.user_id = $3
+WHERE m.search_vector @@ websearch_to_tsquery('portuguese', unaccent($1))
+  AND ($2::uuid IS NULL OR m.channel_id = $2)
+ORDER BY rank DESC
+LIMIT $4 OFFSET $5
+`
+
+type SearchMessagesForUserParams struct {
+	Unaccent string      `json:"unaccent"`
+	Column2  pgtype.UUID `json:"column_2"`
+	UserID   pgtype.UUID `json:"user_id"`
+	Limit    int32       `json:"limit"`
+	Offset   int32       `json:"offset"`
+}
+
+type SearchMessagesForUserRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	ChannelID    pgtype.UUID        `json:"channel_id"`
+	UserID       pgtype.UUID        `json:"user_id"`
+	ThreadID     pgtype.UUID        `json:"thread_id"`
+	Content      string             `json:"content"`
+	ContentType  string             `json:"content_type"`
+	EditedAt     pgtype.Timestamptz `json:"edited_at"`
+	IsPinned     bool               `json:"is_pinned"`
+	Metadata     json.RawMessage    `json:"metadata"`
+	SearchVector interface{}        `json:"search_vector"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	Username     string             `json:"username"`
+	DisplayName  string             `json:"display_name"`
+	AvatarUrl    pgtype.Text        `json:"avatar_url"`
+	IsBot        bool               `json:"is_bot"`
+	Rank         float32            `json:"rank"`
+}
+
+func (q *Queries) SearchMessagesForUser(ctx context.Context, arg SearchMessagesForUserParams) ([]SearchMessagesForUserRow, error) {
+	rows, err := q.db.Query(ctx, searchMessagesForUser,
+		arg.Unaccent,
+		arg.Column2,
+		arg.UserID,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchMessagesForUserRow{}
+	for rows.Next() {
+		var i SearchMessagesForUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChannelID,
+			&i.UserID,
+			&i.ThreadID,
+			&i.Content,
+			&i.ContentType,
+			&i.EditedAt,
+			&i.IsPinned,
+			&i.Metadata,
+			&i.SearchVector,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Username,
+			&i.DisplayName,
+			&i.AvatarUrl,
+			&i.IsBot,
+			&i.Rank,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const unpinMessage = `-- name: UnpinMessage :exec
 UPDATE messages SET is_pinned = FALSE WHERE id = $1
 `
