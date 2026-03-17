@@ -29,3 +29,6 @@ frontend/out/
 # Docker volumes
 pgdata*/
 redis-data*/
+
+# Git worktrees
+.worktrees/
