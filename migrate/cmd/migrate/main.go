@@ -33,7 +33,7 @@ type RoomExportState struct {
 }
 
 func main() {
-	rcURL := flag.String("rc-url", "https://chat.geovendas.com", "RocketChat base URL")
+	rcURL := flag.String("rc-url", "", "RocketChat base URL (e.g. https://your-rocketchat.com)")
 	rcToken := flag.String("rc-token", "", "RocketChat auth token")
 	rcUserID := flag.String("rc-user-id", "", "RocketChat user ID")
 	dbURL := flag.String("db-url", "", "Glab database URL")

@@ -7,17 +7,18 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/geovendas/glab/backend/internal/storage"
 )
 
 // EmojiHandler handles custom emoji endpoints.
 type EmojiHandler struct {
-	queries   *repository.Queries
-	uploadDir string
+	queries    *repository.Queries
+	storageSvc *storage.StorageService
 }
 
 // NewEmojiHandler creates an EmojiHandler.
-func NewEmojiHandler(q *repository.Queries, uploadDir string) *EmojiHandler {
-	return &EmojiHandler{queries: q, uploadDir: uploadDir}
+func NewEmojiHandler(q *repository.Queries, svc *storage.StorageService) *EmojiHandler {
+	return &EmojiHandler{queries: q, storageSvc: svc}
 }
 
 // List handles GET /api/v1/emojis/custom — returns all custom emojis.
@@ -51,13 +52,10 @@ func (h *EmojiHandler) Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve storage path: if relative, prepend upload dir
-	path := emoji.StoragePath
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(h.uploadDir, "emojis", filepath.Base(path))
-	}
+	// Emojis are stored under the "emojis/" key prefix.
+	// storage_path after migration 000009 is just the filename (e.g. "abc123.png").
+	key := "emojis/" + filepath.Base(emoji.StoragePath)
 
-	w.Header().Set("Content-Type", emoji.MimeType)
 	w.Header().Set("Cache-Control", "public, max-age=86400")
-	http.ServeFile(w, r, path)
+	h.storageSvc.ServeFile(w, r, key, emoji.MimeType, emoji.Name, h.storageSvc.Backend().Type())
 }

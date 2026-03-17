@@ -21,14 +21,14 @@ const maxUploadSize = 50 << 20 // 50 MB
 
 // FileHandler handles file upload and serving.
 type FileHandler struct {
-	queries     *repository.Queries
-	fileService *storage.FileService
-	hub         *ws.Hub
+	queries    *repository.Queries
+	storageSvc *storage.StorageService
+	hub        *ws.Hub
 }
 
 // NewFileHandler creates a FileHandler.
-func NewFileHandler(q *repository.Queries, fs *storage.FileService, hub *ws.Hub) *FileHandler {
-	return &FileHandler{queries: q, fileService: fs, hub: hub}
+func NewFileHandler(q *repository.Queries, svc *storage.StorageService, hub *ws.Hub) *FileHandler {
+	return &FileHandler{queries: q, storageSvc: svc, hub: hub}
 }
 
 // Upload handles POST /api/v1/channels/{id}/upload.
@@ -57,9 +57,7 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Limit request body size.
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
-
 	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
 		respondError(w, http.StatusBadRequest, "file too large (max 50MB)")
 		return
@@ -81,8 +79,8 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Save file to disk.
-	filename, storagePath, err := h.fileService.Save(file, header)
+	// Save via StorageService — returns relative key.
+	filename, key, err := h.storageSvc.Save(r.Context(), file, header, mimeType)
 	if err != nil {
 		slog.Error("failed to save file", "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to save file")
@@ -90,18 +88,18 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate thumbnail for images.
-	thumbPath, err := h.fileService.GenerateThumbnail(storagePath, mimeType)
+	thumbKey, err := h.storageSvc.GenerateThumbnail(r.Context(), key, mimeType)
 	if err != nil {
 		slog.Warn("failed to generate thumbnail", "error", err)
-		// Non-fatal; continue without thumbnail.
 	}
 
-	// Create a message for this file upload.
-	msgContent := header.Filename
+	backendType := h.storageSvc.Backend().Type()
+
+	// Create message for this file upload.
 	msg, err := h.queries.CreateMessage(r.Context(), repository.CreateMessageParams{
 		ChannelID:   channelUUID,
 		UserID:      userUUID,
-		Content:     msgContent,
+		Content:     header.Filename,
 		ContentType: "file",
 		Metadata:    json.RawMessage("null"),
 	})
@@ -111,17 +109,18 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create file record in DB.
+	// Create file record in DB with relative key as storage_path.
 	dbFile, err := h.queries.CreateFile(r.Context(), repository.CreateFileParams{
-		MessageID:     msg.ID,
-		UserID:        userUUID,
-		ChannelID:     channelUUID,
-		Filename:      filename,
-		OriginalName:  header.Filename,
-		MimeType:      mimeType,
-		SizeBytes:     header.Size,
-		StoragePath:   storagePath,
-		ThumbnailPath: pgtype.Text{String: thumbPath, Valid: thumbPath != ""},
+		MessageID:      msg.ID,
+		UserID:         userUUID,
+		ChannelID:      channelUUID,
+		Filename:       filename,
+		OriginalName:   header.Filename,
+		MimeType:       mimeType,
+		SizeBytes:      header.Size,
+		StoragePath:    key,
+		ThumbnailPath:  pgtype.Text{String: thumbKey, Valid: thumbKey != ""},
+		StorageBackend: backendType,
 	})
 	if err != nil {
 		slog.Error("failed to create file record", "error", err)
@@ -129,7 +128,7 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Broadcast message.new via WebSocket so other clients see the file.
+	// Broadcast message.new via WebSocket.
 	fullMsg, err := h.queries.GetMessageByID(r.Context(), msg.ID)
 	if err == nil {
 		fr := fileToResponse(dbFile)
@@ -182,9 +181,7 @@ func (h *FileHandler) ServeFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", dbFile.MimeType)
-	w.Header().Set("Content-Disposition", "inline; filename=\""+dbFile.OriginalName+"\"")
-	http.ServeFile(w, r, dbFile.StoragePath)
+	h.storageSvc.ServeFile(w, r, dbFile.StoragePath, dbFile.MimeType, dbFile.OriginalName, dbFile.StorageBackend)
 }
 
 // ServeThumbnail handles GET /api/v1/files/{id}/thumbnail.
@@ -203,18 +200,15 @@ func (h *FileHandler) ServeThumbnail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !dbFile.ThumbnailPath.Valid || dbFile.ThumbnailPath.String == "" {
-		// No thumbnail; serve the original if it's an image.
 		if strings.HasPrefix(dbFile.MimeType, "image/") {
-			w.Header().Set("Content-Type", dbFile.MimeType)
-			http.ServeFile(w, r, dbFile.StoragePath)
+			h.storageSvc.ServeFile(w, r, dbFile.StoragePath, dbFile.MimeType, dbFile.OriginalName, dbFile.StorageBackend)
 			return
 		}
 		respondError(w, http.StatusNotFound, "no thumbnail available")
 		return
 	}
 
-	w.Header().Set("Content-Type", "image/jpeg")
-	http.ServeFile(w, r, dbFile.ThumbnailPath.String)
+	h.storageSvc.ServeThumbnail(w, r, dbFile.ThumbnailPath.String, dbFile.StorageBackend)
 }
 
 // FileResponse is the JSON representation of a file.

@@ -74,6 +74,13 @@ type ApiToken struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
+type AppConfig struct {
+	Key       string             `json:"key"`
+	Value     []byte             `json:"value"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy pgtype.UUID        `json:"updated_by"`
+}
+
 type Channel struct {
 	ID          pgtype.UUID        `json:"id"`
 	Name        string             `json:"name"`
@@ -107,17 +114,18 @@ type CustomEmoji struct {
 }
 
 type File struct {
-	ID            pgtype.UUID        `json:"id"`
-	MessageID     pgtype.UUID        `json:"message_id"`
-	UserID        pgtype.UUID        `json:"user_id"`
-	ChannelID     pgtype.UUID        `json:"channel_id"`
-	Filename      string             `json:"filename"`
-	OriginalName  string             `json:"original_name"`
-	MimeType      string             `json:"mime_type"`
-	SizeBytes     int64              `json:"size_bytes"`
-	StoragePath   string             `json:"storage_path"`
-	ThumbnailPath pgtype.Text        `json:"thumbnail_path"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ID             pgtype.UUID        `json:"id"`
+	MessageID      pgtype.UUID        `json:"message_id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	ChannelID      pgtype.UUID        `json:"channel_id"`
+	Filename       string             `json:"filename"`
+	OriginalName   string             `json:"original_name"`
+	MimeType       string             `json:"mime_type"`
+	SizeBytes      int64              `json:"size_bytes"`
+	StoragePath    string             `json:"storage_path"`
+	ThumbnailPath  pgtype.Text        `json:"thumbnail_path"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	StorageBackend string             `json:"storage_backend"`
 }
 
 type Mention struct {

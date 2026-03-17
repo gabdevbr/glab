@@ -68,7 +68,7 @@ export default function MigrationPage() {
     updateProgress,
   } = useMigrationStore();
 
-  const [rcUrl, setRcUrl] = useState('https://chat.geovendas.com');
+  const [rcUrl, setRcUrl] = useState('');
   const [rcToken, setRcToken] = useState('');
   const [rcUserId, setRcUserId] = useState('');
   const [migrateFiles, setMigrateFiles] = useState(true);

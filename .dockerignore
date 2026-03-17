@@ -1,0 +1,10 @@
+.git
+.env*
+*.env
+backend/glab
+migrate/migrate
+migrate/migrate-linux
+.worktrees/
+.claude/
+nginx/
+*.md

@@ -1,4 +1,16 @@
 <p align="center">
+  <img src="https://raw.githubusercontent.com/gabdevbr/glab/main/glab-working.png" alt="Glab Screenshot" width="720" />
+</p>
+
+<h1 align="center">
+  <br/>
+  Glab
+  <br/>
+  <sub><sup>Open-source real-time chat with native AI agents</sup></sub>
+</h1>
+
+<p align="center">
+  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge" alt="License: AGPL-3.0" /></a>
   <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.25" />
   <img src="https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js 15" />
   <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL 16" />
@@ -6,109 +18,69 @@
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
 </p>
 
-<h1 align="center">Glab</h1>
-
 <p align="center">
-  <strong>Internal real-time chat platform with native AI agents</strong><br/>
-  Built to replace RocketChat — designed for teams that ship fast and talk to AI like teammates.
+  Self-hostable Slack alternative with pluggable storage, admin-panel-driven configuration,<br/>
+  and AI agents that live alongside your team as first-class participants.
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> •
-  <a href="#architecture">Architecture</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#deployment">Deployment</a> •
-  <a href="#api-reference">API</a> •
-  <a href="#migration">Migration</a>
+  <a href="#-features">Features</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#-quick-start">Quick Start</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#%EF%B8%8F-configuration">Configuration</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#-deployment">Deployment</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#-api-reference">API</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#-architecture">Architecture</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#-contributing">Contributing</a>
 </p>
 
 ---
 
-## Features
+<br/>
 
-**Real-time messaging** — WebSocket-powered with typing indicators, presence tracking, and instant delivery.
+## Highlights
 
-**AI agents as first-class citizens** — 8 specialized agents live alongside human users in channels. Mention `@agent` in any conversation or open a dedicated 1-on-1 panel. Responses stream in real-time via SSE from the OpenClaw gateway.
+<table>
+<tr>
+<td width="50%">
 
-**Threads, reactions, pins** — Full conversation management with threaded replies, emoji reactions, and pinned messages.
+### Real-time messaging
+WebSocket-powered with typing indicators, presence tracking, and instant delivery across all channels and DMs.
 
-**File sharing** — Upload files up to 50MB with automatic JPEG thumbnail generation.
+### AI agents as teammates
+Create agents via the admin panel. Mention `@agent` in any channel or open a dedicated 1-on-1 panel. Responses stream token-by-token. Works with **any OpenAI-compatible API**.
 
-**Full-text search** — PostgreSQL-native search with Portuguese language support and unaccent normalization.
+### Pluggable object storage
+Local filesystem **or** any S3-compatible provider (AWS, IBM COS, Zadara, MinIO). Switch backends at runtime with **zero-downtime file migration**.
 
-**Channels & DMs** — Public channels, private groups, and direct messages with fine-grained membership control.
+</td>
+<td width="50%">
 
-**Presence system** — Real-time online/away/DND status powered by Redis.
+### Threads, reactions, pins
+Full conversation management with threaded replies, emoji reactions, message pinning, and custom emojis.
 
-**Migration-ready** — Ship with a dedicated CLI that migrates users, channels, messages, reactions, and files from RocketChat in bulk (100k+ messages/min via `COPY`).
+### Full-text search
+PostgreSQL-native search with language-aware stemming and unaccent normalization. Searches messages, files, and users.
 
----
+### Admin panel
+Dashboard with live stats, user management, channel management, storage configuration, AI gateway setup, and RocketChat migration tools — all from the browser.
 
-## Architecture
+</td>
+</tr>
+</table>
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         nginx (443)                         │
-│              SSL termination + reverse proxy                 │
-├──────────────┬──────────────────────────┬───────────────────┤
-│   /api/*     │         /ws              │        /*         │
-▼              ▼                          ▼                   │
-┌──────────────────────────┐    ┌─────────────────────┐       │
-│      Go API (Chi)        │    │  Next.js 15 (SSR)   │       │
-│                          │    │                     │       │
-│  ┌────────┐ ┌─────────┐ │    │  React 19           │       │
-│  │ REST   │ │WebSocket│ │    │  Zustand stores      │       │
-│  │handlers│ │  hub    │ │    │  shadcn/ui           │       │
-│  └───┬────┘ └────┬────┘ │    │  Tailwind CSS 4      │       │
-│      │           │      │    └─────────────────────┘       │
-│  ┌───┴───────────┴───┐  │                                   │
-│  │   AI Dispatcher   │  │                                   │
-│  │  (3 concurrent    │  │                                   │
-│  │   per agent)      │  │                                   │
-│  └────────┬──────────┘  │                                   │
-│           │  SSE        │                                   │
-│           ▼             │                                   │
-│  ┌─────────────────┐   │                                   │
-│  │ OpenClaw Gateway │   │                                   │
-│  │ (LLM proxy)     │   │                                   │
-│  └─────────────────┘   │                                   │
-└──────────┬──────────────┘                                   │
-           │                                                   │
-     ┌─────┴─────┐                                            │
-     ▼           ▼                                            │
-┌─────────┐ ┌─────────┐                                      │
-│Postgres │ │  Redis  │                                      │
-│  16     │ │   7     │                                      │
-│         │ │         │                                      │
-│ sqlc    │ │ pub/sub │                                      │
-│ FTS     │ │presence │                                      │
-│ UUIDs   │ │ cache   │                                      │
-└─────────┘ └─────────┘                                      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Design Decisions
-
-| Decision | Why |
-|---|---|
-| **sqlc** over ORM | Type-safe generated Go code, zero runtime reflection, full SQL control |
-| **pgx COPY** for migration | Bulk inserts at max throughput — 100k+ messages/minute |
-| **Redis pub/sub** for WebSocket | Enables horizontal scaling of API servers |
-| **Separate `migrate/` module** | No dependency pollution into the main backend |
-| **Agents as user accounts** | Agents appear naturally in channels, no special UI paths needed |
-| **OpenClaw gateway** | Single LLM proxy for all agents, unified auth and model routing |
+<br/>
 
 ---
+
+<br/>
 
 ## Quick Start
 
 ### Prerequisites
 
-- Go 1.25+
-- Node.js 22+
-- Docker & Docker Compose
-
-### Development
+- **Go** 1.25+
+- **Node.js** 22+
+- **Docker** & Docker Compose
 
 ```bash
 # 1. Start infrastructure (Postgres + Redis)
@@ -119,97 +91,117 @@ export DATABASE_URL=postgres://glab:glab@localhost:5432/glab?sslmode=disable
 export JWT_SECRET=dev-secret
 export REDIS_URL=redis://localhost:6379
 
-# 3. Apply migrations
+# 3. Apply database migrations
 make migrate-up
 
 # 4. Run backend
 make backend
 
-# 5. Run frontend (separate terminal)
+# 5. Run frontend (new terminal)
 make frontend
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — login with `admin` / `admin123`.
+Open **http://localhost:3000** and login with `admin` / `admin123`.
 
-### Database Migrations
-
-```bash
-# Create a new migration
-cd backend
-migrate create -ext sql -dir migrations -seq add_bookmarks
-
-# Apply all pending
-make migrate-up
-
-# Rollback one step
-make migrate-down
-```
-
-### Code Generation (sqlc)
-
-Queries live in `backend/internal/repository/queries/*.sql`:
-
-```bash
-make sqlc    # Regenerates Go code from SQL
-```
+<br/>
 
 ---
+
+<br/>
+
+## Configuration
+
+Glab uses **6 environment variables** for bootstrap. Everything else lives in the database and is managed via the **admin panel**.
+
+### Bootstrap Environment Variables
+
+| Variable | Default | Purpose |
+|:---------|:--------|:--------|
+| `DATABASE_URL` | *(required)* | PostgreSQL connection string |
+| `JWT_SECRET` | *(required)* | JWT token signing secret |
+| `REDIS_URL` | `redis://localhost:6379` | Redis connection string |
+| `PORT` | `8080` | HTTP listen port |
+| `CORS_ORIGIN` | `http://localhost:3000` | Allowed CORS origin |
+| `UPLOAD_DIR` | `./uploads` | Local file storage directory |
+
+### Admin Panel (`/admin`)
+
+| Tab | What you can do |
+|:----|:----------------|
+| **Dashboard** | Live stats — users, channels, messages, files, storage usage, online count |
+| **Users** | Create, deactivate, change roles, reset passwords |
+| **Channels** | View and manage all channels |
+| **Storage** | Switch between local and S3-compatible storage. Test connection. Migrate files between backends with real-time progress bar |
+| **AI** | Configure gateway URL, token, and default model. Test connectivity. Supports any OpenAI-compatible API |
+| **Migration** | Import users, channels, messages, reactions, files, and emojis from RocketChat |
+
+<br/>
+
+---
+
+<br/>
 
 ## Deployment
 
 Production runs on Docker Compose behind nginx with SSL.
 
 ```bash
-# 1. Configure environment
-cp .env.production .env
-# Edit .env with your secrets
+# 1. Configure
+cp .env.example .env        # edit with your secrets
 
-# 2. Deploy (rsync + docker compose on remote)
-make deploy
+# 2. Deploy
+export DEPLOY_HOST=your-server.com
+export DEPLOY_USER=ubuntu
+export GLAB_DOMAIN=glab.example.com
+./deploy.sh
 ```
-
-The `deploy.sh` script handles:
-1. **Sync** files to the remote server via rsync
-2. **Generate** `.env` with secure defaults if missing
-3. **Setup** self-signed SSL certificates
-4. **Configure** nginx reverse proxy
-5. **Build & start** containers
 
 ### Production Stack
 
 | Service | Image | Resources |
-|---|---|---|
-| `glab-api` | Custom Go binary | 1 CPU, 512MB RAM |
-| `glab-web` | Next.js standalone | 0.5 CPU, 256MB RAM |
-| `glab-postgres` | postgres:16-alpine | Persistent volume |
-| `glab-redis` | redis:7-alpine | 128MB max, LRU eviction |
+|:--------|:------|:----------|
+| **glab-api** | Custom Go binary | 1 CPU, 512 MB RAM |
+| **glab-web** | Next.js standalone | 0.5 CPU, 256 MB RAM |
+| **glab-postgres** | `postgres:16-alpine` | Persistent volume |
+| **glab-redis** | `redis:7-alpine` | 128 MB max, LRU eviction |
+
+<br/>
 
 ---
 
+<br/>
+
 ## API Reference
 
-All endpoints are prefixed with `/api/v1` and require JWT authentication (except login).
+All endpoints are prefixed with `/api/v1`. Authentication via `Authorization: Bearer <JWT>` header (except login).
 
-### Auth
+<details>
+<summary><strong>Auth</strong></summary>
 
 | Method | Path | Description |
-|---|---|---|
+|:-------|:-----|:------------|
 | `POST` | `/auth/login` | Authenticate and receive JWT |
 | `POST` | `/auth/logout` | Invalidate session |
 | `GET` | `/auth/me` | Current user info |
 
-### Users
+</details>
+
+<details>
+<summary><strong>Users</strong></summary>
 
 | Method | Path | Description |
-|---|---|---|
+|:-------|:-----|:------------|
 | `GET` | `/users` | List all users |
 | `GET` | `/users/{id}` | Get user details |
 | `PATCH` | `/users/{id}` | Update user profile |
 
-### Channels
+</details>
+
+<details>
+<summary><strong>Channels</strong></summary>
 
 | Method | Path | Description |
-|---|---|---|
+|:-------|:-----|:------------|
 | `GET` | `/channels` | List user's channels |
 | `POST` | `/channels` | Create channel |
 | `GET` | `/channels/{id}` | Get channel details |
@@ -220,139 +212,208 @@ All endpoints are prefixed with `/api/v1` and require JWT authentication (except
 | `POST` | `/channels/{id}/members` | Add member |
 | `DELETE` | `/channels/{id}/members/{uid}` | Remove member |
 
-### Messages
+</details>
+
+<details>
+<summary><strong>Messages</strong></summary>
 
 | Method | Path | Description |
-|---|---|---|
+|:-------|:-----|:------------|
 | `GET` | `/channels/{id}/messages` | List messages (paginated) |
+| `POST` | `/channels/{id}/messages` | Send message via API token |
 | `GET` | `/channels/{id}/messages/pinned` | List pinned messages |
 | `GET` | `/messages/{id}/thread` | Get thread replies |
 
-### Files
+</details>
+
+<details>
+<summary><strong>Files</strong></summary>
 
 | Method | Path | Description |
-|---|---|---|
-| `POST` | `/channels/{id}/upload` | Upload file (max 50MB) |
-| `GET` | `/files/{id}` | Download file |
-| `GET` | `/files/{id}/thumbnail` | Get auto-generated thumbnail |
+|:-------|:-----|:------------|
+| `POST` | `/channels/{id}/upload` | Upload file (max 50 MB) |
+| `GET` | `/files/{id}` | Download / serve file |
+| `GET` | `/files/{id}/thumbnail` | Auto-generated thumbnail |
 
-### Search
+</details>
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/search?q=term` | Full-text search (Portuguese + unaccent) |
-
-### AI Agents
+<details>
+<summary><strong>Search</strong></summary>
 
 | Method | Path | Description |
-|---|---|---|
+|:-------|:-----|:------------|
+| `GET` | `/search?q=term` | Full-text search across messages |
+
+</details>
+
+<details>
+<summary><strong>AI Agents</strong></summary>
+
+| Method | Path | Description |
+|:-------|:-----|:------------|
 | `GET` | `/agents` | List all agents |
 | `GET` | `/agents/{slug}` | Get agent details |
-| `GET` | `/agents/{slug}/sessions` | List user's sessions with agent |
+| `GET` | `/agents/{slug}/sessions` | List user's sessions |
 | `GET` | `/agents/{slug}/sessions/{id}/messages` | Get session messages |
 
-### WebSocket
+</details>
 
-Connect to `/ws?token=JWT_TOKEN` for real-time events:
+<details>
+<summary><strong>Admin — Storage</strong></summary>
 
-**Client → Server:** `message.send`, `message.edit`, `message.delete`, `message.pin`, `reaction.add`, `reaction.remove`, `typing.start`, `typing.stop`, `channel.read`, `ai.prompt`, `ai.stop`
+| Method | Path | Description |
+|:-------|:-----|:------------|
+| `GET` | `/admin/storage/config` | Get current storage config |
+| `PUT` | `/admin/storage/config` | Save and hot-swap backend |
+| `POST` | `/admin/storage/test` | Test S3 connection |
+| `POST` | `/admin/storage/migrate` | Start file migration |
+| `GET` | `/admin/storage/migrate/status` | Migration progress |
+| `POST` | `/admin/storage/migrate/cancel` | Cancel migration |
 
-**Server → Client:** `message.new`, `message.edited`, `message.deleted`, `reaction.updated`, `thread.updated`, `typing`, `presence`, `notification`, `ai.chunk`, `ai.panel.chunk`
+</details>
+
+<details>
+<summary><strong>Admin — AI Gateway</strong></summary>
+
+| Method | Path | Description |
+|:-------|:-----|:------------|
+| `GET` | `/admin/ai/config` | Get AI gateway config |
+| `PUT` | `/admin/ai/config` | Save AI gateway config |
+| `POST` | `/admin/ai/test` | Test gateway connectivity |
+
+</details>
+
+<details>
+<summary><strong>WebSocket</strong></summary>
+
+Connect to `/ws?token=JWT_TOKEN` for real-time events.
+
+**Client to Server:**
+`message.send` `message.edit` `message.delete` `message.pin` `reaction.add` `reaction.remove` `typing.start` `typing.stop` `channel.read` `ai.prompt` `ai.stop`
+
+**Server to Client:**
+`message.new` `message.edited` `message.deleted` `reaction.updated` `thread.updated` `typing` `presence` `notification` `ai.chunk` `ai.panel.chunk` `storage.migration.progress`
+
+</details>
+
+<br/>
 
 ---
 
-## AI Agents
+<br/>
 
-Glab ships with 8 specialized agents powered by OpenClaw:
+## Architecture
 
-| Agent | Emoji | Domain |
-|---|---|---|
-| **Max** | 👗 | Sales Force — Clothing |
-| **Trama** | 🧵 | Sales Force — Textile |
-| **Lytis** | 📊 | Analytics |
-| **Pilar** | 🏛️ | CRM / CRM360 |
-| **Lumina** | 💡 | Inventory |
-| **GeoBarsa** | 📚 | Knowledge Base |
-| **BateCerto** | 🎯 | ERP |
-| **GeoLens** | 🤖 | General Assistant |
-
-Agents can be invoked two ways:
-- **Channel mention** — type `@max how do I...` in any channel, response broadcasts to all members
-- **Panel chat** — open a dedicated 1-on-1 session from the AI panel
-
-Responses stream token-by-token with support for cancellation mid-stream.
-
----
-
-## Migration from RocketChat
-
-A dedicated CLI tool handles full migration with zero downtime for the new system:
-
-```bash
-cd migrate && go build -o migrate ./cmd/migrate/
-
-# Preview what will be migrated
-./migrate \
-  --rc-token TOKEN \
-  --rc-user-id USERID \
-  --db-url "postgres://glab:pass@localhost:5432/glab?sslmode=disable" \
-  --dry-run
-
-# Full migration with files
-./migrate \
-  --rc-token TOKEN \
-  --rc-user-id USERID \
-  --db-url "postgres://glab:pass@localhost:5432/glab?sslmode=disable" \
-  --migrate-files \
-  --upload-dir ./uploads \
-  --since 2024-01-01T00:00:00Z
+```
+                        ┌─────────────────────────────────────────┐
+                        │              nginx (443)                 │
+                        │       SSL termination + reverse proxy    │
+                        ├────────────┬────────────┬───────────────┤
+                        │  /api/*    │    /ws     │      /*       │
+                        ▼            ▼            ▼               │
+                ┌──────────────────────┐  ┌──────────────┐        │
+                │    Go API (Chi)      │  │  Next.js 15  │        │
+                │                      │  │              │        │
+                │  REST      WebSocket │  │  React 19    │        │
+                │  handlers    hub     │  │  Zustand     │        │
+                │         │            │  │  shadcn/ui   │        │
+                │    AI Dispatcher     │  │  Tailwind 4  │        │
+                │     (SSE streaming)  │  └──────────────┘        │
+                └──────┬───────┬───────┘                          │
+                       │       │                                  │
+                  ┌────┴──┐ ┌──┴────┐                             │
+                  │Postgres│ │ Redis │                             │
+                  │  16    │ │   7   │                             │
+                  │        │ │       │                             │
+                  │ sqlc   │ │pub/sub│  ┌──────────────────┐      │
+                  │ FTS    │ │presence│ │  Object Storage  │      │
+                  │ UUIDs  │ │ cache │  │  Local / S3 /    │      │
+                  └────────┘ └───────┘  │  IBM COS / MinIO │      │
+                                        └──────────────────┘      │
+                        └─────────────────────────────────────────┘
 ```
 
-### Migration Phases
+### Design Decisions
 
-1. **Export** — Fetch users, channels, messages, reactions, and files from RocketChat REST API
-2. **Transform** — Map RocketChat IDs to Glab UUIDs, extract mentions, preserve threads
-3. **Load** — Bulk insert via `pgx COPY` (~100k+ messages/min), rebuild search indexes
-4. **Files** *(optional)* — Download and reorganize file attachments
+| Decision | Rationale |
+|:---------|:----------|
+| **sqlc** over ORM | Type-safe generated Go code, zero runtime reflection, full SQL control |
+| **pgx COPY** for migration | Bulk inserts at max throughput — 100k+ messages/minute |
+| **Redis pub/sub** for WebSocket | Enables horizontal scaling of API servers |
+| **Pluggable storage** | Swap between local and S3-compatible at runtime via admin panel |
+| **Config in DB** (not env vars) | AI gateway and storage config managed via admin panel, not restarts |
+| **Agents as user accounts** | Agents appear naturally in channels, no special UI paths needed |
+| **AGPL-3.0 license** | Ensures improvements stay open-source (same as RocketChat) |
+
+<br/>
 
 ---
+
+<br/>
 
 ## Project Structure
 
 ```
-backend/                 Go API server
-  cmd/glab/              Entry point — server bootstrap & agent seeding
+backend/                    Go API server
+  cmd/glab/                 Entry point
   internal/
-    ai/                  OpenClaw bridge (SSE streaming) + dispatcher
-    auth/                JWT middleware + bcrypt password hashing
-    config/              Environment config (caarlos0/env)
-    db/                  pgx connection pool (5–20 connections)
-    handler/             Chi HTTP handlers (auth, users, channels, messages, files, search, agents)
-    repository/          sqlc-generated queries + models
-    storage/             File upload service with thumbnail generation
-    ws/                  WebSocket hub, client management, presence tracking
-  migrations/            SQL migrations (golang-migrate)
+    ai/                     AI gateway bridge + dispatcher
+    auth/                   JWT middleware + bcrypt
+    config/                 Environment config
+    db/                     pgx connection pool
+    handler/                HTTP handlers (REST + admin)
+    repository/             sqlc-generated queries
+    storage/                Pluggable backends (local, S3) + migration engine
+    ws/                     WebSocket hub + presence
+  migrations/               SQL migrations (golang-migrate)
 
-frontend/                Next.js 15 app
-  src/app/               App router (login, channel views)
-  src/components/        React components (sidebar, chat, AI panel, shadcn/ui)
-  src/hooks/             WebSocket connection hook
-  src/stores/            Zustand stores (auth, channels, messages, presence, AI)
-  src/lib/               API client, WebSocket utilities, types
+frontend/                   Next.js 15 app
+  src/app/                  App router (login, chat, admin)
+  src/components/           React components (shadcn/ui)
+  src/stores/               Zustand state management
+  src/lib/                  API client, WebSocket, types
 
-migrate/                 RocketChat → Glab migration CLI (separate Go module)
-  cmd/migrate/           CLI entry point (4-phase pipeline)
-  internal/              RC client, data transformer, bulk loader
-
-nginx/                   Production nginx config + SSL
-docker-compose.yml       Production stack (API, Web, Postgres, Redis)
-docker-compose.dev.yml   Dev infrastructure (Postgres + Redis only)
-deploy.sh                One-command production deployment
-Makefile                 Build, dev, and deploy targets
+migrate/                    RocketChat migration CLI (separate Go module)
 ```
+
+<br/>
 
 ---
 
+<br/>
+
+## Contributing
+
+We welcome contributions! See **[CONTRIBUTING.md](CONTRIBUTING.md)** for guidelines.
+
+<br/>
+
+---
+
+<br/>
+
 ## License
 
-Internal tool — proprietary to Geovendas.
+Glab is licensed under the **[GNU Affero General Public License v3.0](LICENSE)**.
+
+You are free to use, modify, and distribute this software. If you run a modified version as a network service, you must make the source code available to its users under the same license.
+
+<br/>
+
+---
+
+<br/>
+
+<p align="center">
+  <sub>Sponsored by</sub><br/><br/>
+  <a href="https://geovendas.com">
+    <img src="https://geovendas.com/wp-content/uploads/2025/02/logo_geovendas.svg" alt="Geovendas" height="40" />
+  </a>
+</p>
+
+<p align="center">
+  <sub>
+    Built with care by the <a href="https://geovendas.com">Geovendas</a> engineering team.<br/>
+    If Glab helps your team, consider giving it a star.
+  </sub>
+</p>

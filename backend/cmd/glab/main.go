@@ -20,7 +20,6 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/geovendas/glab/backend/internal/ai"
@@ -87,12 +86,33 @@ func main() {
 	// Seed AI agents
 	seedAgents(ctx, queries)
 
-	// File storage service
-	fileService := storage.NewFileService(cfg.UploadDir)
-	if err := fileService.EnsureDir(); err != nil {
-		slog.Error("failed to create upload directory", "error", err)
+	// Storage config service + SwappableBackend
+	storageCfgSvc := storage.NewStorageConfigService(queries)
+	storageCfg, err := storageCfgSvc.Load(ctx)
+	if err != nil {
+		// On first boot (before migration 000008 runs), fall back to local.
+		slog.Warn("could not load storage config from DB, using local default", "error", err)
+		storageCfg = storage.StorageConfig{
+			Backend: "local",
+			Local:   storage.LocalStorageConfig{BaseDir: cfg.UploadDir},
+		}
+	}
+	localBackend := storage.NewLocalBackend(cfg.UploadDir)
+	if err := localBackend.EnsureDir(); err != nil {
+		slog.Error("failed to create local storage directory", "error", err)
 		os.Exit(1)
 	}
+	activeBackend, err := storage.BuildBackend(ctx, storageCfg)
+	if err != nil {
+		slog.Warn("failed to build configured storage backend, falling back to local", "error", err)
+		activeBackend = localBackend
+	}
+	swappable := storage.NewSwappableBackend(activeBackend)
+	storageSvc := storage.NewStorageService(swappable, localBackend)
+	slog.Info("storage backend active", "type", swappable.Type())
+
+	// AI config service
+	aiCfgSvc := ai.NewGatewayConfigService(queries)
 
 	// WebSocket hub (created early so handlers can reference it)
 	hub := ws.NewHub()
@@ -103,10 +123,10 @@ func main() {
 	channelHandler := handler.NewChannelHandler(queries)
 	messageHandler := handler.NewMessageHandler(queries)
 	agentHandler := handler.NewAgentHandler(queries)
-	fileHandler := handler.NewFileHandler(queries, fileService, hub)
+	fileHandler := handler.NewFileHandler(queries, storageSvc, hub)
 	searchHandler := handler.NewSearchHandler(queries)
 	apiTokenHandler := handler.NewAPITokenHandler(queries, hub)
-	emojiHandler := handler.NewEmojiHandler(queries, cfg.UploadDir)
+	emojiHandler := handler.NewEmojiHandler(queries, storageSvc)
 	presenceService := ws.NewPresenceService(rdb, hub)
 	wsHandler := ws.NewMessageHandler(hub, queries, presenceService, cfg.JWTSecret)
 
@@ -117,10 +137,14 @@ func main() {
 
 	// Admin handler
 	adminHandler := handler.NewAdminHandler(queries, presenceService)
+	storageMigrator := storage.NewMigrator(queries, localBackend, swappable, hub)
+	storageAdminHandler := handler.NewStorageAdminHandler(queries, storageCfgSvc, swappable, storageMigrator)
+	aiAdminHandler := handler.NewAIAdminHandler(queries, aiCfgSvc)
 
 	// Migration engine
 	migrationEngine := migration.NewEngine(pool, queries, hub, cfg.UploadDir)
 	migrationHandler := handler.NewMigrationHandler(migrationEngine, queries)
+
 
 	// Setup router
 	r := chi.NewRouter()
@@ -211,6 +235,19 @@ func main() {
 		r.Patch("/api/v1/admin/users/{id}/role", adminHandler.ChangeRole)
 		r.Post("/api/v1/admin/users/{id}/reset-password", adminHandler.ResetPassword)
 		r.Get("/api/v1/admin/channels", adminHandler.ListChannels)
+
+		// Admin — storage config
+		r.Get("/api/v1/admin/storage/config", storageAdminHandler.GetConfig)
+		r.Put("/api/v1/admin/storage/config", storageAdminHandler.PutConfig)
+		r.Post("/api/v1/admin/storage/test", storageAdminHandler.TestConnection)
+		r.Post("/api/v1/admin/storage/migrate", storageAdminHandler.StartMigration)
+		r.Get("/api/v1/admin/storage/migrate/status", storageAdminHandler.MigrationStatus)
+		r.Post("/api/v1/admin/storage/migrate/cancel", storageAdminHandler.CancelMigration)
+
+		// Admin — AI gateway config
+		r.Get("/api/v1/admin/ai/config", aiAdminHandler.GetConfig)
+		r.Put("/api/v1/admin/ai/config", aiAdminHandler.PutConfig)
+		r.Post("/api/v1/admin/ai/test", aiAdminHandler.TestConnection)
 
 		// Admin — migration
 		r.Post("/api/v1/admin/migration/start", migrationHandler.Start)
@@ -308,130 +345,5 @@ func seedAdminUser(ctx context.Context, queries *repository.Queries) {
 	slog.Info("admin user seeded", "username", "admin", "password", "admin123")
 }
 
-// agentDef describes an agent to seed.
-type agentDef struct {
-	Slug         string
-	Name         string
-	Emoji        string
-	Description  string
-	SystemPrompt string
-}
-
-// seedAgents creates the predefined AI agents and their bot users.
-func seedAgents(ctx context.Context, queries *repository.Queries) {
-	agents := []agentDef{
-		{
-			Slug:         "max",
-			Name:         "Max",
-			Emoji:        "\U0001F457", // dress emoji
-			Description:  "Especialista em Forca de Vendas Confeccao",
-			SystemPrompt: "Voce e o Max, especialista em Forca de Vendas Confeccao da GEOvendas. Ajude os usuarios com duvidas sobre pedidos, catalogo e representantes.",
-		},
-		{
-			Slug:         "trama",
-			Name:         "Trama",
-			Emoji:        "\U0001F9F5", // thread emoji
-			Description:  "Especialista em Forca de Vendas Textil",
-			SystemPrompt: "Voce e o Trama, especialista em Forca de Vendas Textil da GEOvendas. Ajude os usuarios com duvidas sobre pedidos texteis, amostras e representantes.",
-		},
-		{
-			Slug:         "lytis",
-			Name:         "Lytis",
-			Emoji:        "\U0001F4CA", // bar chart emoji
-			Description:  "Especialista em Analytics",
-			SystemPrompt: "Voce e o Lytis, especialista em Analytics da GEOvendas. Ajude os usuarios a interpretar dados, dashboards e metricas de negocio.",
-		},
-		{
-			Slug:         "pilar",
-			Name:         "Pilar",
-			Emoji:        "\U0001F3DB", // classical building emoji
-			Description:  "Especialista em CRM/CRM360",
-			SystemPrompt: "Voce e o Pilar, especialista em CRM e CRM360 da GEOvendas. Ajude os usuarios com gestao de clientes, pipeline e relacionamento.",
-		},
-		{
-			Slug:         "lumina",
-			Name:         "Lumina",
-			Emoji:        "\U0001F4A1", // light bulb emoji
-			Description:  "Especialista em Estoque",
-			SystemPrompt: "Voce e a Lumina, especialista em Estoque da GEOvendas. Ajude os usuarios com consultas de estoque, disponibilidade e reposicao.",
-		},
-		{
-			Slug:         "geobarsa",
-			Name:         "GeoBarsa",
-			Emoji:        "\U0001F4DA", // books emoji
-			Description:  "Base de Conhecimento GEOdocs",
-			SystemPrompt: "Voce e o GeoBarsa, a base de conhecimento da GEOvendas. Ajude os usuarios a encontrar documentacao, tutoriais e procedimentos internos.",
-		},
-		{
-			Slug:         "batecerto",
-			Name:         "BateCerto",
-			Emoji:        "\U0001F3AF", // target emoji
-			Description:  "Especialista em ERP",
-			SystemPrompt: "Voce e o BateCerto, especialista em ERP da GEOvendas. Ajude os usuarios com duvidas sobre processos do ERP, notas fiscais e integracoes.",
-		},
-		{
-			Slug:         "geolens",
-			Name:         "GeoLens",
-			Emoji:        "\U0001F916", // robot emoji
-			Description:  "Assistente geral",
-			SystemPrompt: "Voce e o GeoLens, o assistente geral da GEOvendas. Ajude os usuarios com qualquer duvida sobre os produtos e servicos da empresa.",
-		},
-	}
-
-	const gatewayURL = "http://192.168.37.206:18789"
-	const gatewayToken = "378823229f2009edb62c87bcb8a00a3339cfdd58a646bc35"
-	const model = "anthropic/claude-sonnet-4-6"
-
-	for _, def := range agents {
-		// Check if agent already exists
-		_, err := queries.GetAgentBySlug(ctx, def.Slug)
-		if err == nil {
-			continue // already exists
-		}
-
-		// Create bot user
-		hash, err := auth.HashPassword("bot-" + def.Slug + "-no-login")
-		if err != nil {
-			slog.Error("failed to hash bot password", "slug", def.Slug, "error", err)
-			continue
-		}
-
-		botUser, err := queries.CreateUser(ctx, repository.CreateUserParams{
-			Username:     def.Slug,
-			Email:        def.Slug + "@agent.glab.local",
-			DisplayName:  def.Name,
-			PasswordHash: hash,
-			Role:         "agent",
-			IsBot:        true,
-			BotConfig:    json.RawMessage("null"),
-		})
-		if err != nil {
-			slog.Error("failed to create bot user", "slug", def.Slug, "error", err)
-			continue
-		}
-
-		// Create agent record
-		_, err = queries.CreateAgent(ctx, repository.CreateAgentParams{
-			UserID:             botUser.ID,
-			Slug:               def.Slug,
-			Name:               def.Name,
-			Emoji:              pgtype.Text{String: def.Emoji, Valid: true},
-			Description:        pgtype.Text{String: def.Description, Valid: true},
-			Scope:              pgtype.Text{String: "general", Valid: true},
-			Status:             "active",
-			GatewayUrl:         gatewayURL,
-			GatewayToken:       pgtype.Text{String: gatewayToken, Valid: true},
-			Model:              model,
-			SystemPrompt:       pgtype.Text{String: def.SystemPrompt, Valid: true},
-			MaxTokens:          4096,
-			Temperature:        0.7,
-			MaxContextMessages: 20,
-		})
-		if err != nil {
-			slog.Error("failed to create agent", "slug", def.Slug, "error", err)
-			continue
-		}
-
-		slog.Info("agent seeded", "slug", def.Slug, "name", def.Name)
-	}
-}
+// seedAgents is a no-op. Agents are created and managed via the admin panel.
+func seedAgents(_ context.Context, _ *repository.Queries) {}

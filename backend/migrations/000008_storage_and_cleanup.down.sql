@@ -1,0 +1,3 @@
+ALTER TABLE agents ALTER COLUMN gateway_url SET DEFAULT 'http://192.168.37.206:18789';
+ALTER TABLE files DROP COLUMN IF EXISTS storage_backend;
+DROP TABLE IF EXISTS app_config;
