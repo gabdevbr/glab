@@ -3,6 +3,7 @@ package handler
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/geovendas/glab/backend/internal/auth"
 	"github.com/geovendas/glab/backend/internal/repository"
@@ -35,9 +36,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.queries.GetUserByUsername(r.Context(), body.Username)
+	// Accept username or email
+	var user repository.User
+	var err error
+	if strings.Contains(body.Username, "@") {
+		user, err = h.queries.GetUserByEmail(r.Context(), body.Username)
+	} else {
+		user, err = h.queries.GetUserByUsername(r.Context(), body.Username)
+	}
 	if err != nil {
-		slog.Warn("login: user not found", "username", body.Username, "error", err)
+		slog.Warn("login: user not found", "login", body.Username, "error", err)
 		respondError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}

@@ -53,12 +53,12 @@ export default function LoginPage() {
                 htmlFor="username"
                 className="text-sm font-medium text-foreground"
               >
-                Username
+                Username or Email
               </label>
               <Input
                 id="username"
                 type="text"
-                placeholder="your.username"
+                placeholder="username or email"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
