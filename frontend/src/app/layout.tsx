@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 // Inline script to prevent FOUC — runs before first paint.
 // Content is a static string constant, not user input — safe to inline.
-const themeInitScript = `(function(){try{var t=localStorage.getItem('glab_theme');var valid=['geovendas-dark','classic-dark','light','dracula'];if(!t||valid.indexOf(t)===-1)t='geovendas-dark';document.documentElement.setAttribute('data-theme',t);if(t!=='light')document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark')}catch(e){}})()`;
+const themeInitScript = `(function(){try{var t=localStorage.getItem('glab_theme');var valid=['dark','classic-dark','light','dracula'];if(!t||valid.indexOf(t)===-1)t='dark';document.documentElement.setAttribute('data-theme',t);if(t!=='light')document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark')}catch(e){}})()`;
 
 export default function RootLayout({
   children,
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" data-theme="geovendas-dark" className="dark" suppressHydrationWarning>
+    <html lang="pt-BR" data-theme="dark" className="dark" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

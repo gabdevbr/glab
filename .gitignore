@@ -32,3 +32,14 @@ redis-data*/
 
 # Git worktrees
 .worktrees/
+
+# Production secrets
+.env.production
+
+# Compiled binaries
+backend/glab
+migrate/migrate
+migrate/migrate-linux
+
+# Claude Code
+.claude/

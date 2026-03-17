@@ -9,7 +9,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@glab-postgres:5432/${POSTGRES_DB}?sslmode=disable
       REDIS_URL: redis://glab-redis:6379
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://192.168.37.206:3001}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
     volumes:
       - glab-uploads:/data/uploads
     ports:
@@ -30,13 +30,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://192.168.37.206:8081}
-        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://192.168.37.206:8081}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8081}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8081}
     container_name: glab-web
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://192.168.37.206:8081}
-      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://192.168.37.206:8081}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8081}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8081}
     ports:
       - "3001:3000"
     deploy:

@@ -1,6 +1,6 @@
 # Glab
 
-Internal Slack-like chat application replacing RocketChat. Built for Geovendas team with native AI agent support via OpenClaw gateway.
+Open-source Slack-like chat application with native AI agent support.
 
 ## Tech Stack
 
@@ -8,8 +8,8 @@ Internal Slack-like chat application replacing RocketChat. Built for Geovendas t
 - **Frontend:** Next.js 15, TypeScript, Tailwind CSS, shadcn/ui
 - **Database:** PostgreSQL 16 with full-text search (Portuguese + unaccent)
 - **Cache/PubSub:** Redis 7 (presence, typing indicators, WebSocket fan-out)
-- **AI Gateway:** OpenClaw at `192.168.37.206:18789`
-- **Deployment:** Docker Compose on `192.168.37.206`, nginx reverse proxy
+- **AI Gateway:** Configurable via admin panel (supports any OpenAI-compatible API)
+- **Deployment:** Docker Compose, nginx reverse proxy
 
 ## Directory Structure
 
@@ -23,8 +23,8 @@ backend/               Go API server
     handler/           HTTP handlers (Chi routes)
     repository/        sqlc-generated DB queries
     ws/                WebSocket hub + presence
-    ai/                Agent bridge + OpenClaw streaming
-    storage/           File upload storage
+    ai/                Agent bridge + streaming
+    storage/           File upload storage (local + S3-compatible)
   migrations/          SQL migrations (golang-migrate)
   sqlc.yaml            sqlc config
 
@@ -40,10 +40,10 @@ migrate/               RocketChat migration CLI (separate Go module)
     transform/         RC → Glab data transformation
     loader/            Bulk insert via pgx COPY
 
-nginx/                 Nginx config + SSL certs
+nginx/                 Nginx config templates (replace YOUR_DOMAIN)
 docker-compose.yml     Production compose
 docker-compose.dev.yml Dev infrastructure (postgres + redis only)
-deploy.sh              Production deployment script
+deploy.sh              Production deployment script (set DEPLOY_HOST, DEPLOY_USER, GLAB_DOMAIN)
 ```
 
 ## Local Development
@@ -66,8 +66,11 @@ make frontend
 ## Deploy to Production
 
 ```bash
-cp .env.production .env    # Edit secrets
-make deploy                # rsync + docker compose on 192.168.37.206
+cp .env.example .env    # Edit secrets
+export DEPLOY_HOST=your-server.com
+export DEPLOY_USER=ubuntu
+export GLAB_DOMAIN=glab.example.com
+./deploy.sh
 ```
 
 ## Database Migrations
@@ -116,4 +119,18 @@ go build -o migrate ./cmd/migrate/
 - **Redis pub/sub for WebSocket:** Enables horizontal scaling of API servers
 - **Separate migrate module:** No dependency pollution into the main backend
 - **AI agents as first-class users:** Agents have user accounts, appear in channels naturally
-- **OpenClaw gateway:** Single LLM proxy for all agents, supports streaming via SSE
+- **Pluggable storage:** Local filesystem or any S3-compatible provider (AWS, IBM COS, Zadara)
+- **Config via admin panel:** AI gateway URL/token and storage backend managed via DB, not env vars
+
+## Bootstrap Environment Variables
+
+Only these env vars are needed to start the server. Everything else is configured via the admin panel.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DATABASE_URL` | (required) | PostgreSQL connection string |
+| `JWT_SECRET` | (required) | Token signing secret |
+| `REDIS_URL` | `redis://localhost:6379` | Redis connection string |
+| `PORT` | `8080` | HTTP listen port |
+| `CORS_ORIGIN` | `http://localhost:3000` | Allowed CORS origin |
+| `UPLOAD_DIR` | `./uploads` | Local file storage base directory |
