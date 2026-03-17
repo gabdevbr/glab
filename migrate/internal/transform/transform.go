@@ -111,7 +111,7 @@ var (
 	slugRegexp    = regexp.MustCompile(`[^a-z0-9-]`)
 	slugDashMulti = regexp.MustCompile(`-+`)
 	mentionRegexp = regexp.MustCompile(`@(\w+)`)
-	// RC quote reply: [ ](https://chat.geovendas.com/channel/name?msg=RC_MSG_ID)
+	// RC quote reply: [ ](https://your-rc-server.com/channel/name?msg=RC_MSG_ID)
 	rcQuoteRegexp = regexp.MustCompile(`\[ \]\(https?://[^\)]*\?msg=([a-zA-Z0-9]+)\)\s*`)
 )
 
