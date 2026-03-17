@@ -161,3 +161,38 @@ export interface MigrationRoomState {
   job_id?: string;
   updated_at: string;
 }
+
+// Storage config types
+export interface S3StorageConfig {
+  endpoint: string;
+  region: string;
+  bucket: string;
+  access_key_id: string;
+  secret_access_key: string;
+  key_prefix: string;
+  force_path_style: boolean;
+}
+
+export interface StorageConfig {
+  backend: 'local' | 's3';
+  local: { base_dir: string };
+  s3: S3StorageConfig;
+}
+
+export interface StorageMigrationProgress {
+  running: boolean;
+  source: string;
+  dest: string;
+  total: number;
+  migrated: number;
+  failed: number;
+  error?: string;
+  file_counts?: Record<string, number>;
+}
+
+// AI gateway config types
+export interface AIGatewayConfig {
+  url: string;
+  token: string;
+  default_model: string;
+}
