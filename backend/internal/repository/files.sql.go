@@ -11,9 +11,38 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countFilesByBackend = `-- name: CountFilesByBackend :many
+SELECT storage_backend, COUNT(*) AS count FROM files GROUP BY storage_backend
+`
+
+type CountFilesByBackendRow struct {
+	StorageBackend string `json:"storage_backend"`
+	Count          int64  `json:"count"`
+}
+
+func (q *Queries) CountFilesByBackend(ctx context.Context) ([]CountFilesByBackendRow, error) {
+	rows, err := q.db.Query(ctx, countFilesByBackend)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountFilesByBackendRow{}
+	for rows.Next() {
+		var i CountFilesByBackendRow
+		if err := rows.Scan(&i.StorageBackend, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createFile = `-- name: CreateFile :one
 INSERT INTO files (message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at, storage_backend
 `
 
 type CreateFileParams struct {
@@ -53,12 +82,13 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		&i.StoragePath,
 		&i.ThumbnailPath,
 		&i.CreatedAt,
+		&i.StorageBackend,
 	)
 	return i, err
 }
 
 const getFileByID = `-- name: GetFileByID :one
-SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at FROM files WHERE id = $1
+SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at, storage_backend FROM files WHERE id = $1
 `
 
 func (q *Queries) GetFileByID(ctx context.Context, id pgtype.UUID) (File, error) {
@@ -76,12 +106,13 @@ func (q *Queries) GetFileByID(ctx context.Context, id pgtype.UUID) (File, error)
 		&i.StoragePath,
 		&i.ThumbnailPath,
 		&i.CreatedAt,
+		&i.StorageBackend,
 	)
 	return i, err
 }
 
 const listFilesByChannel = `-- name: ListFilesByChannel :many
-SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at FROM files WHERE channel_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3
+SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at, storage_backend FROM files WHERE channel_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3
 `
 
 type ListFilesByChannelParams struct {
@@ -111,6 +142,7 @@ func (q *Queries) ListFilesByChannel(ctx context.Context, arg ListFilesByChannel
 			&i.StoragePath,
 			&i.ThumbnailPath,
 			&i.CreatedAt,
+			&i.StorageBackend,
 		); err != nil {
 			return nil, err
 		}
@@ -123,7 +155,7 @@ func (q *Queries) ListFilesByChannel(ctx context.Context, arg ListFilesByChannel
 }
 
 const listFilesByMessage = `-- name: ListFilesByMessage :many
-SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at FROM files WHERE message_id = $1
+SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at, storage_backend FROM files WHERE message_id = $1
 `
 
 func (q *Queries) ListFilesByMessage(ctx context.Context, messageID pgtype.UUID) ([]File, error) {
@@ -147,6 +179,7 @@ func (q *Queries) ListFilesByMessage(ctx context.Context, messageID pgtype.UUID)
 			&i.StoragePath,
 			&i.ThumbnailPath,
 			&i.CreatedAt,
+			&i.StorageBackend,
 		); err != nil {
 			return nil, err
 		}
@@ -159,7 +192,7 @@ func (q *Queries) ListFilesByMessage(ctx context.Context, messageID pgtype.UUID)
 }
 
 const listFilesByMessageIDs = `-- name: ListFilesByMessageIDs :many
-SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at FROM files WHERE message_id = ANY($1::uuid[])
+SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at, storage_backend FROM files WHERE message_id = ANY($1::uuid[])
 `
 
 func (q *Queries) ListFilesByMessageIDs(ctx context.Context, messageIds []pgtype.UUID) ([]File, error) {
@@ -183,6 +216,7 @@ func (q *Queries) ListFilesByMessageIDs(ctx context.Context, messageIds []pgtype
 			&i.StoragePath,
 			&i.ThumbnailPath,
 			&i.CreatedAt,
+			&i.StorageBackend,
 		); err != nil {
 			return nil, err
 		}
@@ -192,4 +226,64 @@ func (q *Queries) ListFilesByMessageIDs(ctx context.Context, messageIds []pgtype
 		return nil, err
 	}
 	return items, nil
+}
+
+const listFilesForStorageMigration = `-- name: ListFilesForStorageMigration :many
+SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at, storage_backend FROM files
+WHERE storage_backend = $1
+ORDER BY created_at ASC
+LIMIT $2 OFFSET $3
+`
+
+type ListFilesForStorageMigrationParams struct {
+	StorageBackend string `json:"storage_backend"`
+	Limit          int32  `json:"limit"`
+	Offset         int32  `json:"offset"`
+}
+
+func (q *Queries) ListFilesForStorageMigration(ctx context.Context, arg ListFilesForStorageMigrationParams) ([]File, error) {
+	rows, err := q.db.Query(ctx, listFilesForStorageMigration, arg.StorageBackend, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []File{}
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.UserID,
+			&i.ChannelID,
+			&i.Filename,
+			&i.OriginalName,
+			&i.MimeType,
+			&i.SizeBytes,
+			&i.StoragePath,
+			&i.ThumbnailPath,
+			&i.CreatedAt,
+			&i.StorageBackend,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateFileStorageBackend = `-- name: UpdateFileStorageBackend :exec
+UPDATE files SET storage_backend = $2 WHERE id = $1
+`
+
+type UpdateFileStorageBackendParams struct {
+	ID             pgtype.UUID `json:"id"`
+	StorageBackend string      `json:"storage_backend"`
+}
+
+func (q *Queries) UpdateFileStorageBackend(ctx context.Context, arg UpdateFileStorageBackendParams) error {
+	_, err := q.db.Exec(ctx, updateFileStorageBackend, arg.ID, arg.StorageBackend)
+	return err
 }
