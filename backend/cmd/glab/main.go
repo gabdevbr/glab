@@ -214,6 +214,7 @@ func main() {
 
 		// Admin — migration
 		r.Post("/api/v1/admin/migration/start", migrationHandler.Start)
+		r.Post("/api/v1/admin/migration/files", migrationHandler.MigrateFiles)
 		r.Post("/api/v1/admin/migration/cancel", migrationHandler.Cancel)
 		r.Get("/api/v1/admin/migration/status", migrationHandler.Status)
 		r.Get("/api/v1/admin/migration/logs", migrationHandler.Logs)

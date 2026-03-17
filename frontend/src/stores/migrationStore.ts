@@ -20,6 +20,11 @@ interface MigrationState {
     rc_user_id: string;
     migrate_files: boolean;
   }) => Promise<string>;
+  startFileMigration: (config: {
+    rc_url: string;
+    rc_token: string;
+    rc_user_id: string;
+  }) => Promise<string>;
   cancelMigration: () => Promise<void>;
 
   // WS handlers
@@ -82,6 +87,22 @@ export const useMigrationStore = create<MigrationState>((set, get) => ({
       );
       set({ isLoading: false, isRunning: true });
       // Refresh status to get the full job object
+      get().fetchStatus();
+      return data.job_id;
+    } catch (err) {
+      set({ isLoading: false, error: (err as Error).message });
+      throw err;
+    }
+  },
+
+  startFileMigration: async (config) => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await api.post<{ job_id: string }>(
+        '/api/v1/admin/migration/files',
+        config,
+      );
+      set({ isLoading: false, isRunning: true });
       get().fetchStatus();
       return data.job_id;
     } catch (err) {

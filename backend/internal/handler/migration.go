@@ -74,6 +74,55 @@ func (h *MigrationHandler) Start(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusAccepted, map[string]string{"job_id": jobID})
 }
 
+// MigrateFiles starts a file-only migration job that downloads RC file attachments.
+// POST /api/v1/admin/migration/files
+func (h *MigrationHandler) MigrateFiles(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil || claims.Role != "admin" {
+		respondError(w, http.StatusForbidden, "admin only")
+		return
+	}
+
+	var req struct {
+		RCURL    string `json:"rc_url"`
+		RCToken  string `json:"rc_token"`
+		RCUserID string `json:"rc_user_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.RCURL == "" || req.RCToken == "" || req.RCUserID == "" {
+		respondError(w, http.StatusBadRequest, "rc_url, rc_token, and rc_user_id are required")
+		return
+	}
+
+	cfg := migration.Config{
+		RCURL:        req.RCURL,
+		RCToken:      req.RCToken,
+		RCUserID:     req.RCUserID,
+		MigrateFiles: true,
+	}
+
+	var startedBy pgtype.UUID
+	if err := startedBy.Scan(claims.UserID); err == nil {
+		startedBy.Valid = true
+	}
+
+	jobID, err := h.engine.StartFileMigration(r.Context(), cfg, startedBy)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "a migration is already running" {
+			status = http.StatusConflict
+		}
+		respondError(w, status, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusAccepted, map[string]string{"job_id": jobID})
+}
+
 // Cancel stops the running migration.
 // POST /api/v1/admin/migration/cancel
 func (h *MigrationHandler) Cancel(w http.ResponseWriter, r *http.Request) {

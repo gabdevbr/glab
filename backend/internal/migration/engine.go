@@ -4,7 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/url"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -455,6 +459,260 @@ func (e *Engine) run(ctx context.Context, cfg Config, jobID pgtype.UUID) {
 		progress.Users, progress.Channels, progress.Members, progress.Messages, progress.Reactions, progress.Mentions)
 	e.emitLog(jobID, "info", "complete", summary, nil)
 	e.broadcastStatus(jobID, "completed", "complete", progress)
+}
+
+// StartFileMigration launches a background file download job using existing RC credentials.
+func (e *Engine) StartFileMigration(ctx context.Context, cfg Config, startedBy pgtype.UUID) (string, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.cancel != nil {
+		return "", fmt.Errorf("a migration is already running")
+	}
+
+	rc := NewRCClient(cfg.RCURL, cfg.RCToken, cfg.RCUserID)
+	if err := rc.TestConnection(ctx); err != nil {
+		return "", fmt.Errorf("failed to connect to RocketChat: %w", err)
+	}
+
+	redacted := cfg.RedactedConfig()
+	configJSON, _ := json.Marshal(redacted)
+
+	job, err := e.queries.CreateMigrationJob(ctx, repository.CreateMigrationJobParams{
+		Status:    "running",
+		Config:    configJSON,
+		StartedBy: startedBy,
+	})
+	if err != nil {
+		return "", fmt.Errorf("creating job: %w", err)
+	}
+
+	_ = e.queries.UpdateMigrationJobStatus(ctx, repository.UpdateMigrationJobStatusParams{
+		ID:     job.ID,
+		Status: "running",
+		Error:  "",
+	})
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	e.cancel = cancel
+	e.jobID = job.ID
+
+	go e.runFileMigration(runCtx, cfg, job.ID)
+
+	return uuidToString(job.ID), nil
+}
+
+// runFileMigration iterates all migrated rooms, finds file messages in RC, downloads files,
+// and creates records in the files table.
+func (e *Engine) runFileMigration(ctx context.Context, cfg Config, jobID pgtype.UUID) {
+	defer func() {
+		e.mu.Lock()
+		e.cancel = nil
+		e.jobID = pgtype.UUID{}
+		e.mu.Unlock()
+	}()
+
+	rc := NewRCClient(cfg.RCURL, cfg.RCToken, cfg.RCUserID)
+	progress := &Progress{}
+
+	setPhase := func(phase string) {
+		progressJSON, _ := json.Marshal(progress)
+		_ = e.queries.UpdateMigrationJobPhase(ctx, repository.UpdateMigrationJobPhaseParams{
+			ID:       jobID,
+			Phase:    phase,
+			Progress: progressJSON,
+		})
+		e.broadcastStatus(jobID, "running", phase, progress)
+	}
+
+	updateProgress := func() {
+		progressJSON, _ := json.Marshal(progress)
+		_ = e.queries.UpdateMigrationJobPhase(context.Background(), repository.UpdateMigrationJobPhaseParams{
+			ID:       jobID,
+			Phase:    "",
+			Progress: progressJSON,
+		})
+		e.broadcastProgress(jobID, progress)
+	}
+
+	fail := func(err error) {
+		_ = e.queries.UpdateMigrationJobStatus(context.Background(), repository.UpdateMigrationJobStatusParams{
+			ID:     jobID,
+			Status: "failed",
+			Error:  err.Error(),
+		})
+		e.emitLog(jobID, "error", "", err.Error(), nil)
+		e.broadcastStatus(jobID, "failed", "", progress)
+	}
+
+	setPhase("download_files")
+	e.emitLog(jobID, "info", "download_files", "Starting file download from RocketChat...", nil)
+
+	// Get all migrated rooms
+	roomStates, err := e.queries.ListMigrationRoomStates(ctx)
+	if err != nil {
+		fail(fmt.Errorf("listing room states: %w", err))
+		return
+	}
+
+	progress.RoomsTotal = len(roomStates)
+	updateProgress()
+	e.emitLog(jobID, "info", "download_files", fmt.Sprintf("Processing %d rooms for files...", len(roomStates)), nil)
+
+	globalOldest := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	latest := time.Now()
+	totalFiles := 0
+
+	for i, rs := range roomStates {
+		if ctx.Err() != nil {
+			e.handleCancellation(jobID, progress)
+			return
+		}
+
+		roomName := rs.RcRoomName
+		if roomName == "" {
+			roomName = rs.RcRoomID
+		}
+
+		e.emitLog(jobID, "info", "download_files", fmt.Sprintf("[%d/%d] Scanning %s for files...", i+1, len(roomStates), roomName), nil)
+
+		roomCtx, roomCancel := context.WithTimeout(ctx, 10*time.Minute)
+		msgs, err := rc.GetMessages(roomCtx, rs.RcRoomID, rs.RcRoomType, globalOldest, latest)
+		roomCancel()
+		if err != nil {
+			e.emitLog(jobID, "warn", "download_files", fmt.Sprintf("Room %s: failed to fetch: %v", roomName, err), nil)
+			progress.RoomsDone++
+			updateProgress()
+			continue
+		}
+
+		roomFiles := 0
+		for _, msg := range msgs {
+			if ctx.Err() != nil {
+				e.handleCancellation(jobID, progress)
+				return
+			}
+
+			if msg.File == nil || msg.File.ID == "" {
+				continue
+			}
+
+			// Generate deterministic Glab message ID from RC message ID
+			glabMsgID := DeterministicID("msg:" + msg.ID)
+
+			// Check if file record already exists for this message
+			pgMsgID := uuidToPgtype(glabMsgID)
+			existing, _ := e.queries.ListFilesByMessage(ctx, pgMsgID)
+			if len(existing) > 0 {
+				continue // already migrated
+			}
+
+			// Also check the message exists in Glab
+			_, msgErr := e.queries.GetMessageByID(ctx, pgMsgID)
+			if msgErr != nil {
+				continue // message not in DB (skipped during migration)
+			}
+
+			// Generate deterministic user/channel IDs
+			glabUserID := DeterministicID("user:" + msg.User.ID)
+			glabChannelID := DeterministicID("room:" + msg.RoomID)
+
+			// Download file from RC
+			fileURL := fmt.Sprintf("/file-upload/%s/%s", msg.File.ID, url.PathEscape(msg.File.Name))
+			body, err := rc.DownloadFile(ctx, fileURL)
+			if err != nil {
+				e.emitLog(jobID, "warn", "download_files", fmt.Sprintf("Failed to download %s: %v", msg.File.Name, err), nil)
+				continue
+			}
+
+			// Save to disk
+			storagePath, err := saveFileToUploadDir(e.uploadDir, msg.File.Name, body)
+			body.Close()
+			if err != nil {
+				e.emitLog(jobID, "warn", "download_files", fmt.Sprintf("Failed to save %s: %v", msg.File.Name, err), nil)
+				continue
+			}
+
+			// Determine MIME type
+			mimeType := msg.File.Type
+			if mimeType == "" {
+				mimeType = "application/octet-stream"
+			}
+
+			// Create file record
+			_, err = e.queries.CreateFile(ctx, repository.CreateFileParams{
+				MessageID:     pgMsgID,
+				UserID:        uuidToPgtype(glabUserID),
+				ChannelID:     uuidToPgtype(glabChannelID),
+				Filename:      filepath.Base(storagePath),
+				OriginalName:  msg.File.Name,
+				MimeType:      mimeType,
+				SizeBytes:     msg.File.Size,
+				StoragePath:   storagePath,
+				ThumbnailPath: pgtype.Text{},
+			})
+			if err != nil {
+				e.emitLog(jobID, "warn", "download_files", fmt.Sprintf("Failed to insert file record %s: %v", msg.File.Name, err), nil)
+				continue
+			}
+
+			roomFiles++
+			totalFiles++
+		}
+
+		if roomFiles > 0 {
+			e.emitLog(jobID, "info", "download_files", fmt.Sprintf("[%d/%d] %s: downloaded %d files", i+1, len(roomStates), roomName, roomFiles), nil)
+		}
+
+		progress.RoomsDone++
+		progress.Files = totalFiles
+		updateProgress()
+	}
+
+	// Complete
+	_ = e.queries.UpdateMigrationJobStatus(context.Background(), repository.UpdateMigrationJobStatusParams{
+		ID:     jobID,
+		Status: "completed",
+		Error:  "",
+	})
+
+	summary := fmt.Sprintf("File migration complete: %d files downloaded across %d rooms", totalFiles, len(roomStates))
+	e.emitLog(jobID, "info", "complete", summary, nil)
+	e.broadcastStatus(jobID, "completed", "complete", progress)
+}
+
+// saveFileToUploadDir saves a file to the upload directory with a UUID-based filename.
+func saveFileToUploadDir(uploadDir, originalName string, body io.ReadCloser) (string, error) {
+	now := time.Now()
+	dir := filepath.Join(uploadDir, now.Format("2006"), now.Format("01"))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("creating dir: %w", err)
+	}
+
+	ext := filepath.Ext(originalName)
+	filename := uuid.New().String() + ext
+	storagePath := filepath.Join(dir, filename)
+
+	f, err := os.Create(storagePath)
+	if err != nil {
+		return "", fmt.Errorf("creating file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, body); err != nil {
+		os.Remove(storagePath)
+		return "", fmt.Errorf("writing file: %w", err)
+	}
+
+	return storagePath, nil
+}
+
+// uuidToPgtype converts a google/uuid.UUID to pgtype.UUID.
+func uuidToPgtype(u uuid.UUID) pgtype.UUID {
+	var pg pgtype.UUID
+	copy(pg.Bytes[:], u[:])
+	pg.Valid = true
+	return pg
 }
 
 func (e *Engine) handleCancellation(jobID pgtype.UUID, progress *Progress) {

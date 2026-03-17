@@ -61,6 +61,7 @@ export default function MigrationPage() {
     fetchLogs,
     fetchRooms,
     startMigration,
+    startFileMigration,
     cancelMigration,
     addLog,
     updateStatus,
@@ -167,6 +168,18 @@ export default function MigrationPage() {
     }
   }
 
+  async function handleFileMigration() {
+    try {
+      await startFileMigration({
+        rc_url: rcUrl,
+        rc_token: rcToken,
+        rc_user_id: rcUserId,
+      });
+    } catch {
+      // error is set in store
+    }
+  }
+
   const progress = job?.progress;
   const progressPct =
     progress && progress.rooms_total > 0
@@ -254,19 +267,35 @@ export default function MigrationPage() {
                   <Square className="size-3.5" /> Cancel
                 </Button>
               ) : (
-                <Button
-                  size="sm"
-                  onClick={handleStart}
-                  disabled={isLoading || !rcToken || !rcUserId}
-                  className="gap-1.5 bg-accent-primary hover:bg-accent-primary-hover"
-                >
-                  {isLoading ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Play className="size-3.5" />
-                  )}
-                  Start Migration
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    onClick={handleStart}
+                    disabled={isLoading || !rcToken || !rcUserId}
+                    className="gap-1.5 bg-accent-primary hover:bg-accent-primary-hover"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Play className="size-3.5" />
+                    )}
+                    Start Migration
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFileMigration}
+                    disabled={isLoading || !rcToken || !rcUserId}
+                    className="gap-1.5 border-border text-foreground"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Play className="size-3.5" />
+                    )}
+                    Download Files
+                  </Button>
+                </>
               )}
               <Button
                 variant="outline"
@@ -328,6 +357,9 @@ export default function MigrationPage() {
                 <span>Messages: <span className="text-foreground">{progress.messages.toLocaleString()}</span></span>
                 <span>Reactions: <span className="text-foreground">{progress.reactions.toLocaleString()}</span></span>
                 <span>Mentions: <span className="text-foreground">{progress.mentions.toLocaleString()}</span></span>
+                {progress.files > 0 && (
+                  <span>Files: <span className="text-foreground">{progress.files.toLocaleString()}</span></span>
+                )}
               </div>
             )}
           </div>
