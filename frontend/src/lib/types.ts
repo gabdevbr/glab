@@ -7,6 +7,7 @@ export interface User {
   role: 'user' | 'admin' | 'agent';
   status: 'online' | 'away' | 'offline' | 'dnd';
   is_bot: boolean;
+  auto_hide_days: number;
   created_at: string;
 }
 
@@ -19,6 +20,8 @@ export interface Channel {
   topic?: string;
   created_by: string;
   is_archived: boolean;
+  read_only: boolean;
+  retention_days?: number;
   created_at: string;
   member_count?: number;
 }

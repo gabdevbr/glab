@@ -45,7 +45,13 @@ func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	channels, err := h.queries.ListChannelsForUser(r.Context(), uid)
+	// Get user's auto-hide preference
+	autoHideDays, _ := h.queries.GetAutoHideDays(r.Context(), uid)
+
+	channels, err := h.queries.ListChannelsForUser(r.Context(), repository.ListChannelsForUserParams{
+		UserID:  uid,
+		Column2: autoHideDays,
+	})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list channels")
 		return
@@ -101,6 +107,7 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name        string `json:"name"`
 		Description string `json:"description"`
 		Type        string `json:"type"`
+		ReadOnly    bool   `json:"read_only"`
 	}
 	if err := parseBody(r, &body); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
@@ -132,6 +139,7 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Description: pgtype.Text{String: body.Description, Valid: body.Description != ""},
 		Type:        body.Type,
 		CreatedBy:   creatorUID,
+		ReadOnly:    body.ReadOnly,
 	})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to create channel")
@@ -211,10 +219,12 @@ func (h *ChannelHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Name        *string `json:"name"`
-		Description *string `json:"description"`
-		Topic       *string `json:"topic"`
-		IsArchived  *bool   `json:"is_archived"`
+		Name          *string `json:"name"`
+		Description   *string `json:"description"`
+		Topic         *string `json:"topic"`
+		IsArchived    *bool   `json:"is_archived"`
+		ReadOnly      *bool   `json:"read_only"`
+		RetentionDays *int32  `json:"retention_days"`
 	}
 	if err := parseBody(r, &body); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
@@ -233,6 +243,12 @@ func (h *ChannelHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.IsArchived != nil {
 		params.IsArchived = pgtype.Bool{Bool: *body.IsArchived, Valid: true}
+	}
+	if body.ReadOnly != nil {
+		params.ReadOnly = pgtype.Bool{Bool: *body.ReadOnly, Valid: true}
+	}
+	if body.RetentionDays != nil {
+		params.RetentionDays = pgtype.Int4{Int32: *body.RetentionDays, Valid: true}
 	}
 
 	channel, err := h.queries.UpdateChannel(r.Context(), params)
@@ -463,6 +479,75 @@ func (h *ChannelHandler) requireChannelRole(r *http.Request, channelID pgtype.UU
 	}
 
 	return errForbidden
+}
+
+// HideChannel handles PATCH /api/v1/channels/{id}/hide.
+func (h *ChannelHandler) HideChannel(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	cid, err := parseUUID(id)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid channel id")
+		return
+	}
+
+	uid, err := parseUUID(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "invalid user id")
+		return
+	}
+
+	var body struct {
+		Hidden bool `json:"hidden"`
+	}
+	if err := parseBody(r, &body); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.queries.SetChannelHidden(r.Context(), repository.SetChannelHiddenParams{
+		ChannelID: cid,
+		UserID:    uid,
+		Hidden:    body.Hidden,
+	}); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to update hidden status")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// ListHidden handles GET /api/v1/channels/hidden.
+func (h *ChannelHandler) ListHidden(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	uid, err := parseUUID(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "invalid user id")
+		return
+	}
+
+	channels, err := h.queries.ListHiddenChannelsForUser(r.Context(), uid)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to list hidden channels")
+		return
+	}
+
+	items := make([]ChannelResponse, len(channels))
+	for i, c := range channels {
+		items[i] = channelToResponse(c)
+	}
+
+	respondJSON(w, http.StatusOK, items)
 }
 
 // sentinel error for permission checks

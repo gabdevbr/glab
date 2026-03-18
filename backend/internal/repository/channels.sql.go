@@ -12,8 +12,8 @@ import (
 )
 
 const createChannel = `-- name: CreateChannel :one
-INSERT INTO channels (name, slug, description, type, topic, created_by)
-VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at
+INSERT INTO channels (name, slug, description, type, topic, created_by, read_only)
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at
 `
 
 type CreateChannelParams struct {
@@ -23,6 +23,7 @@ type CreateChannelParams struct {
 	Type        string      `json:"type"`
 	Topic       pgtype.Text `json:"topic"`
 	CreatedBy   pgtype.UUID `json:"created_by"`
+	ReadOnly    bool        `json:"read_only"`
 }
 
 func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (Channel, error) {
@@ -33,6 +34,7 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		arg.Type,
 		arg.Topic,
 		arg.CreatedBy,
+		arg.ReadOnly,
 	)
 	var i Channel
 	err := row.Scan(
@@ -46,6 +48,9 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		&i.IsArchived,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.RetentionDays,
+		&i.LastMessageAt,
 	)
 	return i, err
 }
@@ -60,7 +65,7 @@ func (q *Queries) DeleteChannel(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getChannelByID = `-- name: GetChannelByID :one
-SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at FROM channels WHERE id = $1
+SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at FROM channels WHERE id = $1
 `
 
 func (q *Queries) GetChannelByID(ctx context.Context, id pgtype.UUID) (Channel, error) {
@@ -77,12 +82,15 @@ func (q *Queries) GetChannelByID(ctx context.Context, id pgtype.UUID) (Channel, 
 		&i.IsArchived,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.RetentionDays,
+		&i.LastMessageAt,
 	)
 	return i, err
 }
 
 const getChannelBySlug = `-- name: GetChannelBySlug :one
-SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at FROM channels WHERE slug = $1
+SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at FROM channels WHERE slug = $1
 `
 
 func (q *Queries) GetChannelBySlug(ctx context.Context, slug string) (Channel, error) {
@@ -99,12 +107,26 @@ func (q *Queries) GetChannelBySlug(ctx context.Context, slug string) (Channel, e
 		&i.IsArchived,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.RetentionDays,
+		&i.LastMessageAt,
 	)
 	return i, err
 }
 
+const getChannelReadOnly = `-- name: GetChannelReadOnly :one
+SELECT read_only FROM channels WHERE id = $1
+`
+
+func (q *Queries) GetChannelReadOnly(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, getChannelReadOnly, id)
+	var read_only bool
+	err := row.Scan(&read_only)
+	return read_only, err
+}
+
 const getDMChannel = `-- name: GetDMChannel :one
-SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at FROM channels c
+SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at FROM channels c
 JOIN channel_members cm1 ON cm1.channel_id = c.id AND cm1.user_id = $1
 JOIN channel_members cm2 ON cm2.channel_id = c.id AND cm2.user_id = $2
 WHERE c.type = 'dm'
@@ -129,6 +151,9 @@ func (q *Queries) GetDMChannel(ctx context.Context, arg GetDMChannelParams) (Cha
 		&i.IsArchived,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.RetentionDays,
+		&i.LastMessageAt,
 	)
 	return i, err
 }
@@ -176,14 +201,24 @@ func (q *Queries) GetDMDisplayNames(ctx context.Context, userID pgtype.UUID) ([]
 }
 
 const listChannelsForUser = `-- name: ListChannelsForUser :many
-SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at FROM channels c
+SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
-WHERE cm.user_id = $1 AND c.is_archived = FALSE
+WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
+  AND (
+    $2::int = 0
+    OR c.last_message_at >= NOW() - INTERVAL '1 day' * $2::int
+    OR c.last_message_at IS NULL
+  )
 ORDER BY c.name
 `
 
-func (q *Queries) ListChannelsForUser(ctx context.Context, userID pgtype.UUID) ([]Channel, error) {
-	rows, err := q.db.Query(ctx, listChannelsForUser, userID)
+type ListChannelsForUserParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	Column2 int32       `json:"column_2"`
+}
+
+func (q *Queries) ListChannelsForUser(ctx context.Context, arg ListChannelsForUserParams) ([]Channel, error) {
+	rows, err := q.db.Query(ctx, listChannelsForUser, arg.UserID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}
@@ -202,6 +237,50 @@ func (q *Queries) ListChannelsForUser(ctx context.Context, userID pgtype.UUID) (
 			&i.IsArchived,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ReadOnly,
+			&i.RetentionDays,
+			&i.LastMessageAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHiddenChannelsForUser = `-- name: ListHiddenChannelsForUser :many
+SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at FROM channels c
+JOIN channel_members cm ON cm.channel_id = c.id
+WHERE cm.user_id = $1 AND cm.hidden = TRUE AND c.is_archived = FALSE
+ORDER BY c.name
+`
+
+func (q *Queries) ListHiddenChannelsForUser(ctx context.Context, userID pgtype.UUID) ([]Channel, error) {
+	rows, err := q.db.Query(ctx, listHiddenChannelsForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Channel{}
+	for rows.Next() {
+		var i Channel
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.Description,
+			&i.Type,
+			&i.Topic,
+			&i.CreatedBy,
+			&i.IsArchived,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ReadOnly,
+			&i.RetentionDays,
+			&i.LastMessageAt,
 		); err != nil {
 			return nil, err
 		}
@@ -214,7 +293,7 @@ func (q *Queries) ListChannelsForUser(ctx context.Context, userID pgtype.UUID) (
 }
 
 const listPublicChannels = `-- name: ListPublicChannels :many
-SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at FROM channels WHERE type = 'public' AND is_archived = FALSE ORDER BY name
+SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at FROM channels WHERE type = 'public' AND is_archived = FALSE ORDER BY name
 `
 
 func (q *Queries) ListPublicChannels(ctx context.Context) ([]Channel, error) {
@@ -237,6 +316,9 @@ func (q *Queries) ListPublicChannels(ctx context.Context) ([]Channel, error) {
 			&i.IsArchived,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ReadOnly,
+			&i.RetentionDays,
+			&i.LastMessageAt,
 		); err != nil {
 			return nil, err
 		}
@@ -253,16 +335,20 @@ UPDATE channels SET
     name = coalesce($2, name),
     description = coalesce($3, description),
     topic = coalesce($4, topic),
-    is_archived = coalesce($5, is_archived)
-WHERE id = $1 RETURNING id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at
+    is_archived = coalesce($5, is_archived),
+    read_only = coalesce($6, read_only),
+    retention_days = coalesce($7, retention_days)
+WHERE id = $1 RETURNING id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at
 `
 
 type UpdateChannelParams struct {
-	ID          pgtype.UUID `json:"id"`
-	Name        pgtype.Text `json:"name"`
-	Description pgtype.Text `json:"description"`
-	Topic       pgtype.Text `json:"topic"`
-	IsArchived  pgtype.Bool `json:"is_archived"`
+	ID            pgtype.UUID `json:"id"`
+	Name          pgtype.Text `json:"name"`
+	Description   pgtype.Text `json:"description"`
+	Topic         pgtype.Text `json:"topic"`
+	IsArchived    pgtype.Bool `json:"is_archived"`
+	ReadOnly      pgtype.Bool `json:"read_only"`
+	RetentionDays pgtype.Int4 `json:"retention_days"`
 }
 
 func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (Channel, error) {
@@ -272,6 +358,8 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 		arg.Description,
 		arg.Topic,
 		arg.IsArchived,
+		arg.ReadOnly,
+		arg.RetentionDays,
 	)
 	var i Channel
 	err := row.Scan(
@@ -285,6 +373,18 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 		&i.IsArchived,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.RetentionDays,
+		&i.LastMessageAt,
 	)
 	return i, err
+}
+
+const updateChannelLastMessageAt = `-- name: UpdateChannelLastMessageAt :exec
+UPDATE channels SET last_message_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) UpdateChannelLastMessageAt(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, updateChannelLastMessageAt, id)
+	return err
 }

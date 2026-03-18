@@ -82,16 +82,19 @@ type AppConfig struct {
 }
 
 type Channel struct {
-	ID          pgtype.UUID        `json:"id"`
-	Name        string             `json:"name"`
-	Slug        string             `json:"slug"`
-	Description pgtype.Text        `json:"description"`
-	Type        string             `json:"type"`
-	Topic       pgtype.Text        `json:"topic"`
-	CreatedBy   pgtype.UUID        `json:"created_by"`
-	IsArchived  bool               `json:"is_archived"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ID            pgtype.UUID        `json:"id"`
+	Name          string             `json:"name"`
+	Slug          string             `json:"slug"`
+	Description   pgtype.Text        `json:"description"`
+	Type          string             `json:"type"`
+	Topic         pgtype.Text        `json:"topic"`
+	CreatedBy     pgtype.UUID        `json:"created_by"`
+	IsArchived    bool               `json:"is_archived"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	ReadOnly      bool               `json:"read_only"`
+	RetentionDays pgtype.Int4        `json:"retention_days"`
+	LastMessageAt pgtype.Timestamptz `json:"last_message_at"`
 }
 
 type ChannelMember struct {
@@ -102,6 +105,7 @@ type ChannelMember struct {
 	LastReadMsgID pgtype.UUID        `json:"last_read_msg_id"`
 	Muted         bool               `json:"muted"`
 	Notifications string             `json:"notifications"`
+	Hidden        bool               `json:"hidden"`
 }
 
 type CustomEmoji struct {
@@ -151,6 +155,15 @@ type Message struct {
 	SearchVector interface{}        `json:"search_vector"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type MessageAuditLog struct {
+	ID               pgtype.UUID        `json:"id"`
+	ChannelID        pgtype.UUID        `json:"channel_id"`
+	UserID           pgtype.UUID        `json:"user_id"`
+	MessageCreatedAt pgtype.Timestamptz `json:"message_created_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	DeletedBy        string             `json:"deleted_by"`
 }
 
 type MigrationJob struct {
@@ -216,4 +229,5 @@ type User struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 	IsDeactivated bool               `json:"is_deactivated"`
+	AutoHideDays  int32              `json:"auto_hide_days"`
 }

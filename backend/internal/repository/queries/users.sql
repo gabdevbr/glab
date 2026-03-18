@@ -28,3 +28,9 @@ UPDATE users SET status = $2, last_seen = NOW() WHERE id = $1;
 
 -- name: UpdatePasswordHash :exec
 UPDATE users SET password_hash = $2 WHERE id = $1;
+
+-- name: UpdateAutoHideDays :exec
+UPDATE users SET auto_hide_days = $2 WHERE id = $1;
+
+-- name: GetAutoHideDays :one
+SELECT auto_hide_days FROM users WHERE id = $1;

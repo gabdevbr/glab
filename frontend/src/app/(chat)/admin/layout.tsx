@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LayoutDashboard, Users, Hash, ArrowLeftRight, HardDrive, Bot } from 'lucide-react';
+import { LayoutDashboard, Users, Hash, ArrowLeftRight, HardDrive, Bot, Clock, Pencil } from 'lucide-react';
 
 const adminTabs = [
   { value: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -12,6 +12,8 @@ const adminTabs = [
   { value: '/admin/channels', label: 'Channels', icon: Hash },
   { value: '/admin/storage', label: 'Storage', icon: HardDrive },
   { value: '/admin/ai', label: 'AI', icon: Bot },
+  { value: '/admin/retention', label: 'Retention', icon: Clock },
+  { value: '/admin/messages', label: 'Messages', icon: Pencil },
   { value: '/admin/migration', label: 'Migration', icon: ArrowLeftRight },
 ];
 

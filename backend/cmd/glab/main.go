@@ -29,6 +29,7 @@ import (
 	"github.com/geovendas/glab/backend/internal/handler"
 	"github.com/geovendas/glab/backend/internal/migration"
 	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/geovendas/glab/backend/internal/retention"
 	"github.com/geovendas/glab/backend/internal/storage"
 	"github.com/geovendas/glab/backend/internal/ws"
 )
@@ -145,6 +146,8 @@ func main() {
 	migrationEngine := migration.NewEngine(pool, queries, hub, cfg.UploadDir)
 	migrationHandler := handler.NewMigrationHandler(migrationEngine, queries)
 
+	// Retention admin handler
+	retentionAdminHandler := handler.NewRetentionAdminHandler(queries)
 
 	// Setup router
 	r := chi.NewRouter()
@@ -191,6 +194,7 @@ func main() {
 
 		// Users
 		r.Get("/api/v1/users", userHandler.List)
+		r.Patch("/api/v1/users/me/preferences", userHandler.UpdatePreferences)
 		r.Get("/api/v1/users/{id}", userHandler.GetByID)
 		r.Patch("/api/v1/users/{id}", userHandler.Update)
 		r.Post("/api/v1/users/{id}/avatar", userHandler.UploadAvatar)
@@ -198,12 +202,14 @@ func main() {
 		// Channels
 		r.Get("/api/v1/channels", channelHandler.List)
 		r.Get("/api/v1/channels/browse", channelHandler.Browse)
+		r.Get("/api/v1/channels/hidden", channelHandler.ListHidden)
 		r.Post("/api/v1/channels", channelHandler.Create)
 		r.Get("/api/v1/channels/{id}", channelHandler.GetByID)
 		r.Patch("/api/v1/channels/{id}", channelHandler.Update)
 		r.Delete("/api/v1/channels/{id}", channelHandler.Delete)
 		r.Post("/api/v1/channels/{id}/join", channelHandler.Join)
 		r.Post("/api/v1/channels/{id}/leave", channelHandler.Leave)
+		r.Patch("/api/v1/channels/{id}/hide", channelHandler.HideChannel)
 		r.Post("/api/v1/channels/{id}/members", channelHandler.AddMember)
 		r.Delete("/api/v1/channels/{id}/members/{uid}", channelHandler.RemoveMember)
 
@@ -251,6 +257,12 @@ func main() {
 		r.Post("/api/v1/admin/storage/migrate/cancel", storageAdminHandler.CancelMigration)
 		r.Delete("/api/v1/admin/storage/files", storageAdminHandler.DeleteAllFiles)
 
+		// Admin — retention & edit timeout
+		r.Get("/api/v1/admin/retention", retentionAdminHandler.GetRetention)
+		r.Put("/api/v1/admin/retention", retentionAdminHandler.PutRetention)
+		r.Get("/api/v1/admin/message-edit", retentionAdminHandler.GetEditTimeout)
+		r.Put("/api/v1/admin/message-edit", retentionAdminHandler.PutEditTimeout)
+
 		// Admin — AI gateway config
 		r.Get("/api/v1/admin/ai/config", aiAdminHandler.GetConfig)
 		r.Put("/api/v1/admin/ai/config", aiAdminHandler.PutConfig)
@@ -287,6 +299,9 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+
+	// Start retention job (runs every hour)
+	retention.StartRetentionJob(queries, 1*time.Hour)
 
 	<-done
 	slog.Info("shutting down server...")

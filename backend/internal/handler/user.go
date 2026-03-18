@@ -232,6 +232,41 @@ func (h *UserHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, userToResponse(user))
 }
 
+// UpdatePreferences handles PATCH /api/v1/users/me/preferences.
+func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	uid, err := parseUUID(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "invalid user id")
+		return
+	}
+
+	var body struct {
+		AutoHideDays *int32 `json:"auto_hide_days"`
+	}
+	if err := parseBody(r, &body); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if body.AutoHideDays != nil {
+		if err := h.queries.UpdateAutoHideDays(r.Context(), repository.UpdateAutoHideDaysParams{
+			ID:           uid,
+			AutoHideDays: *body.AutoHideDays,
+		}); err != nil {
+			respondError(w, http.StatusInternalServerError, "failed to update preferences")
+			return
+		}
+	}
+
+	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 // ServeAvatar handles GET /api/v1/users/{id}/avatar.
 func (h *UserHandler) ServeAvatar(w http.ResponseWriter, r *http.Request) {
 	targetID := chi.URLParam(r, "id")

@@ -69,6 +69,38 @@ class ApiClient {
     }
     return res.json();
   }
+
+  // Channel hide/unhide
+  hideChannel(channelId: string, hidden: boolean) {
+    return this.patch(`/api/v1/channels/${channelId}/hide`, { hidden });
+  }
+
+  listHiddenChannels<T>() {
+    return this.get<T>('/api/v1/channels/hidden');
+  }
+
+  // User preferences
+  updatePreferences(prefs: { auto_hide_days?: number }) {
+    return this.patch('/api/v1/users/me/preferences', prefs);
+  }
+
+  // Admin: retention config
+  getRetentionConfig<T>() {
+    return this.get<T>('/api/v1/admin/retention');
+  }
+
+  putRetentionConfig(config: { default_days: number; minimum_days: number }) {
+    return this.put('/api/v1/admin/retention', config);
+  }
+
+  // Admin: message edit timeout
+  getEditTimeoutConfig<T>() {
+    return this.get<T>('/api/v1/admin/message-edit');
+  }
+
+  putEditTimeoutConfig(config: { seconds: number }) {
+    return this.put('/api/v1/admin/message-edit', config);
+  }
 }
 
 export const api = new ApiClient();

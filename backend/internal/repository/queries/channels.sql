@@ -7,22 +7,29 @@ SELECT * FROM channels WHERE slug = $1;
 -- name: ListChannelsForUser :many
 SELECT c.* FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
-WHERE cm.user_id = $1 AND c.is_archived = FALSE
+WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
+  AND (
+    $2::int = 0
+    OR c.last_message_at >= NOW() - INTERVAL '1 day' * $2::int
+    OR c.last_message_at IS NULL
+  )
 ORDER BY c.name;
 
 -- name: ListPublicChannels :many
 SELECT * FROM channels WHERE type = 'public' AND is_archived = FALSE ORDER BY name;
 
 -- name: CreateChannel :one
-INSERT INTO channels (name, slug, description, type, topic, created_by)
-VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;
+INSERT INTO channels (name, slug, description, type, topic, created_by, read_only)
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
 
 -- name: UpdateChannel :one
 UPDATE channels SET
     name = coalesce(sqlc.narg('name'), name),
     description = coalesce(sqlc.narg('description'), description),
     topic = coalesce(sqlc.narg('topic'), topic),
-    is_archived = coalesce(sqlc.narg('is_archived'), is_archived)
+    is_archived = coalesce(sqlc.narg('is_archived'), is_archived),
+    read_only = coalesce(sqlc.narg('read_only'), read_only),
+    retention_days = coalesce(sqlc.narg('retention_days'), retention_days)
 WHERE id = $1 RETURNING *;
 
 -- name: DeleteChannel :exec
@@ -49,3 +56,15 @@ SELECT c.* FROM channels c
 JOIN channel_members cm1 ON cm1.channel_id = c.id AND cm1.user_id = $1
 JOIN channel_members cm2 ON cm2.channel_id = c.id AND cm2.user_id = $2
 WHERE c.type = 'dm';
+
+-- name: UpdateChannelLastMessageAt :exec
+UPDATE channels SET last_message_at = NOW() WHERE id = $1;
+
+-- name: ListHiddenChannelsForUser :many
+SELECT c.* FROM channels c
+JOIN channel_members cm ON cm.channel_id = c.id
+WHERE cm.user_id = $1 AND cm.hidden = TRUE AND c.is_archived = FALSE
+ORDER BY c.name;
+
+-- name: GetChannelReadOnly :one
+SELECT read_only FROM channels WHERE id = $1;

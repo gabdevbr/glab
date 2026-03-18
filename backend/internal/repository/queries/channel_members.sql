@@ -26,3 +26,9 @@ WHERE m.channel_id = $1
 
 -- name: GetChannelMember :one
 SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2;
+
+-- name: SetChannelHidden :exec
+UPDATE channel_members SET hidden = $3, muted = $3 WHERE channel_id = $1 AND user_id = $2;
+
+-- name: UnhideChannel :exec
+UPDATE channel_members SET hidden = FALSE WHERE channel_id = $1 AND user_id = $2;

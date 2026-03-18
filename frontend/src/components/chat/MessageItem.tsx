@@ -5,6 +5,7 @@ import { Message } from '@/lib/types';
 import { useAuthStore } from '@/stores/authStore';
 import { useMessageStore } from '@/stores/messageStore';
 import { wsClient } from '@/lib/ws';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -77,6 +78,27 @@ function renderWithCustomEmojis(text: string): React.ReactNode[] {
   }
 
   return parts.length > 0 ? parts : [text];
+}
+
+// Edit timeout cache shared across all MessageItem instances
+let editTimeoutSeconds: number | null = null;
+let editTimeoutFetchPromise: Promise<void> | null = null;
+
+function ensureEditTimeoutLoaded(onLoaded: () => void) {
+  if (editTimeoutSeconds !== null) return;
+  if (editTimeoutFetchPromise) {
+    editTimeoutFetchPromise.then(onLoaded);
+    return;
+  }
+  editTimeoutFetchPromise = api
+    .getEditTimeoutConfig<{ seconds: number }>()
+    .then((data) => {
+      editTimeoutSeconds = data.seconds;
+      onLoaded();
+    })
+    .catch(() => {
+      editTimeoutSeconds = 900; // default 15 minutes
+    });
 }
 
 const MENTION_GROUP_KEYWORDS = new Set(['all', 'here', 'channel']);
@@ -215,12 +237,18 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
   }, [rcMsgId, channelMessages]);
 
   const [, setEmojiReady] = useState(false);
+  const [, setTimeoutReady] = useState(false);
 
   useEffect(() => {
     ensureCustomEmojisLoaded(() => setEmojiReady(true));
+    ensureEditTimeoutLoaded(() => setTimeoutReady(true));
   }, []);
 
   const isOwnMessage = user?.id === message.user_id;
+  const isAdmin = user?.role === 'admin';
+  const timeoutMs = (editTimeoutSeconds ?? 900) * 1000;
+  const isEditExpired = Date.now() - new Date(message.created_at).getTime() > timeoutMs;
+  const canEdit = isAdmin || (isOwnMessage && !isEditExpired);
 
   const handleEdit = useCallback(() => {
     setEditContent(message.content);
@@ -474,12 +502,12 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
               <><Pin className="mr-2 size-3.5" /> Pin message</>
             )}
           </DropdownMenuItem>
-          {isOwnMessage && (
+          {canEdit && (
             <DropdownMenuItem onClick={handleEdit}>
               <Pencil className="mr-2 size-3.5" /> Edit
             </DropdownMenuItem>
           )}
-          {(isOwnMessage || user?.role === 'admin') && (
+          {(isOwnMessage || isAdmin) && (
             <DropdownMenuItem onClick={handleDelete} className="text-status-error focus:text-status-error">
               <Trash2 className="mr-2 size-3.5" /> Delete
             </DropdownMenuItem>

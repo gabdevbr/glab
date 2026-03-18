@@ -154,17 +154,18 @@ func timestampToString(t pgtype.Timestamptz) string {
 
 // UserResponse is the safe JSON representation of a user (no password_hash).
 type UserResponse struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	Email       string `json:"email"`
-	DisplayName string `json:"display_name"`
-	AvatarURL   string `json:"avatar_url,omitempty"`
-	Role        string `json:"role"`
-	Status      string `json:"status"`
-	LastSeen    string `json:"last_seen,omitempty"`
-	IsBot       bool   `json:"is_bot"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID           string `json:"id"`
+	Username     string `json:"username"`
+	Email        string `json:"email"`
+	DisplayName  string `json:"display_name"`
+	AvatarURL    string `json:"avatar_url,omitempty"`
+	Role         string `json:"role"`
+	Status       string `json:"status"`
+	LastSeen     string `json:"last_seen,omitempty"`
+	IsBot        bool   `json:"is_bot"`
+	AutoHideDays int32  `json:"auto_hide_days"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
 }
 
 // resolveAvatarURL transforms a storage key like "avatars/{id}.png" into
@@ -180,38 +181,41 @@ func resolveAvatarURL(raw string, userID string) string {
 func userToResponse(u repository.User) UserResponse {
 	uid := uuidToString(u.ID)
 	return UserResponse{
-		ID:          uid,
-		Username:    u.Username,
-		Email:       u.Email,
-		DisplayName: u.DisplayName,
-		AvatarURL:   resolveAvatarURL(u.AvatarUrl.String, uid),
-		Role:        u.Role,
-		Status:      u.Status,
-		LastSeen:    timestampToString(u.LastSeen),
-		IsBot:       u.IsBot,
-		CreatedAt:   timestampToString(u.CreatedAt),
-		UpdatedAt:   timestampToString(u.UpdatedAt),
+		ID:           uid,
+		Username:     u.Username,
+		Email:        u.Email,
+		DisplayName:  u.DisplayName,
+		AvatarURL:    resolveAvatarURL(u.AvatarUrl.String, uid),
+		Role:         u.Role,
+		Status:       u.Status,
+		LastSeen:     timestampToString(u.LastSeen),
+		IsBot:        u.IsBot,
+		AutoHideDays: u.AutoHideDays,
+		CreatedAt:    timestampToString(u.CreatedAt),
+		UpdatedAt:    timestampToString(u.UpdatedAt),
 	}
 }
 
 // ChannelResponse is the JSON representation of a channel.
 type ChannelResponse struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	Description string `json:"description,omitempty"`
-	Type        string `json:"type"`
-	Topic       string `json:"topic,omitempty"`
-	CreatedBy   string `json:"created_by"`
-	IsArchived  bool   `json:"is_archived"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
-	MemberCount int    `json:"member_count,omitempty"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Slug          string `json:"slug"`
+	Description   string `json:"description,omitempty"`
+	Type          string `json:"type"`
+	Topic         string `json:"topic,omitempty"`
+	CreatedBy     string `json:"created_by"`
+	IsArchived    bool   `json:"is_archived"`
+	ReadOnly      bool   `json:"read_only"`
+	RetentionDays *int32 `json:"retention_days,omitempty"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
+	MemberCount   int    `json:"member_count,omitempty"`
 }
 
 // channelToResponse converts a repository.Channel to ChannelResponse.
 func channelToResponse(c repository.Channel) ChannelResponse {
-	return ChannelResponse{
+	resp := ChannelResponse{
 		ID:          uuidToString(c.ID),
 		Name:        c.Name,
 		Slug:        c.Slug,
@@ -220,9 +224,15 @@ func channelToResponse(c repository.Channel) ChannelResponse {
 		Topic:       c.Topic.String,
 		CreatedBy:   uuidToString(c.CreatedBy),
 		IsArchived:  c.IsArchived,
+		ReadOnly:    c.ReadOnly,
 		CreatedAt:   timestampToString(c.CreatedAt),
 		UpdatedAt:   timestampToString(c.UpdatedAt),
 	}
+	if c.RetentionDays.Valid {
+		v := c.RetentionDays.Int32
+		resp.RetentionDays = &v
+	}
+	return resp
 }
 
 // MessageResponse is the JSON representation of a message with user info.

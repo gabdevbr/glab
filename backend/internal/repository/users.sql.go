@@ -14,7 +14,7 @@ import (
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, display_name, password_hash, role, is_bot, bot_config)
-VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days
 `
 
 type CreateUserParams struct {
@@ -53,12 +53,24 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.IsDeactivated,
+		&i.AutoHideDays,
 	)
 	return i, err
 }
 
+const getAutoHideDays = `-- name: GetAutoHideDays :one
+SELECT auto_hide_days FROM users WHERE id = $1
+`
+
+func (q *Queries) GetAutoHideDays(ctx context.Context, id pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, getAutoHideDays, id)
+	var auto_hide_days int32
+	err := row.Scan(&auto_hide_days)
+	return auto_hide_days, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated FROM users WHERE email = $1
+SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -79,12 +91,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.IsDeactivated,
+		&i.AutoHideDays,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated FROM users WHERE id = $1
+SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -105,12 +118,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.IsDeactivated,
+		&i.AutoHideDays,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated FROM users WHERE username = $1
+SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days FROM users WHERE username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -131,6 +145,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.IsDeactivated,
+		&i.AutoHideDays,
 	)
 	return i, err
 }
@@ -187,6 +202,20 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 	return items, nil
 }
 
+const updateAutoHideDays = `-- name: UpdateAutoHideDays :exec
+UPDATE users SET auto_hide_days = $2 WHERE id = $1
+`
+
+type UpdateAutoHideDaysParams struct {
+	ID           pgtype.UUID `json:"id"`
+	AutoHideDays int32       `json:"auto_hide_days"`
+}
+
+func (q *Queries) UpdateAutoHideDays(ctx context.Context, arg UpdateAutoHideDaysParams) error {
+	_, err := q.db.Exec(ctx, updateAutoHideDays, arg.ID, arg.AutoHideDays)
+	return err
+}
+
 const updatePasswordHash = `-- name: UpdatePasswordHash :exec
 UPDATE users SET password_hash = $2 WHERE id = $1
 `
@@ -207,7 +236,7 @@ UPDATE users SET
     avatar_url = coalesce($3, avatar_url),
     status = coalesce($4, status),
     email = coalesce($5, email)
-WHERE id = $1 RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated
+WHERE id = $1 RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days
 `
 
 type UpdateUserParams struct {
@@ -242,6 +271,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.IsDeactivated,
+		&i.AutoHideDays,
 	)
 	return i, err
 }

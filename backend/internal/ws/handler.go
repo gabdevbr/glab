@@ -116,7 +116,11 @@ func (h *MessageHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	h.hub.Register(client)
 
 	// Load user's channels and auto-subscribe.
-	channels, err := h.queries.ListChannelsForUser(ctx, userUUID)
+	autoHideDays, _ := h.queries.GetAutoHideDays(ctx, userUUID)
+	channels, err := h.queries.ListChannelsForUser(ctx, repository.ListChannelsForUserParams{
+		UserID:  userUUID,
+		Column2: autoHideDays,
+	})
 	if err != nil {
 		slog.Error("ws: failed to list channels for user", "user_id", claims.UserID, "error", err)
 	} else {
@@ -231,6 +235,26 @@ func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
 		return
 	}
 
+	// Check if channel is read-only
+	readOnly, roErr := h.queries.GetChannelReadOnly(ctx, channelUUID)
+	if roErr == nil && readOnly {
+		// Check if user has permission: system admin or channel owner/admin
+		canPost := client.role == "admin"
+		if !canPost {
+			member, mErr := h.queries.GetChannelMember(ctx, repository.GetChannelMemberParams{
+				ChannelID: channelUUID,
+				UserID:    userUUID,
+			})
+			if mErr == nil && (member.Role == "owner" || member.Role == "admin") {
+				canPost = true
+			}
+		}
+		if !canPost {
+			h.sendAck(client, env.ID, false, "channel is read-only", nil)
+			return
+		}
+	}
+
 	// Parse optional thread ID.
 	var threadUUID pgtype.UUID
 	if payload.ThreadID != "" {
@@ -272,6 +296,9 @@ func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
 		return
 	}
 	h.hub.BroadcastToChannel(payload.ChannelID, broadcastEnv)
+
+	// Update channel's last_message_at
+	_ = h.queries.UpdateChannelLastMessageAt(ctx, channelUUID)
 
 	// If this is a thread reply, update the thread summary.
 	if payload.ThreadID != "" {
@@ -376,16 +403,40 @@ func (h *MessageHandler) handleMessageEdit(client *Client, env Envelope) {
 		return
 	}
 
-	// Verify sender owns the message.
+	// Verify sender owns the message or is admin.
 	existing, err := h.queries.GetMessageByID(ctx, msgUUID)
 	if err != nil {
 		h.sendAck(client, env.ID, false, "message not found", nil)
 		return
 	}
 
-	if uuidToString(existing.UserID) != client.userID {
+	isOwner := uuidToString(existing.UserID) == client.userID
+	isAdmin := client.role == "admin"
+
+	if !isOwner && !isAdmin {
 		h.sendAck(client, env.ID, false, "cannot edit another user's message", nil)
 		return
+	}
+
+	// For non-admin users, enforce edit timeout
+	if !isAdmin {
+		// Load timeout from config
+		timeoutSeconds := 900 // default 15 minutes
+		cfgRow, cfgErr := h.queries.GetAppConfig(ctx, "message_edit_timeout")
+		if cfgErr == nil {
+			var tc struct {
+				Seconds int `json:"seconds"`
+			}
+			if json.Unmarshal(cfgRow.Value, &tc) == nil && tc.Seconds > 0 {
+				timeoutSeconds = tc.Seconds
+			}
+		}
+
+		elapsed := time.Since(existing.CreatedAt.Time)
+		if elapsed > time.Duration(timeoutSeconds)*time.Second {
+			h.sendAck(client, env.ID, false, "edit window has expired", nil)
+			return
+		}
 	}
 
 	updated, err := h.queries.UpdateMessageContent(ctx, repository.UpdateMessageContentParams{

@@ -242,6 +242,7 @@ export default function ChannelPage() {
           channelId={channelId}
           channelName={channelName}
           isConnected={isConnected}
+          channel={channel}
         />
       </div>
 

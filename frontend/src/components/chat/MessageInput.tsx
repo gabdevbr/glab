@@ -3,15 +3,17 @@
 import { useState, useRef, useCallback, useEffect, KeyboardEvent, FormEvent } from 'react';
 import { wsClient } from '@/lib/ws';
 import { api } from '@/lib/api';
-import { User } from '@/lib/types';
+import { User, Channel } from '@/lib/types';
+import { useAuthStore } from '@/stores/authStore';
 import { MentionAutocomplete, getMentionItemCount } from './MentionAutocomplete';
-import { Paperclip, X } from 'lucide-react';
+import { Paperclip, X, Lock } from 'lucide-react';
 
 interface MessageInputProps {
   channelId: string;
   channelName: string;
   isConnected: boolean;
   threadId?: string;
+  channel?: Channel;
   /** Called when user presses ↑ in empty input to edit last message */
   onEditLastMessage?: () => void;
 }
@@ -41,7 +43,10 @@ function wrapSelection(ta: HTMLTextAreaElement, prefix: string, suffix: string):
   return newValue;
 }
 
-export function MessageInput({ channelId, channelName, isConnected, threadId, onEditLastMessage }: MessageInputProps) {
+export function MessageInput({ channelId, channelName, isConnected, threadId, channel, onEditLastMessage }: MessageInputProps) {
+  const authUser = useAuthStore((s) => s.user);
+  const isReadOnly = channel?.read_only && authUser?.role !== 'admin';
+
   const [content, setContent] = useState('');
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -283,6 +288,17 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, on
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     sendMessage();
+  }
+
+  if (isReadOnly) {
+    return (
+      <div className="px-5 pb-5 pt-2">
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-chat-input-border bg-chat-input-bg px-4 py-4 text-muted-foreground">
+          <Lock className="size-4" />
+          <span className="text-sm">This is a read-only channel. Only admins can post messages.</span>
+        </div>
+      </div>
+    );
   }
 
   return (

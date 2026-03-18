@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAgentStore } from '@/stores/agentStore';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { Hash, X } from 'lucide-react';
+import { Hash, MessageCircle, X } from 'lucide-react';
 import { User, Channel, Agent } from '@/lib/types';
 
 interface QuickSwitcherProps {
@@ -240,16 +240,19 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
                     )}
                   >
                     {isDM ? (
-                      <span
-                        className={cn(
-                          'inline-block size-2.5 shrink-0 rounded-full',
-                          presenceStatus === 'online'
-                            ? 'bg-status-online'
-                            : presenceStatus === 'away'
-                              ? 'bg-status-warning'
-                              : 'bg-muted',
-                        )}
-                      />
+                      <div className="relative">
+                        <MessageCircle className="size-4 shrink-0 text-sidebar-section-text" />
+                        <span
+                          className={cn(
+                            'absolute -bottom-0.5 -right-0.5 size-2 rounded-full border border-panel-bg',
+                            presenceStatus === 'online'
+                              ? 'bg-status-online'
+                              : presenceStatus === 'away'
+                                ? 'bg-status-warning'
+                                : 'bg-muted',
+                          )}
+                        />
+                      </div>
                     ) : (
                       <Hash className="size-4 shrink-0 text-sidebar-section-text" />
                     )}

@@ -2,9 +2,10 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Key } from 'lucide-react';
+import { Key, Settings } from 'lucide-react';
 
 const settingsTabs = [
+  { value: '/settings/preferences', label: 'Preferences', icon: Settings },
   { value: '/settings/tokens', label: 'API Tokens', icon: Key },
 ];
 

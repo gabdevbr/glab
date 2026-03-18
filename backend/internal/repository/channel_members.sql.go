@@ -28,7 +28,7 @@ func (q *Queries) AddChannelMember(ctx context.Context, arg AddChannelMemberPara
 }
 
 const getChannelMember = `-- name: GetChannelMember :one
-SELECT channel_id, user_id, role, joined_at, last_read_msg_id, muted, notifications FROM channel_members WHERE channel_id = $1 AND user_id = $2
+SELECT channel_id, user_id, role, joined_at, last_read_msg_id, muted, notifications, hidden FROM channel_members WHERE channel_id = $1 AND user_id = $2
 `
 
 type GetChannelMemberParams struct {
@@ -47,6 +47,7 @@ func (q *Queries) GetChannelMember(ctx context.Context, arg GetChannelMemberPara
 		&i.LastReadMsgID,
 		&i.Muted,
 		&i.Notifications,
+		&i.Hidden,
 	)
 	return i, err
 }
@@ -145,6 +146,35 @@ type RemoveChannelMemberParams struct {
 
 func (q *Queries) RemoveChannelMember(ctx context.Context, arg RemoveChannelMemberParams) error {
 	_, err := q.db.Exec(ctx, removeChannelMember, arg.ChannelID, arg.UserID)
+	return err
+}
+
+const setChannelHidden = `-- name: SetChannelHidden :exec
+UPDATE channel_members SET hidden = $3, muted = $3 WHERE channel_id = $1 AND user_id = $2
+`
+
+type SetChannelHiddenParams struct {
+	ChannelID pgtype.UUID `json:"channel_id"`
+	UserID    pgtype.UUID `json:"user_id"`
+	Hidden    bool        `json:"hidden"`
+}
+
+func (q *Queries) SetChannelHidden(ctx context.Context, arg SetChannelHiddenParams) error {
+	_, err := q.db.Exec(ctx, setChannelHidden, arg.ChannelID, arg.UserID, arg.Hidden)
+	return err
+}
+
+const unhideChannel = `-- name: UnhideChannel :exec
+UPDATE channel_members SET hidden = FALSE WHERE channel_id = $1 AND user_id = $2
+`
+
+type UnhideChannelParams struct {
+	ChannelID pgtype.UUID `json:"channel_id"`
+	UserID    pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) UnhideChannel(ctx context.Context, arg UnhideChannelParams) error {
+	_, err := q.db.Exec(ctx, unhideChannel, arg.ChannelID, arg.UserID)
 	return err
 }
 
