@@ -112,26 +112,98 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Description string `json:"description"`
 		Type        string `json:"type"`
 		ReadOnly    bool   `json:"read_only"`
+		MemberID    string `json:"member_id"` // target user ID for DM creation
 	}
 	if err := parseBody(r, &body); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if body.Name == "" {
-		respondError(w, http.StatusBadRequest, "name is required")
-		return
-	}
 	if body.Type == "" {
 		body.Type = "public"
 	}
-	if body.Type != "public" && body.Type != "private" {
-		respondError(w, http.StatusBadRequest, "type must be public or private")
+	if body.Type != "public" && body.Type != "private" && body.Type != "dm" {
+		respondError(w, http.StatusBadRequest, "type must be public, private or dm")
 		return
 	}
 
 	creatorUID, err := parseUUID(claims.UserID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "invalid user id in token")
+		return
+	}
+
+	// DM channel creation
+	if body.Type == "dm" {
+		if body.MemberID == "" {
+			respondError(w, http.StatusBadRequest, "member_id is required for DM channels")
+			return
+		}
+		targetUID, err := parseUUID(body.MemberID)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "invalid member_id")
+			return
+		}
+
+		// Check if DM already exists
+		existing, err := h.queries.GetDMChannel(r.Context(), repository.GetDMChannelParams{
+			UserID:   creatorUID,
+			UserID_2: targetUID,
+		})
+		if err == nil {
+			// DM already exists — unhide it if hidden, then return it
+			_ = h.queries.UnhideChannel(r.Context(), repository.UnhideChannelParams{
+				ChannelID: existing.ID,
+				UserID:    creatorUID,
+			})
+			resp := channelToResponse(existing)
+			respondJSON(w, http.StatusOK, resp)
+			return
+		}
+
+		// Look up target user for the channel name
+		targetUser, err := h.queries.GetUserByID(r.Context(), targetUID)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "target user not found")
+			return
+		}
+
+		dmName := targetUser.DisplayName
+		if dmName == "" {
+			dmName = targetUser.Username
+		}
+
+		channel, err := h.queries.CreateChannel(r.Context(), repository.CreateChannelParams{
+			Name:      dmName,
+			Slug:      generateSlug(dmName),
+			Type:      "dm",
+			CreatedBy: creatorUID,
+		})
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, "failed to create DM channel")
+			return
+		}
+
+		// Add both users as members
+		_ = h.queries.AddChannelMember(r.Context(), repository.AddChannelMemberParams{
+			ChannelID: channel.ID,
+			UserID:    creatorUID,
+			Role:      "owner",
+		})
+		_ = h.queries.AddChannelMember(r.Context(), repository.AddChannelMemberParams{
+			ChannelID: channel.ID,
+			UserID:    targetUID,
+			Role:      "member",
+		})
+
+		resp := channelToResponse(channel)
+		resp.MemberCount = 2
+		respondJSON(w, http.StatusCreated, resp)
+		return
+	}
+
+	// Regular channel creation
+	if body.Name == "" {
+		respondError(w, http.StatusBadRequest, "name is required")
 		return
 	}
 

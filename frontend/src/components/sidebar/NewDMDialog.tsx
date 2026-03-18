@@ -33,7 +33,7 @@ export function NewDMDialog() {
     if (!open) return;
     setIsLoading(true);
     api
-      .get<User[]>('/api/v1/users')
+      .get<User[]>('/api/v1/users?limit=200')
       .then((data) => setUsers(data))
       .catch(() => setError('Failed to load users'))
       .finally(() => setIsLoading(false));
@@ -53,11 +53,9 @@ export function NewDMDialog() {
   async function handleSelectUser(user: User) {
     setError('');
     try {
-      // TODO: Backend needs a dedicated DM creation endpoint (POST /api/v1/dm).
-      // For now, we use channel creation with type='dm' as a workaround.
       const channel = await api.post<Channel>('/api/v1/channels', {
-        name: user.display_name,
         type: 'dm',
+        member_id: user.id,
       });
       addChannel(channel);
       setActiveChannel(channel.id);

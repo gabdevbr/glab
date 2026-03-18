@@ -45,7 +45,7 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
       setQuery('');
       setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
-      api.get<User[]>('/api/v1/users').then(setAllUsers).catch(() => {});
+      api.get<User[]>('/api/v1/users?limit=200').then(setAllUsers).catch(() => {});
       api.get<Channel[]>('/api/v1/channels/browse').then(setPublicChannels).catch(() => {});
     }
   }, [open]);
@@ -135,8 +135,8 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
       onClose();
       try {
         const channel = await api.post<Channel>('/api/v1/channels', {
-          name: user.display_name,
           type: 'dm',
+          member_id: user.id,
         });
         addChannel(channel);
         setActiveChannel(channel.id);
