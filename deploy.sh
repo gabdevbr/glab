@@ -97,12 +97,12 @@ NGINXSCRIPT
 
 # Install backup script and cron
 echo "[6/7] Setting up backups..."
-scp ${SSH_OPTS/#-p/-P} ./backup.sh "$REMOTE:/root/backup.sh"
-ssh ${SSH_OPTS} "$REMOTE" bash -s <<'BACKUPSCRIPT'
-chmod +x /root/backup.sh
+scp ${SSH_OPTS/#-p/-P} ./backup.sh "$REMOTE:$DEPLOY_DIR/backup.sh"
+ssh ${SSH_OPTS} "$REMOTE" bash -s <<BACKUPSCRIPT
+chmod +x $DEPLOY_DIR/backup.sh
 mkdir -p /root/backup
-if ! crontab -l 2>/dev/null | grep -q '/root/backup.sh'; then
-    (crontab -l 2>/dev/null; echo "0 6,18 * * * /root/backup.sh >> /root/backup/cron.log 2>&1") | crontab -
+if ! crontab -l 2>/dev/null | grep -q '$DEPLOY_DIR/backup.sh'; then
+    (crontab -l 2>/dev/null; echo "0 6,18 * * * $DEPLOY_DIR/backup.sh >> /root/backup/cron.log 2>&1") | crontab -
     echo "  backup cron installed (6:00 and 18:00 daily)"
 else
     echo "  backup cron already configured"
