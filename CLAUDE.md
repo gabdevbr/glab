@@ -15,7 +15,7 @@ Open-source Slack-like chat application with native AI agent support.
 
 ```
 backend/               Go API server
-  cmd/glab/            Entry point
+  cmd/glab/            Entry point (routes, server, seed, retention job)
   internal/
     config/            Env config (caarlos0/env)
     db/                Database connection pool
@@ -25,13 +25,17 @@ backend/               Go API server
     ws/                WebSocket hub + presence
     ai/                Agent bridge + streaming
     storage/           File upload storage (local + S3-compatible)
+    migration/         In-app RocketChat migration engine (admin panel)
+    retention/         Background message retention job (hourly)
   migrations/          SQL migrations (golang-migrate)
   sqlc.yaml            sqlc config
 
 frontend/              Next.js app
-  src/app/             App router pages
+  src/app/             App router pages (chat layout, admin, settings)
   src/components/      React components (shadcn/ui)
-  src/lib/             API client, WebSocket hooks, utils
+  src/stores/          Zustand state stores (auth, channel, message, presence, etc.)
+  src/hooks/           WebSocket + keyboard shortcut hooks
+  src/lib/             API client, types, utils
 
 migrate/               RocketChat migration CLI (separate Go module)
   cmd/migrate/         CLI entry point
@@ -43,7 +47,7 @@ migrate/               RocketChat migration CLI (separate Go module)
 nginx/                 Nginx config templates (replace YOUR_DOMAIN)
 docker-compose.yml     Production compose
 docker-compose.dev.yml Dev infrastructure (postgres + redis only)
-deploy.sh              Production deployment script (set DEPLOY_HOST, DEPLOY_USER, GLAB_DOMAIN)
+deploy.sh              Production deployment script
 ```
 
 ## Local Development
@@ -60,16 +64,14 @@ make migrate-up
 make backend
 
 # Run frontend (separate terminal)
+cd frontend && npm install   # first time only
 make frontend
 ```
 
 ## Deploy to Production
 
 ```bash
-cp .env.example .env    # Edit secrets
-export DEPLOY_HOST=your-server.com
-export DEPLOY_USER=ubuntu
-export GLAB_DOMAIN=glab.example.com
+# Create .deploy.env (gitignored) with: DEPLOY_HOST, DEPLOY_USER, DEPLOY_PORT, GLAB_DOMAIN
 ./deploy.sh
 ```
 
@@ -87,6 +89,8 @@ make migrate-up
 make migrate-down
 ```
 
+Note: migrations auto-run on server startup in `main.go` — no manual step needed in production.
+
 ## sqlc Workflow
 
 Queries live in `backend/internal/repository/queries/*.sql`. After editing:
@@ -95,22 +99,15 @@ Queries live in `backend/internal/repository/queries/*.sql`. After editing:
 make sqlc    # Regenerates Go code in backend/internal/repository/
 ```
 
-## Migration CLI (RocketChat → Glab)
+Requires `sqlc` CLI: `brew install sqlc`
 
-```bash
-cd migrate
-go build -o migrate ./cmd/migrate/
+## WebSocket Protocol
 
-# Dry run
-./migrate --rc-token TOKEN --rc-user-id USERID \
-  --db-url "postgres://glab:pass@localhost:5432/glab?sslmode=disable" \
-  --dry-run
+Auth via query param: `ws://host/ws?token=JWT`
 
-# Full migration
-./migrate --rc-token TOKEN --rc-user-id USERID \
-  --db-url "postgres://glab:pass@localhost:5432/glab?sslmode=disable" \
-  --migrate-files --upload-dir ./uploads
-```
+Client → Server: `message.send`, `message.edit`, `message.delete`, `message.pin`, `message.unpin`, `reaction.add`, `reaction.remove`, `typing.start`, `typing.stop`, `presence.update`, `channel.read`, `subscribe`, `unsubscribe`, `ai.prompt`, `ai.stop`
+
+Server → Client: `ack`, `hello`, `message.new`, `message.edited`, `message.deleted`, `message.pinned`, `message.unpinned`, `reaction.updated`, `thread.updated`, `typing`, `presence`, `notification`, `ai.chunk`, `ai.panel.chunk`, `migration.log`, `migration.status`
 
 ## Key Architecture Decisions
 
@@ -120,7 +117,28 @@ go build -o migrate ./cmd/migrate/
 - **Separate migrate module:** No dependency pollution into the main backend
 - **AI agents as first-class users:** Agents have user accounts, appear in channels naturally
 - **Pluggable storage:** Local filesystem or any S3-compatible provider (AWS, IBM COS, Zadara)
-- **Config via admin panel:** AI gateway URL/token and storage backend managed via DB, not env vars
+- **Config via admin panel:** AI gateway URL/token, storage backend, retention policy, edit timeout — all managed via `app_config` DB table, not env vars
+
+## Code Conventions
+
+**Backend:**
+- Response types in `handler/helpers.go` (ChannelResponse, MessageResponse, UserResponse)
+- UUID helpers `parseUUID`/`uuidToString`/`timestampToString` duplicated in handler and ws packages (avoids circular deps)
+- Admin endpoints use `requireAdmin()` wrapper; channel-level RBAC via `requireChannelRole()`
+- `parseBody` uses `DisallowUnknownFields()` — API rejects unknown JSON fields
+
+**Frontend:**
+- State: Zustand stores in `src/stores/`
+- UI: shadcn/ui components in `src/components/ui/`
+- API: singleton `ApiClient` in `src/lib/api.ts`
+- Styling: Tailwind with custom theme tokens (sidebar, chat, accent, status colors)
+
+## Gotchas
+
+- **DM display names:** DM channel `name` column stores raw data. `GetDMDisplayNames` resolves the other participant's display_name at query time. DMs without a resolvable other member are filtered from the List response.
+- **Two migration systems:** Standalone CLI in `migrate/` and in-app engine in `backend/internal/migration/` (admin panel). The in-app engine is incremental and supports file migration.
+- **Private group members:** RocketChat `/api/v1/groups.list` returns incomplete member lists. The migration engine calls `/api/v1/groups.members` per group. Archived RC groups return 400 and are skipped.
+- **Channel features:** Read-only channels (`read_only` flag), configurable retention policy (per-channel + global), message edit timeout (admin-configurable), auto-hide inactive channels (user preference), right-click context menu on channel list.
 
 ## Bootstrap Environment Variables
 
