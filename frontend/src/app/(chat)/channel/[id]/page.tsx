@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { useAuthStore } from '@/stores/authStore';
 import { useChannelStore } from '@/stores/channelStore';
 import { useMessageStore } from '@/stores/messageStore';
 import { usePresenceStore } from '@/stores/presenceStore';
@@ -27,7 +26,6 @@ export default function ChannelPage() {
   const params = useParams<{ id: string }>();
   const channelId = params.id;
 
-  const currentUser = useAuthStore((s) => s.user);
   const channels = useChannelStore((s) => s.channels);
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
   const clearUnread = useChannelStore((s) => s.clearUnread);
@@ -186,9 +184,7 @@ export default function ChannelPage() {
   }, [channelId]);
 
   const isDM = channel?.type === 'dm';
-  const channelName = isDM && channel?.name && currentUser?.display_name
-    ? channel.name.split(', ').filter((n) => n !== currentUser.display_name).join(', ') || channel.name
-    : channel?.name || 'loading';
+  const channelName = channel?.name || 'loading';
 
   return (
     <div className="flex h-full flex-1 min-w-0">

@@ -51,9 +51,23 @@ func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// For DM channels, resolve the other participant's display name.
+	dmNames := make(map[string]string) // channel_id -> other user's display_name
+	dmRows, err := h.queries.GetDMDisplayNames(r.Context(), uid)
+	if err == nil {
+		for _, row := range dmRows {
+			dmNames[uuidToString(row.ChannelID)] = row.DisplayName
+		}
+	}
+
 	items := make([]ChannelResponse, len(channels))
 	for i, c := range channels {
 		items[i] = channelToResponse(c)
+		if c.Type == "dm" {
+			if name, ok := dmNames[items[i].ID]; ok {
+				items[i].Name = name
+			}
+		}
 	}
 
 	respondJSON(w, http.StatusOK, items)

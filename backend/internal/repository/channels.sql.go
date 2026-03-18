@@ -133,6 +133,48 @@ func (q *Queries) GetDMChannel(ctx context.Context, arg GetDMChannelParams) (Cha
 	return i, err
 }
 
+const getDMDisplayNames = `-- name: GetDMDisplayNames :many
+SELECT
+    cm.channel_id,
+    COALESCE(
+        (SELECT u.display_name FROM channel_members cm2
+         JOIN users u ON u.id = cm2.user_id
+         WHERE cm2.channel_id = cm.channel_id AND cm2.user_id <> $1
+         LIMIT 1),
+        c.name
+    ) AS display_name
+FROM channel_members cm
+JOIN channels c ON c.id = cm.channel_id
+WHERE cm.user_id = $1 AND c.type = 'dm'
+`
+
+type GetDMDisplayNamesRow struct {
+	ChannelID   pgtype.UUID `json:"channel_id"`
+	DisplayName string      `json:"display_name"`
+}
+
+// For each DM channel the user belongs to, return the other participant's display name.
+// If no other member exists, falls back to the channel name.
+func (q *Queries) GetDMDisplayNames(ctx context.Context, userID pgtype.UUID) ([]GetDMDisplayNamesRow, error) {
+	rows, err := q.db.Query(ctx, getDMDisplayNames, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetDMDisplayNamesRow{}
+	for rows.Next() {
+		var i GetDMDisplayNamesRow
+		if err := rows.Scan(&i.ChannelID, &i.DisplayName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listChannelsForUser = `-- name: ListChannelsForUser :many
 SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
