@@ -224,6 +224,7 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
   const [editContent, setEditContent] = useState(message.content);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [quotedMessage, setQuotedMessage] = useState<Message | null>(null);
+  const [, setImageLoaded] = useState(false);
 
   const { cleanContent, rcMsgId } = useMemo(() => parseRCQuote(message.content), [message.content]);
 
@@ -363,6 +364,7 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
                   src={`${API_URL}/api/v1/files/${message.file.id}/thumbnail`}
                   alt={message.file.original_name}
                   className="max-w-xs rounded-lg border border-border"
+                  onLoad={() => setImageLoaded(true)}
                   onError={(e) => {
                     const img = e.currentTarget;
                     if (!img.dataset.fallbackAttempted) {
