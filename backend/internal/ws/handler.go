@@ -13,8 +13,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/geovendas/glab/backend/internal/auth"
-	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/auth"
+	"github.com/gabdevbr/glab/backend/internal/repository"
 )
 
 var upgrader = websocket.Upgrader{

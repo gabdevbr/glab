@@ -14,9 +14,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/geovendas/glab/backend/internal/auth"
-	"github.com/geovendas/glab/backend/internal/repository"
-	"github.com/geovendas/glab/backend/internal/storage"
+	"github.com/gabdevbr/glab/backend/internal/auth"
+	"github.com/gabdevbr/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/storage"
 )
 
 const maxAvatarSize = 5 << 20 // 5 MB
@@ -247,7 +247,8 @@ func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var body struct {
-		AutoHideDays *int32 `json:"auto_hide_days"`
+		AutoHideDays *int32  `json:"auto_hide_days"`
+		ChannelSort  *string `json:"channel_sort"`
 	}
 	if err := parseBody(r, &body); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
@@ -258,6 +259,23 @@ func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) 
 		if err := h.queries.UpdateAutoHideDays(r.Context(), repository.UpdateAutoHideDaysParams{
 			ID:           uid,
 			AutoHideDays: *body.AutoHideDays,
+		}); err != nil {
+			respondError(w, http.StatusInternalServerError, "failed to update preferences")
+			return
+		}
+	}
+
+	if body.ChannelSort != nil {
+		switch *body.ChannelSort {
+		case "activity", "name", "unread":
+			// valid
+		default:
+			respondError(w, http.StatusBadRequest, "channel_sort must be one of: activity, name, unread")
+			return
+		}
+		if err := h.queries.UpdateChannelSort(r.Context(), repository.UpdateChannelSortParams{
+			ID:          uid,
+			ChannelSort: *body.ChannelSort,
 		}); err != nil {
 			respondError(w, http.StatusInternalServerError, "failed to update preferences")
 			return

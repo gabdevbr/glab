@@ -43,5 +43,11 @@ backend/glab
 migrate/migrate
 migrate/migrate-linux
 
+# Internal planning docs
+docs/superpowers/
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
 # Claude Code
 .claude/

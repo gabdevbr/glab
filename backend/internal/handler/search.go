@@ -6,8 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/geovendas/glab/backend/internal/auth"
-	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/auth"
+	"github.com/gabdevbr/glab/backend/internal/repository"
 )
 
 // SearchHandler handles search endpoints.

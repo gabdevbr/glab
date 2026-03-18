@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/geovendas/glab/backend/internal/auth"
-	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/auth"
+	"github.com/gabdevbr/glab/backend/internal/repository"
 )
 
 // MessageHandler handles message endpoints.

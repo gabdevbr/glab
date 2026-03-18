@@ -8,8 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/geovendas/glab/backend/internal/repository"
-	"github.com/geovendas/glab/backend/internal/ws"
+	"github.com/gabdevbr/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/ws"
 )
 
 const migrationPageSize int32 = 50

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/geovendas/glab/migrate/internal/transform"
+	"github.com/gabdevbr/glab/migrate/internal/transform"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

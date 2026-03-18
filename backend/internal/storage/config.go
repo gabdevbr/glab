@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/repository"
 )
 
 const configKeyStorage = "storage"

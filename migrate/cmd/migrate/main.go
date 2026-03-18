@@ -13,10 +13,10 @@ import (
 	"sort"
 	"time"
 
-	"github.com/geovendas/glab/migrate/internal/loader"
-	"github.com/geovendas/glab/migrate/internal/rocketchat"
-	"github.com/geovendas/glab/migrate/internal/s3uploader"
-	"github.com/geovendas/glab/migrate/internal/transform"
+	"github.com/gabdevbr/glab/migrate/internal/loader"
+	"github.com/gabdevbr/glab/migrate/internal/rocketchat"
+	"github.com/gabdevbr/glab/migrate/internal/s3uploader"
+	"github.com/gabdevbr/glab/migrate/internal/transform"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -11,8 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/geovendas/glab/backend/internal/auth"
-	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/auth"
+	"github.com/gabdevbr/glab/backend/internal/repository"
 )
 
 // requireScope checks that the current request has the given API scope.
@@ -164,6 +164,7 @@ type UserResponse struct {
 	LastSeen     string `json:"last_seen,omitempty"`
 	IsBot        bool   `json:"is_bot"`
 	AutoHideDays int32  `json:"auto_hide_days"`
+	ChannelSort  string `json:"channel_sort"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
 }
@@ -191,6 +192,7 @@ func userToResponse(u repository.User) UserResponse {
 		LastSeen:     timestampToString(u.LastSeen),
 		IsBot:        u.IsBot,
 		AutoHideDays: u.AutoHideDays,
+		ChannelSort:  u.ChannelSort,
 		CreatedAt:    timestampToString(u.CreatedAt),
 		UpdatedAt:    timestampToString(u.UpdatedAt),
 	}
@@ -208,6 +210,7 @@ type ChannelResponse struct {
 	IsArchived    bool   `json:"is_archived"`
 	ReadOnly      bool   `json:"read_only"`
 	RetentionDays *int32 `json:"retention_days,omitempty"`
+	LastMessageAt string `json:"last_message_at,omitempty"`
 	CreatedAt     string `json:"created_at"`
 	UpdatedAt     string `json:"updated_at"`
 	MemberCount   int    `json:"member_count,omitempty"`
@@ -224,9 +227,10 @@ func channelToResponse(c repository.Channel) ChannelResponse {
 		Topic:       c.Topic.String,
 		CreatedBy:   uuidToString(c.CreatedBy),
 		IsArchived:  c.IsArchived,
-		ReadOnly:    c.ReadOnly,
-		CreatedAt:   timestampToString(c.CreatedAt),
-		UpdatedAt:   timestampToString(c.UpdatedAt),
+		ReadOnly:      c.ReadOnly,
+		LastMessageAt: timestampToString(c.LastMessageAt),
+		CreatedAt:     timestampToString(c.CreatedAt),
+		UpdatedAt:     timestampToString(c.UpdatedAt),
 	}
 	if c.RetentionDays.Valid {
 		v := c.RetentionDays.Int32

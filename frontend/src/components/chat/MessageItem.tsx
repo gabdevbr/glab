@@ -107,7 +107,9 @@ const MENTION_GROUP_KEYWORDS = new Set(['all', 'here', 'channel']);
  * Renders message content with both @mention pills and custom emoji support.
  * First splits by mentions, then applies emoji rendering to text segments.
  */
-const RC_QUOTE_RE = /\[[\s]*\]\(https?:\/\/chat\.geovendas\.com[^)]*[?&]msg=([a-zA-Z0-9]+)[^)]*\)\s*/g;
+// Matches RocketChat-style quote links: [ ](https://your-rc-host/...?msg=ID)
+// Used to convert legacy RC quotes into Glab thread references during migration.
+const RC_QUOTE_RE = /\[[\s]*\]\(https?:\/\/[^)]*[?&]msg=([a-zA-Z0-9]+)[^)]*\)\s*/g;
 
 // Migration namespace — must match backend/migrate transform.go
 const MIGRATION_NS = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
@@ -212,9 +214,10 @@ interface MessageItemProps {
   message: Message;
   isCompact: boolean;
   onThreadOpen?: (messageId: string) => void;
+  onUserInfoOpen?: (userId: string) => void;
 }
 
-export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemProps) {
+export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }: MessageItemProps) {
   const user = useAuthStore((s) => s.user);
   const channelMessages = useMessageStore((s) => s.messages[message.channel_id]);
   const [isEditing, setIsEditing] = useState(false);
@@ -547,7 +550,10 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
   return (
     <div className="group relative flex items-start gap-3 px-5 pt-5 pb-1 hover:bg-chat-hover">
       {/* Avatar */}
-      <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-avatar-bg text-sm font-medium text-avatar-text">
+      <button
+        onClick={() => onUserInfoOpen?.(message.user_id)}
+        className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-avatar-bg text-sm font-medium text-avatar-text hover:opacity-80 transition-opacity"
+      >
         {message.avatar_url ? (
           <img
             src={message.avatar_url}
@@ -557,14 +563,17 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
         ) : (
           initials
         )}
-      </div>
+      </button>
 
       {/* Body */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold text-foreground">
+          <button
+            onClick={() => onUserInfoOpen?.(message.user_id)}
+            className="text-sm font-semibold text-foreground hover:underline"
+          >
             {message.display_name || message.username}
-          </span>
+          </button>
           {message.is_bot && (
             <span
               className={cn(

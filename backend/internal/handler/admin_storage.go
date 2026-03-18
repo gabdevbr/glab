@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/geovendas/glab/backend/internal/repository"
-	"github.com/geovendas/glab/backend/internal/storage"
+	"github.com/gabdevbr/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/storage"
 )
 
 // StorageMigrator is implemented by the storage migration engine (Phase 5).

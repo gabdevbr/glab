@@ -5,8 +5,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/geovendas/glab/backend/internal/ai"
-	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/ai"
+	"github.com/gabdevbr/glab/backend/internal/repository"
 )
 
 // AIAdminHandler handles /api/v1/admin/ai/* endpoints.

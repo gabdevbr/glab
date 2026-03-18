@@ -22,16 +22,16 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/geovendas/glab/backend/internal/ai"
-	"github.com/geovendas/glab/backend/internal/auth"
-	"github.com/geovendas/glab/backend/internal/config"
-	"github.com/geovendas/glab/backend/internal/db"
-	"github.com/geovendas/glab/backend/internal/handler"
-	"github.com/geovendas/glab/backend/internal/migration"
-	"github.com/geovendas/glab/backend/internal/repository"
-	"github.com/geovendas/glab/backend/internal/retention"
-	"github.com/geovendas/glab/backend/internal/storage"
-	"github.com/geovendas/glab/backend/internal/ws"
+	"github.com/gabdevbr/glab/backend/internal/ai"
+	"github.com/gabdevbr/glab/backend/internal/auth"
+	"github.com/gabdevbr/glab/backend/internal/config"
+	"github.com/gabdevbr/glab/backend/internal/db"
+	"github.com/gabdevbr/glab/backend/internal/handler"
+	"github.com/gabdevbr/glab/backend/internal/migration"
+	"github.com/gabdevbr/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/retention"
+	"github.com/gabdevbr/glab/backend/internal/storage"
+	"github.com/gabdevbr/glab/backend/internal/ws"
 )
 
 func main() {
@@ -364,7 +364,7 @@ func seedAdminUser(ctx context.Context, queries *repository.Queries) {
 		return
 	}
 
-	slog.Info("admin user seeded", "username", "admin", "password", "admin123")
+	slog.Info("admin user seeded", "username", "admin")
 }
 
 // seedAgents is a no-op. Agents are created and managed via the admin panel.

@@ -7,8 +7,8 @@ RUN npm ci
 
 COPY . .
 
-ARG NEXT_PUBLIC_API_URL=https://glab.geovendas.local
-ARG NEXT_PUBLIC_WS_URL=wss://glab.geovendas.local
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:8080
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 

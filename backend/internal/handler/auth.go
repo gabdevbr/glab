@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/geovendas/glab/backend/internal/auth"
-	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/auth"
+	"github.com/gabdevbr/glab/backend/internal/repository"
 )
 
 // AuthHandler handles authentication endpoints.

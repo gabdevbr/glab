@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geovendas/glab/migrate/internal/rocketchat"
+	"github.com/gabdevbr/glab/migrate/internal/rocketchat"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )

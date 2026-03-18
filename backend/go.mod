@@ -1,4 +1,4 @@
-module github.com/geovendas/glab/backend
+module github.com/gabdevbr/glab/backend
 
 go 1.25.7
 

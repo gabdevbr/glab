@@ -436,7 +436,7 @@ migrate/                    RocketChat migration CLI (separate Go module)
 
 ## Security
 
-If you discover a security vulnerability, please report it privately via email to **gabriel@geovendas.com**. Do not open a public issue.
+If you discover a security vulnerability, please report it by [opening a private security advisory](https://github.com/gabdevbr/glab/security/advisories/new) on GitHub. Do not open a public issue.
 
 <br/>
 
@@ -465,13 +465,6 @@ You are free to use, modify, and distribute this software. If you run a modified
 ---
 
 <br/>
-
-<p align="center">
-  <sub>Developed at</sub><br/><br/>
-  <a href="https://geovendas.com">
-    <img src="https://geovendas.com/wp-content/uploads/2025/02/logo_geovendas.svg" alt="Geovendas" height="40" />
-  </a>
-</p>
 
 <p align="center">
   <sub>

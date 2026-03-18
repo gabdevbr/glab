@@ -5,8 +5,8 @@ import fs from 'fs';
 const authFile = path.join(__dirname, '.auth/user.json');
 
 setup('authenticate', async ({ page, baseURL }) => {
-  const email = process.env.E2E_USER || 'gabriel@ibtech.inf.br';
-  const password = process.env.E2E_PASS || 'glab-migrated-2026';
+  const email = process.env.E2E_USER || 'admin@glab.local';
+  const password = process.env.E2E_PASS || 'admin123';
 
   await page.goto('/login');
   await page.getByRole('textbox', { name: 'Username or Email' }).fill(email);

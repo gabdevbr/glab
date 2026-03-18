@@ -1,4 +1,4 @@
-module github.com/geovendas/glab/migrate
+module github.com/gabdevbr/glab/migrate
 
 go 1.25.7
 
