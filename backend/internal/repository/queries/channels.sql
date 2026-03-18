@@ -13,6 +13,14 @@ WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
     OR c.last_message_at >= NOW() - INTERVAL '1 day' * $2::int
     OR c.last_message_at IS NULL
   )
+  -- Exclude orphan DMs (where the other participant is missing)
+  AND (
+    c.type <> 'dm'
+    OR EXISTS (
+      SELECT 1 FROM channel_members cm2
+      WHERE cm2.channel_id = c.id AND cm2.user_id <> $1
+    )
+  )
 ORDER BY c.name;
 
 -- name: ListPublicChannels :many
