@@ -30,6 +30,8 @@ rsync -avz --delete \
     --exclude='migrate/vendor' \
     --exclude='.env' \
     --exclude='.playwright-mcp' \
+    --exclude='data' \
+    --exclude='uploads' \
     ./ "$REMOTE:$DEPLOY_DIR/"
 
 # Install nginx if not present
