@@ -1,5 +1,6 @@
 # Environment
 .env
+.deploy.env
 
 # Go
 backend/tmp/

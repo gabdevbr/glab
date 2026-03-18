@@ -2,6 +2,11 @@
 # Deploy Glab to a remote server
 set -euo pipefail
 
+# Load local deploy config if present (git-ignored)
+if [ -f .deploy.env ]; then
+    set -a; source .deploy.env; set +a
+fi
+
 DEPLOY_HOST="${DEPLOY_HOST:-your-server.example.com}"
 DEPLOY_USER="${DEPLOY_USER:-ubuntu}"
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
