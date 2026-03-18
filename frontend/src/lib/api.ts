@@ -80,8 +80,33 @@ class ApiClient {
   }
 
   // User preferences
-  updatePreferences(prefs: { auto_hide_days?: number }) {
+  updatePreferences(prefs: { auto_hide_days?: number; channel_sort?: string }) {
     return this.patch('/api/v1/users/me/preferences', prefs);
+  }
+
+  // Sidebar sections
+  listSections<T>() {
+    return this.get<T>('/api/v1/sections');
+  }
+
+  createSection(name: string) {
+    return this.post<{ id: string; name: string; position: number; channel_ids: string[] }>('/api/v1/sections', { name });
+  }
+
+  updateSection(id: string, name: string) {
+    return this.patch('/api/v1/sections/' + id, { name });
+  }
+
+  deleteSection(id: string) {
+    return this.delete('/api/v1/sections/' + id);
+  }
+
+  reorderSections(sectionIds: string[]) {
+    return this.put('/api/v1/sections/reorder', { section_ids: sectionIds });
+  }
+
+  moveChannelToSection(channelId: string, sectionId: string | null) {
+    return this.patch('/api/v1/sections/move-channel', { channel_id: channelId, section_id: sectionId });
   }
 
   // Admin: retention config

@@ -27,8 +27,22 @@ func (q *Queries) AddChannelMember(ctx context.Context, arg AddChannelMemberPara
 	return err
 }
 
+const clearChannelSection = `-- name: ClearChannelSection :exec
+UPDATE channel_members SET section_id = NULL WHERE channel_id = $1 AND user_id = $2
+`
+
+type ClearChannelSectionParams struct {
+	ChannelID pgtype.UUID `json:"channel_id"`
+	UserID    pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) ClearChannelSection(ctx context.Context, arg ClearChannelSectionParams) error {
+	_, err := q.db.Exec(ctx, clearChannelSection, arg.ChannelID, arg.UserID)
+	return err
+}
+
 const getChannelMember = `-- name: GetChannelMember :one
-SELECT channel_id, user_id, role, joined_at, last_read_msg_id, muted, notifications, hidden FROM channel_members WHERE channel_id = $1 AND user_id = $2
+SELECT channel_id, user_id, role, joined_at, last_read_msg_id, muted, notifications, hidden, section_id FROM channel_members WHERE channel_id = $1 AND user_id = $2
 `
 
 type GetChannelMemberParams struct {
@@ -48,6 +62,7 @@ func (q *Queries) GetChannelMember(ctx context.Context, arg GetChannelMemberPara
 		&i.Muted,
 		&i.Notifications,
 		&i.Hidden,
+		&i.SectionID,
 	)
 	return i, err
 }
@@ -90,6 +105,36 @@ func (q *Queries) GetChannelMembers(ctx context.Context, channelID pgtype.UUID) 
 			&i.Role,
 			&i.JoinedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChannelSectionsForUser = `-- name: GetChannelSectionsForUser :many
+SELECT cm.channel_id, cm.section_id FROM channel_members cm
+WHERE cm.user_id = $1 AND cm.hidden = FALSE AND cm.section_id IS NOT NULL
+`
+
+type GetChannelSectionsForUserRow struct {
+	ChannelID pgtype.UUID `json:"channel_id"`
+	SectionID pgtype.UUID `json:"section_id"`
+}
+
+func (q *Queries) GetChannelSectionsForUser(ctx context.Context, userID pgtype.UUID) ([]GetChannelSectionsForUserRow, error) {
+	rows, err := q.db.Query(ctx, getChannelSectionsForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetChannelSectionsForUserRow{}
+	for rows.Next() {
+		var i GetChannelSectionsForUserRow
+		if err := rows.Scan(&i.ChannelID, &i.SectionID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -161,6 +206,21 @@ type SetChannelHiddenParams struct {
 
 func (q *Queries) SetChannelHidden(ctx context.Context, arg SetChannelHiddenParams) error {
 	_, err := q.db.Exec(ctx, setChannelHidden, arg.ChannelID, arg.UserID, arg.Hidden)
+	return err
+}
+
+const setChannelSection = `-- name: SetChannelSection :exec
+UPDATE channel_members SET section_id = $3 WHERE channel_id = $1 AND user_id = $2
+`
+
+type SetChannelSectionParams struct {
+	ChannelID pgtype.UUID `json:"channel_id"`
+	UserID    pgtype.UUID `json:"user_id"`
+	SectionID pgtype.UUID `json:"section_id"`
+}
+
+func (q *Queries) SetChannelSection(ctx context.Context, arg SetChannelSectionParams) error {
+	_, err := q.db.Exec(ctx, setChannelSection, arg.ChannelID, arg.UserID, arg.SectionID)
 	return err
 }
 

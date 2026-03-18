@@ -239,6 +239,14 @@ func channelToResponse(c repository.Channel) ChannelResponse {
 	return resp
 }
 
+// SectionResponse is the JSON representation of a sidebar section.
+type SectionResponse struct {
+	ID         string   `json:"id"`
+	Name       string   `json:"name"`
+	Position   int32    `json:"position"`
+	ChannelIDs []string `json:"channel_ids"`
+}
+
 // MessageResponse is the JSON representation of a message with user info.
 type MessageResponse struct {
 	ID          string        `json:"id"`

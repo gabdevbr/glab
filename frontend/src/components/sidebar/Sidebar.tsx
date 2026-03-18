@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { useSectionStore } from '@/stores/sectionStore';
+import { useChannelStore } from '@/stores/channelStore';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ChannelList } from './ChannelList';
@@ -10,11 +12,35 @@ import { AgentList } from './AgentList';
 import { CreateChannelDialog } from './CreateChannelDialog';
 import { NewDMDialog } from './NewDMDialog';
 import { ProfileModal } from './ProfileModal';
-import { useChannelStore } from '@/stores/channelStore';
-import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboard, Users, Hash, MessageCircle, ArrowLeftRight, Key, Bug, Bell } from 'lucide-react';
+import { SidebarSection } from './SidebarSection';
+import { SectionChannelList } from './SectionChannelList';
+import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboard, Users, Hash, MessageCircle, ArrowLeftRight, Key, Bug, Bell, Plus, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from '@/components/ui/context-menu';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
 
@@ -77,6 +103,66 @@ function UnreadSection() {
   );
 }
 
+// Sortable wrapper for user-defined sections
+function SortableSectionItem({
+  section,
+  collapsed,
+  onToggle,
+  onRename,
+  onDelete,
+}: {
+  section: { id: string; name: string; channel_ids: string[] };
+  collapsed: boolean;
+  onToggle: () => void;
+  onRename: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: section.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <ContextMenu>
+        <ContextMenuTrigger>
+          <SidebarSection
+            id={section.id}
+            name={section.name}
+            collapsed={collapsed}
+            onToggle={onToggle}
+            dragHandleProps={listeners}
+            isDragging={isDragging}
+          >
+            <SectionChannelList
+              channelIds={section.channel_ids}
+              sectionId={section.id}
+            />
+          </SidebarSection>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onClick={() => onRename(section.id)}>
+            <Pencil className="mr-2 h-4 w-4" /> Rename section
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem variant="destructive" onClick={() => onDelete(section.id)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete section
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    </div>
+  );
+}
+
 interface SidebarProps {
   onOpenSearch?: () => void;
 }
@@ -87,10 +173,62 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
   const logout = useAuthStore((s) => s.logout);
   const [profileOpen, setProfileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [creatingSection, setCreatingSection] = useState(false);
+  const [newSectionName, setNewSectionName] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const sections = useSectionStore((s) => s.sections);
+  const createSection = useSectionStore((s) => s.createSection);
+  const renameSection = useSectionStore((s) => s.renameSection);
+  const deleteSection = useSectionStore((s) => s.deleteSection);
+  const reorderSections = useSectionStore((s) => s.reorderSections);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
 
   function handleLogout() {
     logout();
     router.push('/login');
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = sections.findIndex((s) => s.id === active.id);
+    const newIndex = sections.findIndex((s) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(sections, oldIndex, newIndex);
+    reorderSections(reordered.map((s) => s.id));
+  }
+
+  const handleCreateSection = useCallback(async () => {
+    const name = newSectionName.trim();
+    if (!name) return;
+    await createSection(name);
+    setNewSectionName('');
+    setCreatingSection(false);
+  }, [newSectionName, createSection]);
+
+  function handleStartRename(id: string) {
+    const sec = sections.find((s) => s.id === id);
+    if (sec) {
+      setRenamingId(id);
+      setRenameValue(sec.name);
+    }
+  }
+
+  async function handleFinishRename() {
+    if (renamingId && renameValue.trim()) {
+      await renameSection(renamingId, renameValue.trim());
+    }
+    setRenamingId(null);
+    setRenameValue('');
   }
 
   return (
@@ -119,7 +257,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
         </div>
       )}
 
-      {/* Search — opens Quick Switcher */}
+      {/* Search */}
       <div className="px-3 pb-3">
         <button
           onClick={onOpenSearch}
@@ -138,7 +276,82 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
         {/* Unreads section */}
         <UnreadSection />
 
-        {/* Channels section */}
+        {/* User-defined sections with drag-and-drop */}
+        {sections.length > 0 && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sections.map((s) => s.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {sections.map((section) => {
+                if (renamingId === section.id) {
+                  return (
+                    <div key={section.id} className="px-3 py-1">
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={handleFinishRename}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleFinishRename();
+                          if (e.key === 'Escape') { setRenamingId(null); setRenameValue(''); }
+                        }}
+                        className="w-full rounded border border-chat-input-border bg-chat-input-bg px-2 py-1 text-xs text-foreground outline-none focus:border-chat-input-focus"
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <SortableSectionItem
+                    key={section.id}
+                    section={section}
+                    collapsed={!!collapsed[`section-${section.id}`]}
+                    onToggle={() =>
+                      setCollapsed((s) => ({
+                        ...s,
+                        [`section-${section.id}`]: !s[`section-${section.id}`],
+                      }))
+                    }
+                    onRename={handleStartRename}
+                    onDelete={deleteSection}
+                  />
+                );
+              })}
+            </SortableContext>
+          </DndContext>
+        )}
+
+        {/* Create section inline input */}
+        {creatingSection ? (
+          <div className="px-3 py-1">
+            <input
+              autoFocus
+              placeholder="Section name..."
+              value={newSectionName}
+              onChange={(e) => setNewSectionName(e.target.value)}
+              onBlur={() => { if (!newSectionName.trim()) setCreatingSection(false); else handleCreateSection(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateSection();
+                if (e.key === 'Escape') { setCreatingSection(false); setNewSectionName(''); }
+              }}
+              className="w-full rounded border border-chat-input-border bg-chat-input-bg px-2 py-1 text-xs text-foreground outline-none focus:border-chat-input-focus"
+            />
+          </div>
+        ) : (
+          <button
+            onClick={() => setCreatingSection(true)}
+            className="mb-2 flex w-full items-center gap-1 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Plus className="size-3" />
+            <span>Create section</span>
+          </button>
+        )}
+
+        {/* Default Channels section (unassigned non-DM) */}
         <button
           onClick={() => setCollapsed((s) => ({ ...s, channels: !s.channels }))}
           className="mb-1 flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors"
@@ -163,7 +376,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
           </>
         )}
 
-        {/* DMs section */}
+        {/* Default DMs section (unassigned DMs) */}
         <button
           onClick={() => setCollapsed((s) => ({ ...s, dms: !s.dms }))}
           className="mt-5 mb-1 flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors"

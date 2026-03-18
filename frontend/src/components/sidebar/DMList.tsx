@@ -2,8 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useChannelStore } from '@/stores/channelStore';
+import { useAuthStore } from '@/stores/authStore';
 import { usePresenceStore } from '@/stores/presenceStore';
+import { useSectionStore } from '@/stores/sectionStore';
 import { cn } from '@/lib/utils';
+import { sortChannels } from './ChannelList';
 
 function PresenceDot({ status }: { status: string }) {
   const color =
@@ -27,16 +30,18 @@ export function DMList() {
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
   const unreadCounts = useChannelStore((s) => s.unreadCounts);
   const statuses = usePresenceStore((s) => s.statuses);
+  const user = useAuthStore((s) => s.user);
+  const sections = useSectionStore((s) => s.sections);
 
-  const dmChannels = channels
-    .filter((c) => c.type === 'dm')
-    .sort((a, b) => {
-      const ua = unreadCounts[a.id] || 0;
-      const ub = unreadCounts[b.id] || 0;
-      if (ua > 0 && ub === 0) return -1;
-      if (ub > 0 && ua === 0) return 1;
-      return a.name.localeCompare(b.name);
-    });
+  const sortMode = user?.channel_sort || 'activity';
+
+  // Exclude DMs assigned to custom sections
+  const assignedIds = new Set(sections.flatMap((s) => s.channel_ids));
+  const dmChannels = sortChannels(
+    channels.filter((c) => c.type === 'dm' && !assignedIds.has(c.id)),
+    sortMode,
+    unreadCounts,
+  );
 
   function handleClick(id: string) {
     setActiveChannel(id);

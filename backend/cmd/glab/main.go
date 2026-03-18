@@ -128,6 +128,7 @@ func main() {
 	searchHandler := handler.NewSearchHandler(queries)
 	apiTokenHandler := handler.NewAPITokenHandler(queries, hub)
 	emojiHandler := handler.NewEmojiHandler(queries, storageSvc)
+	sectionHandler := handler.NewSectionHandler(queries)
 	presenceService := ws.NewPresenceService(rdb, hub)
 	wsHandler := ws.NewMessageHandler(hub, queries, presenceService, cfg.JWTSecret)
 
@@ -221,6 +222,14 @@ func main() {
 
 		// File upload (serving is public — see above)
 		r.Post("/api/v1/channels/{id}/upload", fileHandler.Upload)
+
+		// Sidebar sections
+		r.Get("/api/v1/sections", sectionHandler.List)
+		r.Post("/api/v1/sections", sectionHandler.Create)
+		r.Patch("/api/v1/sections/{id}", sectionHandler.Update)
+		r.Delete("/api/v1/sections/{id}", sectionHandler.Delete)
+		r.Put("/api/v1/sections/reorder", sectionHandler.Reorder)
+		r.Patch("/api/v1/sections/move-channel", sectionHandler.MoveChannel)
 
 		// Search
 		r.Get("/api/v1/search", searchHandler.Search)

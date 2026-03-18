@@ -8,6 +8,7 @@ export interface User {
   status: 'online' | 'away' | 'offline' | 'dnd';
   is_bot: boolean;
   auto_hide_days: number;
+  channel_sort: 'activity' | 'name' | 'unread';
   created_at: string;
 }
 
@@ -22,6 +23,7 @@ export interface Channel {
   is_archived: boolean;
   read_only: boolean;
   retention_days?: number;
+  last_message_at?: string;
   created_at: string;
   member_count?: number;
 }
@@ -163,6 +165,14 @@ export interface MigrationRoomState {
   latest_export?: string;
   job_id?: string;
   updated_at: string;
+}
+
+// Sidebar section types
+export interface SidebarSection {
+  id: string;
+  name: string;
+  position: number;
+  channel_ids: string[];
 }
 
 // Storage config types

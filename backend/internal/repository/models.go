@@ -106,6 +106,7 @@ type ChannelMember struct {
 	Muted         bool               `json:"muted"`
 	Notifications string             `json:"notifications"`
 	Hidden        bool               `json:"hidden"`
+	SectionID     pgtype.UUID        `json:"section_id"`
 }
 
 type CustomEmoji struct {
@@ -207,6 +208,14 @@ type Reaction struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type SidebarSection struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Name      string             `json:"name"`
+	Position  int32              `json:"position"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type ThreadSummary struct {
 	MessageID      pgtype.UUID        `json:"message_id"`
 	ReplyCount     int32              `json:"reply_count"`
@@ -230,4 +239,5 @@ type User struct {
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 	IsDeactivated bool               `json:"is_deactivated"`
 	AutoHideDays  int32              `json:"auto_hide_days"`
+	ChannelSort   string             `json:"channel_sort"`
 }

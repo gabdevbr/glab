@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useChannelStore } from '@/stores/channelStore';
+import { useSectionStore } from '@/stores/sectionStore';
 import { usePresenceStore } from '@/stores/presenceStore';
 import { useAIStreamStore } from '@/stores/aiStreamStore';
 import { useAgentStore } from '@/stores/agentStore';
@@ -23,6 +24,7 @@ export default function ChatLayout({
   const router = useRouter();
   const { user, isLoading, loadFromStorage } = useAuthStore();
   const fetchChannels = useChannelStore((s) => s.fetchChannels);
+  const fetchSections = useSectionStore((s) => s.fetchSections);
   const incrementUnread = useChannelStore((s) => s.incrementUnread);
   const activeChannelId = useChannelStore((s) => s.activeChannelId);
   const setStatus = usePresenceStore((s) => s.setStatus);
@@ -57,8 +59,9 @@ export default function ChatLayout({
   useEffect(() => {
     if (user) {
       fetchChannels();
+      fetchSections();
     }
-  }, [user, fetchChannels]);
+  }, [user, fetchChannels, fetchSections]);
 
   // Wire global WS event handlers for presence
   useEffect(() => {
