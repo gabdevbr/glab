@@ -101,14 +101,21 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
     isLoadingOlderRef.current = false;
   }, [messages.length, virtualizer]);
 
-  // Scroll to bottom on initial load
+  // Scroll to bottom when opening a channel or when messages first load
+  const hasScrolledRef = useRef(false);
   useEffect(() => {
-    if (messages.length > 0) {
-      virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
-    }
-    // Only run on channelId change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    hasScrolledRef.current = false;
   }, [channelId]);
+
+  useEffect(() => {
+    if (messages.length > 0 && !hasScrolledRef.current) {
+      hasScrolledRef.current = true;
+      // Wait for virtualizer to measure, then scroll
+      requestAnimationFrame(() => {
+        virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
+      });
+    }
+  }, [messages.length, channelId, virtualizer]);
 
   // Handle scroll events for loading older messages
   const handleScroll = useCallback(() => {

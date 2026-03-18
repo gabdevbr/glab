@@ -28,7 +28,15 @@ export function DMList() {
   const unreadCounts = useChannelStore((s) => s.unreadCounts);
   const statuses = usePresenceStore((s) => s.statuses);
 
-  const dmChannels = channels.filter((c) => c.type === 'dm');
+  const dmChannels = channels
+    .filter((c) => c.type === 'dm')
+    .sort((a, b) => {
+      const ua = unreadCounts[a.id] || 0;
+      const ub = unreadCounts[b.id] || 0;
+      if (ua > 0 && ub === 0) return -1;
+      if (ub > 0 && ua === 0) return 1;
+      return a.name.localeCompare(b.name);
+    });
 
   function handleClick(id: string) {
     setActiveChannel(id);
