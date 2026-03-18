@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
-import { HardDrive, Cloud, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { HardDrive, Cloud, CheckCircle, XCircle, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 
 const MASKED = '••••••••';
 
@@ -31,7 +31,7 @@ function pct(migrated: number, total: number) {
 }
 
 export default function StorageAdminPage() {
-  const { config, migration, isLoading, isSaving, isTesting, fetchConfig, saveConfig, testConnection, fetchMigrationStatus, startMigration, cancelMigration, updateMigrationProgress } = useStorageStore();
+  const { config, migration, isLoading, isSaving, isTesting, isDeleting, fetchConfig, saveConfig, testConnection, fetchMigrationStatus, startMigration, cancelMigration, updateMigrationProgress, deleteAllFiles } = useStorageStore();
 
   const [form, setForm] = useState<StorageConfig>({
     backend: 'local',
@@ -42,6 +42,8 @@ export default function StorageAdminPage() {
   const [testResult, setTestResult] = useState<TestResult>(null);
   const [saveOk, setSaveOk] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<string | null>(null);
 
   useEffect(() => {
     fetchConfig();
@@ -85,6 +87,21 @@ export default function StorageAdminPage() {
       setTimeout(() => setSaveOk(false), 3000);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to save');
+    }
+  };
+
+  const handleDeleteAllFiles = async () => {
+    setError('');
+    setDeleteResult(null);
+    try {
+      const res = await deleteAllFiles();
+      setDeleteResult(`${res.deleted} files deleted`);
+      setConfirmDelete(false);
+      fetchMigrationStatus(); // refresh file counts
+      setTimeout(() => setDeleteResult(null), 5000);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to delete files');
+      setConfirmDelete(false);
     }
   };
 
@@ -256,6 +273,45 @@ export default function StorageAdminPage() {
               {localCount === 0 && s3Count === 0 && (
                 <p className="text-sm text-muted-foreground">No files to migrate.</p>
               )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Danger Zone — Delete All Files */}
+      <Card className="border-red-500/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-500"><Trash2 className="size-4" /> Danger Zone</CardTitle>
+          <CardDescription>Permanently delete all uploaded files from storage and database. Use this before re-importing files from RocketChat.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-6 text-sm">
+            <span>Total files: <strong>{localCount + s3Count}</strong></span>
+          </div>
+
+          {deleteResult && (
+            <p className="flex items-center gap-1.5 text-sm text-green-500"><CheckCircle className="size-4" /> {deleteResult}</p>
+          )}
+
+          {!confirmDelete ? (
+            <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)} disabled={localCount + s3Count === 0}>
+              <Trash2 className="size-3.5 mr-1.5" />
+              Delete All Files
+            </Button>
+          ) : (
+            <div className="flex items-center gap-3 rounded-lg border border-red-500/50 bg-red-500/10 p-3">
+              <AlertTriangle className="size-5 text-red-500 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-500">This will permanently delete {localCount + s3Count} files.</p>
+                <p className="text-xs text-muted-foreground">This action cannot be undone.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                <Button variant="destructive" size="sm" onClick={handleDeleteAllFiles} disabled={isDeleting}>
+                  {isDeleting && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+                  Confirm Delete
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

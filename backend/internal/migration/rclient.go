@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -23,7 +24,7 @@ type RCClient struct {
 // NewRCClient creates a RocketChat API client.
 func NewRCClient(baseURL, authToken, userID string) *RCClient {
 	return &RCClient{
-		baseURL:   baseURL,
+		baseURL:   strings.TrimRight(baseURL, "/"),
 		authToken: authToken,
 		userID:    userID,
 		client: &http.Client{
@@ -367,6 +368,25 @@ func (c *RCClient) GetCustomEmojis(ctx context.Context) ([]RCCustomEmoji, error)
 	return resp.Emojis.Update, nil
 }
 
+// ValidateToken checks that the RC auth token is valid by calling /api/v1/me.
+func (c *RCClient) ValidateToken(ctx context.Context) (string, error) {
+	body, err := c.doGet(ctx, "/api/v1/me", nil)
+	if err != nil {
+		return "", fmt.Errorf("RC token validation failed (likely expired): %w", err)
+	}
+	var resp struct {
+		Username string `json:"username"`
+		Success  bool   `json:"success"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("invalid response from RC /api/v1/me: %w", err)
+	}
+	if !resp.Success {
+		return "", fmt.Errorf("RC token is invalid or expired")
+	}
+	return resp.Username, nil
+}
+
 // EmojiImageURL returns the URL for a custom emoji image.
 func (c *RCClient) EmojiImageURL(name, extension string) string {
 	return fmt.Sprintf("%s/emoji-custom/%s.%s", c.baseURL, name, extension)
@@ -394,6 +414,13 @@ func (c *RCClient) DownloadFile(ctx context.Context, fileURL string) (io.ReadClo
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
 		return nil, fmt.Errorf("download returned %d for %s", resp.StatusCode, fileURL)
+	}
+
+	// Reject HTML responses — RC returns 200 with login page when token expires.
+	ct := resp.Header.Get("Content-Type")
+	if strings.HasPrefix(ct, "text/html") {
+		resp.Body.Close()
+		return nil, fmt.Errorf("received HTML instead of file for %s (token likely expired)", fileURL)
 	}
 
 	return resp.Body, nil

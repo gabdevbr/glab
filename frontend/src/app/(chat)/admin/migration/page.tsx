@@ -75,6 +75,7 @@ export default function MigrationPage() {
   const [autoScroll, setAutoScroll] = useState(true);
   const [tab, setTab] = useState<'logs' | 'rooms'>('logs');
 
+  const logContainerRef = useRef<HTMLDivElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
   // Load saved migration config from localStorage
@@ -148,10 +149,10 @@ export default function MigrationPage() {
     return () => unsubs.forEach((u) => u());
   }, [addLog, updateStatus, updateProgress, fetchRooms]);
 
-  // Auto-scroll logs
+  // Auto-scroll logs — scroll the log container, not the page
   useEffect(() => {
-    if (autoScroll && logEndRef.current) {
-      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (autoScroll && logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [logs.length, autoScroll]);
 
@@ -352,12 +353,12 @@ export default function MigrationPage() {
             {/* Stats */}
             {progress && (
               <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                <span>Users: <span className="text-foreground">{progress.users.toLocaleString()}</span></span>
-                <span>Channels: <span className="text-foreground">{progress.channels.toLocaleString()}</span></span>
-                <span>Messages: <span className="text-foreground">{progress.messages.toLocaleString()}</span></span>
-                <span>Reactions: <span className="text-foreground">{progress.reactions.toLocaleString()}</span></span>
-                <span>Mentions: <span className="text-foreground">{progress.mentions.toLocaleString()}</span></span>
-                {progress.files > 0 && (
+                <span>Users: <span className="text-foreground">{(progress.users ?? 0).toLocaleString()}</span></span>
+                <span>Channels: <span className="text-foreground">{(progress.channels ?? 0).toLocaleString()}</span></span>
+                <span>Messages: <span className="text-foreground">{(progress.messages ?? 0).toLocaleString()}</span></span>
+                <span>Reactions: <span className="text-foreground">{(progress.reactions ?? 0).toLocaleString()}</span></span>
+                <span>Mentions: <span className="text-foreground">{(progress.mentions ?? 0).toLocaleString()}</span></span>
+                {(progress.files ?? 0) > 0 && (
                   <span>Files: <span className="text-foreground">{progress.files.toLocaleString()}</span></span>
                 )}
               </div>
@@ -404,7 +405,7 @@ export default function MigrationPage() {
                 Auto-scroll
               </label>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 font-mono text-xs">
+            <div ref={logContainerRef} className="flex-1 overflow-y-auto p-3 font-mono text-xs">
               {logs.length === 0 ? (
                 <p className="text-muted-foreground">No logs yet. Start a migration to see output.</p>
               ) : (
@@ -427,7 +428,7 @@ export default function MigrationPage() {
                   </div>
                 ))
               )}
-              <div ref={logEndRef} />
+              <div ref={logEndRef} /> {/* scroll anchor — unused, kept for compat */}
             </div>
           </div>
         )}

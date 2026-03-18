@@ -32,6 +32,26 @@ func NewClient(baseURL, authToken, userID string) *Client {
 	}
 }
 
+// ValidateToken checks that the auth token is valid by calling /api/v1/me.
+// Returns the authenticated username, or an error if the token is expired/invalid.
+func (c *Client) ValidateToken() (string, error) {
+	body, err := c.doGet("/api/v1/me", nil)
+	if err != nil {
+		return "", fmt.Errorf("token validation failed (likely expired): %w", err)
+	}
+	var resp struct {
+		Username string `json:"username"`
+		Success  bool   `json:"success"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("invalid response from /api/v1/me: %w", err)
+	}
+	if !resp.Success {
+		return "", fmt.Errorf("RC token is invalid or expired")
+	}
+	return resp.Username, nil
+}
+
 // RCUser represents a RocketChat user.
 type RCUser struct {
 	ID       string `json:"_id"`
@@ -397,9 +417,16 @@ func (c *Client) DownloadFile(fileURL string) (*FileDownload, error) {
 		return nil, fmt.Errorf("download returned %d for %s", resp.StatusCode, fileURL)
 	}
 
+	// Validate content-type: RC returns 200 with HTML login page when token expires.
+	ct := resp.Header.Get("Content-Type")
+	if strings.HasPrefix(ct, "text/html") {
+		resp.Body.Close()
+		return nil, fmt.Errorf("received HTML instead of file for %s (likely expired token)", fileURL)
+	}
+
 	return &FileDownload{
 		Body:        resp.Body,
 		Size:        resp.ContentLength,
-		ContentType: resp.Header.Get("Content-Type"),
+		ContentType: ct,
 	}, nil
 }

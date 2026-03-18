@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/stores/authStore';
 import { useChannelStore } from '@/stores/channelStore';
 import { usePresenceStore } from '@/stores/presenceStore';
 import { cn } from '@/lib/utils';
@@ -20,8 +21,16 @@ function PresenceDot({ status }: { status: string }) {
   );
 }
 
+/** For DM channels, show only the other person's name (not the logged-in user). */
+function dmDisplayName(channelName: string, myDisplayName: string): string {
+  const parts = channelName.split(', ');
+  const others = parts.filter((n) => n !== myDisplayName);
+  return others.length > 0 ? others.join(', ') : channelName;
+}
+
 export function DMList() {
   const router = useRouter();
+  const currentUser = useAuthStore((s) => s.user);
   const channels = useChannelStore((s) => s.channels);
   const activeChannelId = useChannelStore((s) => s.activeChannelId);
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
@@ -64,7 +73,9 @@ export function DMList() {
               )}
             >
               <PresenceDot status={presenceStatus} />
-              <span className="flex-1 truncate text-left">{channel.name}</span>
+              <span className="flex-1 truncate text-left">
+                {dmDisplayName(channel.name, currentUser?.display_name ?? '')}
+              </span>
               {unread > 0 && (
                 <span key={unread} className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text animate-badge-pulse">
                   {unread > 99 ? '99+' : unread}

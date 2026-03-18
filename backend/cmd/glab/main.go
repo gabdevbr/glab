@@ -138,7 +138,7 @@ func main() {
 	// Admin handler
 	adminHandler := handler.NewAdminHandler(queries, presenceService)
 	storageMigrator := storage.NewMigrator(queries, localBackend, swappable, hub)
-	storageAdminHandler := handler.NewStorageAdminHandler(queries, storageCfgSvc, swappable, storageMigrator)
+	storageAdminHandler := handler.NewStorageAdminHandler(queries, storageCfgSvc, storageSvc, swappable, storageMigrator)
 	aiAdminHandler := handler.NewAIAdminHandler(queries, aiCfgSvc)
 
 	// Migration engine
@@ -249,6 +249,7 @@ func main() {
 		r.Post("/api/v1/admin/storage/migrate", storageAdminHandler.StartMigration)
 		r.Get("/api/v1/admin/storage/migrate/status", storageAdminHandler.MigrationStatus)
 		r.Post("/api/v1/admin/storage/migrate/cancel", storageAdminHandler.CancelMigration)
+		r.Delete("/api/v1/admin/storage/files", storageAdminHandler.DeleteAllFiles)
 
 		// Admin — AI gateway config
 		r.Get("/api/v1/admin/ai/config", aiAdminHandler.GetConfig)

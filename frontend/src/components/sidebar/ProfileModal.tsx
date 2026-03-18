@@ -17,7 +17,7 @@ import {
 import { Camera, ChevronDown, ChevronRight, LogOut, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
 
 function getAvatarSrc(url: string | undefined): string | undefined {
   if (!url) return undefined;

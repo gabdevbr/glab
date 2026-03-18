@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/geovendas/glab/backend/internal/repository"
@@ -17,24 +18,27 @@ type StorageMigrator interface {
 
 // StorageAdminHandler handles /api/v1/admin/storage/* endpoints.
 type StorageAdminHandler struct {
-	queries   *repository.Queries
-	cfgSvc    *storage.StorageConfigService
-	swappable *storage.SwappableBackend
-	migrator  StorageMigrator
+	queries    *repository.Queries
+	cfgSvc     *storage.StorageConfigService
+	storageSvc *storage.StorageService
+	swappable  *storage.SwappableBackend
+	migrator   StorageMigrator
 }
 
 // NewStorageAdminHandler creates a StorageAdminHandler.
 func NewStorageAdminHandler(
 	q *repository.Queries,
 	cfgSvc *storage.StorageConfigService,
+	storageSvc *storage.StorageService,
 	swappable *storage.SwappableBackend,
 	migrator StorageMigrator,
 ) *StorageAdminHandler {
 	return &StorageAdminHandler{
-		queries:   q,
-		cfgSvc:    cfgSvc,
-		swappable: swappable,
-		migrator:  migrator,
+		queries:    q,
+		cfgSvc:     cfgSvc,
+		storageSvc: storageSvc,
+		swappable:  swappable,
+		migrator:   migrator,
 	}
 }
 
@@ -198,4 +202,44 @@ func (h *StorageAdminHandler) CancelMigration(w http.ResponseWriter, r *http.Req
 		h.migrator.Cancel()
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
+}
+
+// DeleteAllFiles handles DELETE /api/v1/admin/storage/files.
+// Removes all file records from DB and deletes the underlying blobs.
+func (h *StorageAdminHandler) DeleteAllFiles(w http.ResponseWriter, r *http.Request) {
+	if requireAdmin(w, r) == nil {
+		return
+	}
+
+	// List all file paths before deleting records.
+	files, err := h.queries.ListAllFileStoragePaths(r.Context())
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to list files")
+		return
+	}
+
+	// Delete blobs from storage (best-effort, log errors).
+	deleted := 0
+	for _, f := range files {
+		if f.StoragePath != "" {
+			if err := h.storageSvc.Delete(r.Context(), f.StoragePath, f.StorageBackend); err != nil {
+				log.Printf("[admin] failed to delete blob %s: %v", f.StoragePath, err)
+			}
+		}
+		if f.ThumbnailPath.Valid && f.ThumbnailPath.String != "" {
+			_ = h.storageSvc.Delete(r.Context(), f.ThumbnailPath.String, f.StorageBackend)
+		}
+		deleted++
+	}
+
+	// Delete all records from DB.
+	if err := h.queries.DeleteAllFiles(r.Context()); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to delete file records")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status":  "ok",
+		"deleted": deleted,
+	})
 }

@@ -8,6 +8,7 @@ interface StorageState {
   isLoading: boolean;
   isSaving: boolean;
   isTesting: boolean;
+  isDeleting: boolean;
 
   fetchConfig: () => Promise<void>;
   saveConfig: (cfg: StorageConfig) => Promise<void>;
@@ -16,6 +17,7 @@ interface StorageState {
   startMigration: (source: string, dest: string) => Promise<void>;
   cancelMigration: () => Promise<void>;
   updateMigrationProgress: (progress: StorageMigrationProgress) => void;
+  deleteAllFiles: () => Promise<{ deleted: number }>;
 }
 
 export const useStorageStore = create<StorageState>((set) => ({
@@ -24,6 +26,7 @@ export const useStorageStore = create<StorageState>((set) => ({
   isLoading: false,
   isSaving: false,
   isTesting: false,
+  isDeleting: false,
 
   fetchConfig: async () => {
     set({ isLoading: true });
@@ -74,5 +77,15 @@ export const useStorageStore = create<StorageState>((set) => ({
 
   updateMigrationProgress: (progress) => {
     set({ migration: progress });
+  },
+
+  deleteAllFiles: async () => {
+    set({ isDeleting: true });
+    try {
+      const res = await api.delete<{ deleted: number }>('/api/v1/admin/storage/files');
+      return res;
+    } finally {
+      set({ isDeleting: false });
+    }
   },
 }));

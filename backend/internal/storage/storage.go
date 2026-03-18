@@ -168,7 +168,7 @@ func (s *StorageService) ServeFile(w http.ResponseWriter, r *http.Request, key, 
 	w.Header().Set("Content-Type", mimeType)
 	w.Header().Set("Content-Disposition", "inline; filename=\""+originalName+"\"")
 
-	if backendType == "local" && s.local != nil {
+	if (backendType == "local" || backendType == "") && s.local != nil {
 		http.ServeFile(w, r, s.local.FullPath(key))
 		return
 	}
@@ -186,7 +186,7 @@ func (s *StorageService) ServeFile(w http.ResponseWriter, r *http.Request, key, 
 func (s *StorageService) ServeThumbnail(w http.ResponseWriter, r *http.Request, key, backendType string) {
 	w.Header().Set("Content-Type", "image/jpeg")
 
-	if backendType == "local" && s.local != nil {
+	if (backendType == "local" || backendType == "") && s.local != nil {
 		http.ServeFile(w, r, s.local.FullPath(key))
 		return
 	}
@@ -198,6 +198,14 @@ func (s *StorageService) ServeThumbnail(w http.ResponseWriter, r *http.Request, 
 	}
 	defer rc.Close()
 	io.Copy(w, rc) //nolint:errcheck
+}
+
+// Delete removes a blob from the appropriate backend.
+func (s *StorageService) Delete(ctx context.Context, key, backendType string) error {
+	if (backendType == "local" || backendType == "") && s.local != nil {
+		return s.local.Delete(ctx, key)
+	}
+	return s.backend.Delete(ctx, key)
 }
 
 // Backend returns the underlying swappable backend.

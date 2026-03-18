@@ -89,6 +89,15 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 	return i, err
 }
 
+const deleteAllFiles = `-- name: DeleteAllFiles :exec
+DELETE FROM files
+`
+
+func (q *Queries) DeleteAllFiles(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteAllFiles)
+	return err
+}
+
 const getFileByID = `-- name: GetFileByID :one
 SELECT id, message_id, user_id, channel_id, filename, original_name, mime_type, size_bytes, storage_path, thumbnail_path, created_at, storage_backend FROM files WHERE id = $1
 `
@@ -111,6 +120,42 @@ func (q *Queries) GetFileByID(ctx context.Context, id pgtype.UUID) (File, error)
 		&i.StorageBackend,
 	)
 	return i, err
+}
+
+const listAllFileStoragePaths = `-- name: ListAllFileStoragePaths :many
+SELECT id, storage_path, thumbnail_path, storage_backend FROM files
+`
+
+type ListAllFileStoragePathsRow struct {
+	ID             pgtype.UUID `json:"id"`
+	StoragePath    string      `json:"storage_path"`
+	ThumbnailPath  pgtype.Text `json:"thumbnail_path"`
+	StorageBackend string      `json:"storage_backend"`
+}
+
+func (q *Queries) ListAllFileStoragePaths(ctx context.Context) ([]ListAllFileStoragePathsRow, error) {
+	rows, err := q.db.Query(ctx, listAllFileStoragePaths)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllFileStoragePathsRow{}
+	for rows.Next() {
+		var i ListAllFileStoragePathsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.StoragePath,
+			&i.ThumbnailPath,
+			&i.StorageBackend,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFilesByChannel = `-- name: ListFilesByChannel :many

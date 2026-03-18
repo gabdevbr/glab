@@ -17,6 +17,29 @@ interface MessageListProps {
 const COMPACT_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const EMPTY_MESSAGES: Message[] = [];
 
+function formatDateSeparator(date: Date): string {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+
+  return date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+function isNewDay(curr: Message, prev: Message | undefined): boolean {
+  if (!prev) return true;
+  const currDate = new Date(curr.created_at).toDateString();
+  const prevDate = new Date(prev.created_at).toDateString();
+  return currDate !== prevDate;
+}
+
 export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
   const messages = useMessageStore((s) => s.messages[channelId] ?? EMPTY_MESSAGES);
   const newMessageIds = useMessageStore((s) => s.newMessageIds);
@@ -44,7 +67,11 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
   const virtualizer = useVirtualizer({
     count: messages.length,
     getScrollElement,
-    estimateSize: (index) => (isCompact(index) ? 28 : 52),
+    estimateSize: (index) => {
+      const base = isCompact(index) ? 28 : 52;
+      const dateSep = isNewDay(messages[index], messages[index - 1]) ? 32 : 0;
+      return base + dateSep;
+    },
     overscan: 20,
   });
 
@@ -140,6 +167,15 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
               transform: `translateY(${virtualItem.start}px)`,
             }}
           >
+            {isNewDay(messages[virtualItem.index], messages[virtualItem.index - 1]) && (
+              <div className="flex items-center gap-3 px-5 py-2">
+                <div className="h-px flex-1 bg-border" />
+                <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                  {formatDateSeparator(new Date(messages[virtualItem.index].created_at))}
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+            )}
             <MessageItem
               message={messages[virtualItem.index]}
               isCompact={isCompact(virtualItem.index)}

@@ -15,7 +15,7 @@ import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { BugReportDialog } from './BugReportDialog';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
 
 interface SidebarProps {
   onOpenSearch?: () => void;

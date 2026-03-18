@@ -14,4 +14,4 @@ FROM (
 ) sub
 WHERE c.id = sub.channel_id
   AND c.type = 'dm'
-  AND c.name !~ '[a-zA-Z ].*[a-zA-Z ]';
+  AND c.name IS DISTINCT FROM sub.dm_name;

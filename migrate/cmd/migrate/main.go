@@ -75,6 +75,14 @@ func main() {
 
 	if !*loadOnly {
 		rc := rocketchat.NewClient(*rcURL, *rcToken, *rcUserID)
+
+		// Validate RC token before doing anything.
+		username, err := rc.ValidateToken()
+		if err != nil {
+			log.Fatalf("RC token validation failed: %v\nGet a fresh token from RC Admin > Your Account > Personal Access Tokens.", err)
+		}
+		log.Printf("Authenticated as RC user: %s", username)
+
 		manifest := loadManifest(*dataDir)
 
 		// Export users (always refresh — users may have been added/modified).

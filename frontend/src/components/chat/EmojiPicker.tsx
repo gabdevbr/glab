@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
 
 const EMOJI_LIST = [
   { emoji: '\uD83D\uDC4D', label: 'thumbs up' },

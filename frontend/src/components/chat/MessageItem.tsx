@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Message } from '@/lib/types';
 import { useAuthStore } from '@/stores/authStore';
+import { useMessageStore } from '@/stores/messageStore';
 import { wsClient } from '@/lib/ws';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -16,7 +17,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { MoreHorizontal, Pin, PinOff, Pencil, Trash2, MessageSquare, SmilePlus } from 'lucide-react';
 import { MentionText } from './MentionText';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
 
 // Custom emoji cache shared across all MessageItem instances
 let customEmojiNames: Set<string> | null = null;
@@ -84,6 +85,39 @@ const MENTION_GROUP_KEYWORDS = new Set(['all', 'here', 'channel']);
  * Renders message content with both @mention pills and custom emoji support.
  * First splits by mentions, then applies emoji rendering to text segments.
  */
+const RC_QUOTE_RE = /\[[\s]*\]\(https?:\/\/chat\.geovendas\.com[^)]*[?&]msg=([a-zA-Z0-9]+)[^)]*\)\s*/g;
+
+// Migration namespace — must match backend/migrate transform.go
+const MIGRATION_NS = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
+
+/** UUID v5 (SHA-1) matching Go's uuid.NewSHA1 */
+async function uuidV5(namespace: string, name: string): Promise<string> {
+  // Parse namespace UUID to bytes
+  const hex = namespace.replace(/-/g, '');
+  const nsBytes = new Uint8Array(16);
+  for (let i = 0; i < 16; i++) nsBytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  // SHA-1(namespace + name)
+  const data = new Uint8Array(nsBytes.length + new TextEncoder().encode(name).length);
+  data.set(nsBytes);
+  data.set(new TextEncoder().encode(name), nsBytes.length);
+  const hash = await crypto.subtle.digest('SHA-1', data);
+  const bytes = new Uint8Array(hash);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50; // version 5
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+  const h = Array.from(bytes.slice(0, 16), b => b.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
+/** Extract RC quote message ID and clean content. */
+function parseRCQuote(content: string): { cleanContent: string; rcMsgId: string | null } {
+  let rcMsgId: string | null = null;
+  const cleanContent = content
+    .replace(RC_QUOTE_RE, (_, id) => { rcMsgId = id; return ''; })
+    .replace(/\(edited\)\s*$/g, '')
+    .trim();
+  return { cleanContent, rcMsgId };
+}
+
 function renderWithMentionsAndEmojis(content: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   const mentionRegex = /(?:^|(?<=\s))@(\w+(?:[.-]\w+)*)/g;
@@ -160,9 +194,25 @@ interface MessageItemProps {
 
 export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemProps) {
   const user = useAuthStore((s) => s.user);
+  const channelMessages = useMessageStore((s) => s.messages[message.channel_id]);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [quotedMessage, setQuotedMessage] = useState<Message | null>(null);
+
+  const { cleanContent, rcMsgId } = useMemo(() => parseRCQuote(message.content), [message.content]);
+
+  // Resolve RC quote to a Glab message
+  useEffect(() => {
+    if (!rcMsgId) return;
+    let cancelled = false;
+    uuidV5(MIGRATION_NS, `msg:${rcMsgId}`).then((glabId) => {
+      if (cancelled) return;
+      const found = channelMessages?.find((m) => m.id === glabId);
+      if (found) setQuotedMessage(found);
+    });
+    return () => { cancelled = true; };
+  }, [rcMsgId, channelMessages]);
 
   const [, setEmojiReady] = useState(false);
 
@@ -282,6 +332,13 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
                   src={`${API_URL}/api/v1/files/${message.file.id}/thumbnail`}
                   alt={message.file.original_name}
                   className="max-w-xs rounded-lg border border-border"
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    if (!img.dataset.fallbackAttempted) {
+                      img.dataset.fallbackAttempted = 'true';
+                      img.style.display = 'none';
+                    }
+                  }}
                 />
               </a>
             ) : (
@@ -320,12 +377,20 @@ export function MessageItem({ message, isCompact, onThreadOpen }: MessageItemPro
     }
 
     return (
-      <p className="whitespace-pre-wrap break-words text-sm text-foreground">
-        {renderWithMentionsAndEmojis(message.content)}
-        {message.edited_at && (
-          <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>
+      <>
+        {quotedMessage && (
+          <div className="mb-1 border-l-2 border-accent-primary/50 pl-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground/70">{quotedMessage.display_name}</span>
+            <p className="truncate">{quotedMessage.content.slice(0, 120)}</p>
+          </div>
         )}
-      </p>
+        <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+          {renderWithMentionsAndEmojis(cleanContent)}
+          {message.edited_at && (
+            <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>
+          )}
+        </p>
+      </>
     );
   };
 

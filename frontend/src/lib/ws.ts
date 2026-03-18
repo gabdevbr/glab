@@ -12,7 +12,7 @@ class WSClient {
   connect(token: string) {
     this.token = token;
     this.intentionalClose = false;
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080';
+    const wsUrl = (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080').replace(/\/+$/, '');
     this.ws = new WebSocket(`${wsUrl}/ws?token=${token}`);
 
     this.ws.onopen = () => {

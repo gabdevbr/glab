@@ -513,6 +513,20 @@ func (e *Engine) runFileMigration(ctx context.Context, cfg Config, jobID pgtype.
 	}()
 
 	rc := NewRCClient(cfg.RCURL, cfg.RCToken, cfg.RCUserID)
+
+	// Validate token before starting any work.
+	username, err := rc.ValidateToken(ctx)
+	if err != nil {
+		e.emitLog(jobID, "error", "validate_token", fmt.Sprintf("RC token validation failed: %v", err), nil)
+		_ = e.queries.UpdateMigrationJobStatus(ctx, repository.UpdateMigrationJobStatusParams{
+			ID:     jobID,
+			Status: "failed",
+			Error:  "RC token invalid or expired — get a fresh token from RC admin panel",
+		})
+		return
+	}
+	e.emitLog(jobID, "info", "validate_token", fmt.Sprintf("Authenticated as RC user: %s", username), nil)
+
 	progress := &Progress{}
 
 	setPhase := func(phase string) {

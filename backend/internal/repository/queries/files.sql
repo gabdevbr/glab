@@ -25,3 +25,9 @@ UPDATE files SET storage_backend = $2 WHERE id = $1;
 
 -- name: CountFilesByBackend :many
 SELECT storage_backend, COUNT(*) AS count FROM files GROUP BY storage_backend;
+
+-- name: ListAllFileStoragePaths :many
+SELECT id, storage_path, thumbnail_path, storage_backend FROM files;
+
+-- name: DeleteAllFiles :exec
+DELETE FROM files;
