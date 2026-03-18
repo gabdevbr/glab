@@ -43,11 +43,11 @@ UPDATE channel_members SET section_id = NULL WHERE channel_id = $1 AND user_id =
 UPDATE channel_members cm
 SET last_read_msg_id = sub.last_msg_id
 FROM (
-  SELECT m.channel_id, MAX(m.id) AS last_msg_id
+  SELECT DISTINCT ON (m.channel_id) m.channel_id, m.id AS last_msg_id
   FROM messages m
   JOIN channel_members cm2 ON cm2.channel_id = m.channel_id AND cm2.user_id = $1
   WHERE cm2.hidden = FALSE
-  GROUP BY m.channel_id
+  ORDER BY m.channel_id, m.created_at DESC
 ) sub
 WHERE cm.channel_id = sub.channel_id AND cm.user_id = $1;
 
