@@ -655,15 +655,16 @@ func (e *Engine) runFileMigration(ctx context.Context, cfg Config, jobID pgtype.
 
 			// Create file record
 			_, err = e.queries.CreateFile(ctx, repository.CreateFileParams{
-				MessageID:     pgMsgID,
-				UserID:        uuidToPgtype(glabUserID),
-				ChannelID:     uuidToPgtype(glabChannelID),
-				Filename:      filepath.Base(storagePath),
-				OriginalName:  msg.File.Name,
-				MimeType:      mimeType,
-				SizeBytes:     msg.File.Size,
-				StoragePath:   storagePath,
-				ThumbnailPath: pgtype.Text{},
+				MessageID:      pgMsgID,
+				UserID:         uuidToPgtype(glabUserID),
+				ChannelID:      uuidToPgtype(glabChannelID),
+				Filename:       filepath.Base(storagePath),
+				OriginalName:   msg.File.Name,
+				MimeType:       mimeType,
+				SizeBytes:      msg.File.Size,
+				StoragePath:    storagePath,
+				ThumbnailPath:  pgtype.Text{},
+				StorageBackend: "local",
 			})
 			if err != nil {
 				e.emitLog(jobID, "warn", "download_files", fmt.Sprintf("Failed to insert file record %s: %v", msg.File.Name, err), nil)
@@ -705,20 +706,22 @@ func saveFileToUploadDir(uploadDir, originalName string, body io.ReadCloser) (st
 
 	ext := filepath.Ext(originalName)
 	filename := uuid.New().String() + ext
-	storagePath := filepath.Join(dir, filename)
+	absPath := filepath.Join(dir, filename)
 
-	f, err := os.Create(storagePath)
+	f, err := os.Create(absPath)
 	if err != nil {
 		return "", fmt.Errorf("creating file: %w", err)
 	}
 	defer f.Close()
 
 	if _, err := io.Copy(f, body); err != nil {
-		os.Remove(storagePath)
+		os.Remove(absPath)
 		return "", fmt.Errorf("writing file: %w", err)
 	}
 
-	return storagePath, nil
+	// Return relative path (YYYY/MM/uuid.ext) — not absolute
+	relPath := filepath.Join(now.Format("2006"), now.Format("01"), filename)
+	return relPath, nil
 }
 
 // uuidToPgtype converts a google/uuid.UUID to pgtype.UUID.
