@@ -204,6 +204,7 @@ func main() {
 		r.Get("/api/v1/channels", channelHandler.List)
 		r.Get("/api/v1/channels/browse", channelHandler.Browse)
 		r.Get("/api/v1/channels/hidden", channelHandler.ListHidden)
+		r.Post("/api/v1/channels/mark-all-read", channelHandler.MarkAllRead)
 		r.Post("/api/v1/channels", channelHandler.Create)
 		r.Get("/api/v1/channels/{id}", channelHandler.GetByID)
 		r.Patch("/api/v1/channels/{id}", channelHandler.Update)

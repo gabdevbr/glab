@@ -14,7 +14,7 @@ import { NewDMDialog } from './NewDMDialog';
 import { ProfileModal } from './ProfileModal';
 import { SidebarSection } from './SidebarSection';
 import { SectionChannelList } from './SectionChannelList';
-import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboard, Users, Hash, MessageCircle, ArrowLeftRight, Key, Bug, Bell, Plus, Pencil, Trash2 } from 'lucide-react';
+import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboard, Users, Hash, MessageCircle, ArrowLeftRight, Key, Bug, Bell, Plus, Pencil, Trash2, CheckCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
@@ -50,6 +50,7 @@ function UnreadSection() {
   const activeChannelId = useChannelStore((s) => s.activeChannelId);
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
   const unreadCounts = useChannelStore((s) => s.unreadCounts);
+  const markAllRead = useChannelStore((s) => s.markAllRead);
 
   const unreadChannels = channels
     .filter((c) => (unreadCounts[c.id] || 0) > 0)
@@ -61,9 +62,19 @@ function UnreadSection() {
     <div className="mb-3">
       <div className="mb-1 flex items-center gap-1 px-3 py-1">
         <Bell className="size-3 text-accent-primary" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-accent-primary">
+        <span className="flex-1 text-xs font-semibold uppercase tracking-wider text-accent-primary">
           Unreads
         </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            markAllRead();
+          }}
+          className="rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-sidebar-hover transition-colors"
+          title="Mark all as read"
+        >
+          <CheckCheck className="size-3.5" />
+        </button>
       </div>
       <ul className="space-y-0.5">
         {unreadChannels.map((channel) => {

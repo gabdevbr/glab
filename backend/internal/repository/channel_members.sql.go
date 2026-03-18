@@ -180,6 +180,24 @@ func (q *Queries) IsChannelMember(ctx context.Context, arg IsChannelMemberParams
 	return exists, err
 }
 
+const markAllRead = `-- name: MarkAllRead :exec
+UPDATE channel_members cm
+SET last_read_msg_id = sub.last_msg_id
+FROM (
+  SELECT m.channel_id, MAX(m.id) AS last_msg_id
+  FROM messages m
+  JOIN channel_members cm2 ON cm2.channel_id = m.channel_id AND cm2.user_id = $1
+  WHERE cm2.hidden = FALSE
+  GROUP BY m.channel_id
+) sub
+WHERE cm.channel_id = sub.channel_id AND cm.user_id = $1
+`
+
+func (q *Queries) MarkAllRead(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markAllRead, userID)
+	return err
+}
+
 const removeChannelMember = `-- name: RemoveChannelMember :exec
 DELETE FROM channel_members WHERE channel_id = $1 AND user_id = $2
 `

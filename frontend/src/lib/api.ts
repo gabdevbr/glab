@@ -75,6 +75,10 @@ class ApiClient {
     return this.patch(`/api/v1/channels/${channelId}/hide`, { hidden });
   }
 
+  markAllRead() {
+    return this.post('/api/v1/channels/mark-all-read');
+  }
+
   listHiddenChannels<T>() {
     return this.get<T>('/api/v1/channels/hidden');
   }

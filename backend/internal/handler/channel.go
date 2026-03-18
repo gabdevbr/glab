@@ -68,7 +68,7 @@ func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]ChannelResponse, 0, len(channels))
 	for _, c := range channels {
-		resp := channelToResponse(c)
+		resp := channelRowToResponse(c)
 		if c.Type == "dm" {
 			if name, ok := dmNames[resp.ID]; ok {
 				resp.Name = name
@@ -552,6 +552,28 @@ func (h *ChannelHandler) ListHidden(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, items)
+}
+
+// MarkAllRead handles POST /api/v1/channels/mark-all-read.
+func (h *ChannelHandler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	userUUID, err := parseUUID(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	if err := h.queries.MarkAllRead(r.Context(), userUUID); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to mark all read")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // sentinel error for permission checks

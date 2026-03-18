@@ -17,6 +17,7 @@ interface ChannelState {
   updateChannel: (id: string, partial: Partial<Channel>) => void;
   incrementUnread: (channelId: string) => void;
   clearUnread: (channelId: string) => void;
+  markAllRead: () => Promise<void>;
 }
 
 export const useChannelStore = create<ChannelState>((set, get) => ({
@@ -29,7 +30,11 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
     set({ isLoading: true });
     try {
       const channels = await api.get<Channel[]>('/api/v1/channels');
-      set({ channels, isLoading: false });
+      const counts: Record<string, number> = {};
+      for (const c of channels) {
+        if (c.unread_count && c.unread_count > 0) counts[c.id] = c.unread_count;
+      }
+      set({ channels, unreadCounts: counts, isLoading: false });
     } catch {
       set({ isLoading: false });
     }
@@ -86,4 +91,12 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
     set((s) => ({
       unreadCounts: { ...s.unreadCounts, [channelId]: 0 },
     })),
+  markAllRead: async () => {
+    try {
+      await api.markAllRead();
+      set({ unreadCounts: {} });
+    } catch {
+      // ignore
+    }
+  },
 }));
