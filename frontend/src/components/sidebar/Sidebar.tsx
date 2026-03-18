@@ -10,9 +10,10 @@ import { AgentList } from './AgentList';
 import { CreateChannelDialog } from './CreateChannelDialog';
 import { NewDMDialog } from './NewDMDialog';
 import { ProfileModal } from './ProfileModal';
-import { LogOut, Bot, Settings, ChevronDown, Search, LayoutDashboard, Users, Hash, ArrowLeftRight, Key } from 'lucide-react';
+import { LogOut, Bot, Settings, ChevronDown, Search, LayoutDashboard, Users, Hash, ArrowLeftRight, Key, Bug } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
+import { BugReportDialog } from './BugReportDialog';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -25,6 +26,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
 
   function handleLogout() {
     logout();
@@ -186,10 +188,20 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
             <p className="truncate text-sm font-medium text-foreground">{user.display_name}</p>
           </button>
           <ThemeSwitcher />
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setBugReportOpen(true)}
+            className="text-sidebar-section-text hover:text-foreground"
+            title="Report a bug"
+          >
+            <Bug className="size-3.5" />
+          </Button>
           <span className="inline-block size-2 shrink-0 rounded-full bg-status-online" />
         </div>
       )}
       <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
+      <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
     </aside>
   );
 }

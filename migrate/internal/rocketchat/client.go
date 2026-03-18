@@ -253,10 +253,8 @@ func (c *Client) GetUsers() ([]RCUser, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Build avatar URLs.
-	for i := range users {
-		users[i].AvatarURL = fmt.Sprintf("%s/avatar/%s", c.baseURL, users[i].Username)
-	}
+	// Don't set RC avatar URLs — they point to the old server and cause
+	// broken images / CORS errors. The frontend falls back to initials.
 	return users, nil
 }
 

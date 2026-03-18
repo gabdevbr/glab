@@ -1,0 +1,1 @@
+-- No-op: cannot restore original RocketChat avatar URLs.

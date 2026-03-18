@@ -175,6 +175,12 @@ func main() {
 	r.Post("/api/v1/auth/login", authHandler.Login)
 	r.Post("/api/v1/auth/logout", authHandler.Logout)
 
+	// Static assets — public (<img src> can't send Authorization header)
+	r.Get("/api/v1/files/{id}", fileHandler.ServeFile)
+	r.Get("/api/v1/files/{id}/thumbnail", fileHandler.ServeThumbnail)
+	r.Get("/api/v1/users/{id}/avatar", userHandler.ServeAvatar)
+	r.Get("/api/v1/emojis/custom/{name}", emojiHandler.Serve)
+
 	// Protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(auth.Middleware(cfg.JWTSecret, queries))
@@ -188,7 +194,6 @@ func main() {
 		r.Get("/api/v1/users/{id}", userHandler.GetByID)
 		r.Patch("/api/v1/users/{id}", userHandler.Update)
 		r.Post("/api/v1/users/{id}/avatar", userHandler.UploadAvatar)
-		r.Get("/api/v1/users/{id}/avatar", userHandler.ServeAvatar)
 
 		// Channels
 		r.Get("/api/v1/channels", channelHandler.List)
@@ -208,17 +213,14 @@ func main() {
 		r.Get("/api/v1/channels/{id}/messages/pinned", messageHandler.ListPinnedMessages)
 		r.Get("/api/v1/messages/{id}/thread", messageHandler.ListThreadMessages)
 
-		// Files
+		// File upload (serving is public — see above)
 		r.Post("/api/v1/channels/{id}/upload", fileHandler.Upload)
-		r.Get("/api/v1/files/{id}", fileHandler.ServeFile)
-		r.Get("/api/v1/files/{id}/thumbnail", fileHandler.ServeThumbnail)
 
 		// Search
 		r.Get("/api/v1/search", searchHandler.Search)
 
-		// Custom emojis
+		// Custom emojis (serving is public — see above)
 		r.Get("/api/v1/emojis/custom", emojiHandler.List)
-		r.Get("/api/v1/emojis/custom/{name}", emojiHandler.Serve)
 
 		// Agents
 		r.Get("/api/v1/agents", agentHandler.List)
