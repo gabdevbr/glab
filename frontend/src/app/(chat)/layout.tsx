@@ -85,20 +85,72 @@ export default function ChatLayout({
     }
   }, []);
 
-  // Wire global unread tracking for messages arriving in non-active channels
+  // Helper: play notification sound
+  const playNotificationSound = useCallback(() => {
+    try {
+      const audio = new Audio('/notification.wav');
+      audio.volume = 0.5;
+      audio.play().catch(() => {});
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Helper: show browser notification
+  const showBrowserNotification = useCallback(
+    (title: string, body: string, channelId: string, tag: string) => {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const notif = new Notification(title, {
+          body,
+          icon: '/favicon.ico',
+          tag,
+        });
+        notif.onclick = () => {
+          window.focus();
+          router.push(`/channel/${channelId}`);
+          notif.close();
+        };
+      }
+    },
+    [router],
+  );
+
+  // Wire global unread tracking + notifications for new messages
   useEffect(() => {
     const unsub = wsClient.on('message.new', (payload: unknown) => {
       const msg = payload as Message;
-      // Only increment unread for channels not currently being viewed
-      // (The channel page handles its own channel)
+      const currentUserId = useAuthStore.getState().user?.id;
+
+      // Skip own messages
+      if (msg.user_id === currentUserId) return;
+
+      // Only notify for channels not currently being viewed
       if (msg.channel_id !== activeChannelId) {
         incrementUnread(msg.channel_id);
+
+        // Play sound + browser notification
+        playNotificationSound();
+
+        const channelName =
+          useChannelStore.getState().channels.find((c) => c.id === msg.channel_id)?.name || 'a channel';
+        const truncated = msg.content.length > 80 ? msg.content.slice(0, 80) + '...' : msg.content;
+        const displayName = msg.display_name || msg.username || 'Someone';
+
+        showBrowserNotification(
+          `${displayName} in ${channelName}`,
+          truncated,
+          msg.channel_id,
+          msg.id,
+        );
+      } else if (document.hidden) {
+        // Active channel but tab is hidden — still play sound
+        playNotificationSound();
       }
     });
     return unsub;
-  }, [activeChannelId, incrementUnread]);
+  }, [activeChannelId, incrementUnread, playNotificationSound, showBrowserNotification]);
 
-  // Wire notification events (mentions) — browser notification when tab not focused
+  // Wire mention notification events (for @mentions specifically)
   useEffect(() => {
     const unsub = wsClient.on('notification', (payload: unknown) => {
       const data = payload as {
@@ -109,40 +161,22 @@ export default function ChatLayout({
         content: string;
       };
 
-      // Play notification sound
-      try {
-        const audio = new Audio('/notification.mp3');
-        audio.volume = 0.3;
-        audio.play().catch(() => {});
-      } catch {
-        // ignore
-      }
+      // Always play sound for @mentions
+      playNotificationSound();
 
-      // Show browser notification when tab is not focused
-      if (
-        document.hidden &&
-        'Notification' in window &&
-        Notification.permission === 'granted'
-      ) {
-        const channelName =
-          useChannelStore.getState().channels.find((c) => c.id === data.channel_id)?.name || 'a channel';
-        const truncated = data.content.length > 80 ? data.content.slice(0, 80) + '...' : data.content;
+      const channelName =
+        useChannelStore.getState().channels.find((c) => c.id === data.channel_id)?.name || 'a channel';
+      const truncated = data.content.length > 80 ? data.content.slice(0, 80) + '...' : data.content;
 
-        const notif = new Notification(`@${data.from} in #${channelName}`, {
-          body: truncated,
-          icon: '/favicon.ico',
-          tag: data.message_id,
-        });
-
-        notif.onclick = () => {
-          window.focus();
-          router.push(`/channel/${data.channel_id}`);
-          notif.close();
-        };
-      }
+      showBrowserNotification(
+        `@${data.from} mentioned you in ${channelName}`,
+        truncated,
+        data.channel_id,
+        `mention-${data.message_id}`,
+      );
     });
     return unsub;
-  }, [router]);
+  }, [playNotificationSound, showBrowserNotification]);
 
   // Update document.title with total unread count
   const unreadCounts = useChannelStore((s) => s.unreadCounts);

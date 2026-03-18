@@ -10,11 +10,72 @@ import { AgentList } from './AgentList';
 import { CreateChannelDialog } from './CreateChannelDialog';
 import { NewDMDialog } from './NewDMDialog';
 import { ProfileModal } from './ProfileModal';
-import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboard, Users, Hash, ArrowLeftRight, Key, Bug } from 'lucide-react';
+import { useChannelStore } from '@/stores/channelStore';
+import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboard, Users, Hash, MessageCircle, ArrowLeftRight, Key, Bug, Bell } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
+
+function UnreadSection() {
+  const router = useRouter();
+  const channels = useChannelStore((s) => s.channels);
+  const activeChannelId = useChannelStore((s) => s.activeChannelId);
+  const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
+  const unreadCounts = useChannelStore((s) => s.unreadCounts);
+
+  const unreadChannels = channels
+    .filter((c) => (unreadCounts[c.id] || 0) > 0)
+    .sort((a, b) => (unreadCounts[b.id] || 0) - (unreadCounts[a.id] || 0));
+
+  if (unreadChannels.length === 0) return null;
+
+  return (
+    <div className="mb-3">
+      <div className="mb-1 flex items-center gap-1 px-3 py-1">
+        <Bell className="size-3 text-accent-primary" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-accent-primary">
+          Unreads
+        </span>
+      </div>
+      <ul className="space-y-0.5">
+        {unreadChannels.map((channel) => {
+          const unread = unreadCounts[channel.id] || 0;
+          const isActive = activeChannelId === channel.id;
+          const isDM = channel.type === 'dm';
+          return (
+            <li key={channel.id}>
+              <button
+                onClick={() => {
+                  setActiveChannel(channel.id);
+                  router.push(`/channel/${channel.id}`);
+                }}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-md mx-1 px-2 py-1.5 text-sm font-semibold transition-all duration-150 hover:bg-sidebar-hover hover:translate-x-0.5',
+                  isActive
+                    ? 'bg-accent-primary-subtle text-foreground border-l-2 border-accent-primary'
+                    : 'text-foreground',
+                )}
+              >
+                {isDM ? (
+                  <MessageCircle className="size-4 shrink-0 text-sidebar-section-text" />
+                ) : (
+                  <Hash className="size-4 shrink-0 text-sidebar-section-text" />
+                )}
+                <span className="flex-1 truncate text-left">{channel.name}</span>
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text">
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mx-3 mt-2 border-b border-border/50" />
+    </div>
+  );
+}
 
 interface SidebarProps {
   onOpenSearch?: () => void;
@@ -74,6 +135,9 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
 
       {/* Scrollable sections */}
       <div className="flex-1 overflow-y-auto px-2 pt-3">
+        {/* Unreads section */}
+        <UnreadSection />
+
         {/* Channels section */}
         <button
           onClick={() => setCollapsed((s) => ({ ...s, channels: !s.channels }))}
