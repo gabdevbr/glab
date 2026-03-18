@@ -86,7 +86,7 @@ const MENTION_GROUP_KEYWORDS = new Set(['all', 'here', 'channel']);
  */
 function renderWithMentionsAndEmojis(content: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  const mentionRegex = /(?:^|(?<=\s))@(\w+)/g;
+  const mentionRegex = /(?:^|(?<=\s))@(\w+(?:[.-]\w+)*)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let key = 0;
