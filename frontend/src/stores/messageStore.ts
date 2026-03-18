@@ -52,10 +52,18 @@ export const useMessageStore = create<MessageState>((set) => ({
       );
       // API returns newest first, reverse so oldest is first in our array
       const reversed = [...msgs].reverse();
-      set((s) => ({
-        messages: { ...s.messages, [channelId]: reversed },
-        isLoading: false,
-      }));
+      set((s) => {
+        const existing = s.messages[channelId] || [];
+        // If loading older messages (offset > 0), prepend to existing
+        const merged =
+          offset > 0 && existing.length > 0
+            ? [...reversed.filter((m) => !existing.some((e) => e.id === m.id)), ...existing]
+            : reversed;
+        return {
+          messages: { ...s.messages, [channelId]: merged },
+          isLoading: false,
+        };
+      });
     } catch {
       set({ isLoading: false });
     }

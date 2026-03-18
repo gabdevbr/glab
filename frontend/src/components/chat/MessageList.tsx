@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMessageStore } from '@/stores/messageStore';
 import { useAIStreamStore } from '@/stores/aiStreamStore';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 interface MessageListProps {
   channelId: string;
   onThreadOpen?: (messageId: string) => void;
+  onUserInfoOpen?: (userId: string) => void;
 }
 
 const COMPACT_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
@@ -40,7 +41,7 @@ function isNewDay(curr: Message, prev: Message | undefined): boolean {
   return currDate !== prevDate;
 }
 
-export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
+export function MessageList({ channelId, onThreadOpen, onUserInfoOpen }: MessageListProps) {
   const messages = useMessageStore((s) => s.messages[channelId] ?? EMPTY_MESSAGES);
   const newMessageIds = useMessageStore((s) => s.newMessageIds);
   const isLoading = useMessageStore((s) => s.isLoading);
@@ -50,6 +51,8 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
   const wasNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(0);
   const isLoadingOlderRef = useRef(false);
+  const isFetchingOlderRef = useRef(false);
+  const [hasMore, setHasMore] = useState(true);
 
   // Determine compact mode for each message
   function isCompact(index: number): boolean {
@@ -83,15 +86,18 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
   }, []);
 
   // Auto-scroll to bottom when new messages arrive (if user was near bottom)
+  // Preserve scroll position when older messages are prepended
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
-      const addedToEnd =
-        messages.length > 0 &&
-        prevMessageCountRef.current > 0 &&
-        !isLoadingOlderRef.current;
+      const addedCount = messages.length - prevMessageCountRef.current;
 
-      if (addedToEnd && wasNearBottomRef.current) {
-        // Small delay to let virtualizer measure
+      if (isLoadingOlderRef.current) {
+        // Older messages prepended — shift scroll down to keep view stable
+        requestAnimationFrame(() => {
+          virtualizer.scrollToIndex(addedCount, { align: 'start' });
+        });
+      } else if (wasNearBottomRef.current) {
+        // New messages at bottom — auto-scroll
         requestAnimationFrame(() => {
           virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
         });
@@ -105,6 +111,8 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
   const hasScrolledRef = useRef(false);
   useEffect(() => {
     hasScrolledRef.current = false;
+    setHasMore(true);
+    isFetchingOlderRef.current = false;
   }, [channelId]);
 
   useEffect(() => {
@@ -125,13 +133,21 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
     if (!el) return;
 
     // Load older messages when scrolled to top
-    if (el.scrollTop < 50 && !isLoading && messages.length > 0) {
+    if (el.scrollTop < 50 && !isLoading && !isFetchingOlderRef.current && hasMore && messages.length > 0) {
+      isFetchingOlderRef.current = true;
       isLoadingOlderRef.current = true;
-      // Fetch older messages by passing current count as offset
+      const prevCount = messages.length;
       const messageStore = useMessageStore.getState();
-      messageStore.fetchMessages(channelId, 50, messages.length);
+      messageStore.fetchMessages(channelId, 50, messages.length).then(() => {
+        const newCount = useMessageStore.getState().messages[channelId]?.length ?? 0;
+        // If no new messages were added, we've reached the beginning
+        if (newCount <= prevCount) {
+          setHasMore(false);
+        }
+        isFetchingOlderRef.current = false;
+      });
     }
-  }, [channelId, isLoading, messages.length, checkNearBottom]);
+  }, [channelId, isLoading, hasMore, messages.length, checkNearBottom]);
 
   if (messages.length === 0 && !isLoading) {
     return (
@@ -187,6 +203,7 @@ export function MessageList({ channelId, onThreadOpen }: MessageListProps) {
               message={messages[virtualItem.index]}
               isCompact={isCompact(virtualItem.index)}
               onThreadOpen={onThreadOpen}
+              onUserInfoOpen={onUserInfoOpen}
             />
           </div>
         ))}
