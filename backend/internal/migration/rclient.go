@@ -263,6 +263,30 @@ func (c *RCClient) GetDMs(ctx context.Context) ([]RCRoom, error) {
 	return fetchAllPaginated[RCRoom](ctx, c, "/api/v1/dm.list", "ims", nil)
 }
 
+// GetRoomMembers returns usernames of members in a room.
+// roomType should be "c" (channel) or "p" (private group).
+func (c *RCClient) GetRoomMembers(ctx context.Context, roomID, roomType string) ([]string, error) {
+	endpoint := "/api/v1/channels.members"
+	if roomType == "p" {
+		endpoint = "/api/v1/groups.members"
+	}
+
+	type member struct {
+		Username string `json:"username"`
+	}
+	members, err := fetchAllPaginated[member](ctx, c, endpoint, "members", url.Values{
+		"roomId": {roomID},
+	})
+	if err != nil {
+		return nil, err
+	}
+	usernames := make([]string, len(members))
+	for i, m := range members {
+		usernames[i] = m.Username
+	}
+	return usernames, nil
+}
+
 // GetMessages returns messages from a room within a time range.
 func (c *RCClient) GetMessages(ctx context.Context, roomID, roomType string, oldest, latest time.Time) ([]RCMessage, error) {
 	endpoint := "/api/v1/channels.history"

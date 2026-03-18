@@ -266,6 +266,21 @@ func (e *Engine) run(ctx context.Context, cfg Config, jobID pgtype.UUID) {
 		return
 	}
 
+	// Fetch complete member lists for private groups (groups.list returns incomplete usernames)
+	e.emitLog(jobID, "info", "export_rooms", "Fetching complete member lists for private groups...", nil)
+	for i := range rcGroups {
+		if cancelled() {
+			e.handleCancellation(jobID, progress)
+			return
+		}
+		members, err := rc.GetRoomMembers(ctx, rcGroups[i].ID, "p")
+		if err != nil {
+			e.emitLog(jobID, "warn", "export_rooms", fmt.Sprintf("Group %s: failed to fetch members: %v", rcGroups[i].Name, err), nil)
+			continue
+		}
+		rcGroups[i].Usernames = members
+	}
+
 	allRooms := make([]RCRoom, 0, len(rcChannels)+len(rcGroups)+len(rcDMs))
 	allRooms = append(allRooms, rcChannels...)
 	allRooms = append(allRooms, rcGroups...)
