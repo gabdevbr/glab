@@ -35,25 +35,32 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [publicChannels, setPublicChannels] = useState<Channel[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Load users when opened
+  // Load users and public channels when opened
   useEffect(() => {
     if (open) {
       setQuery('');
       setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
       api.get<User[]>('/api/v1/users').then(setAllUsers).catch(() => {});
+      api.get<Channel[]>('/api/v1/channels/browse').then(setPublicChannels).catch(() => {});
     }
   }, [open]);
+
+  const joinedIds = new Set(channels.map((c) => c.id));
 
   // Build combined results list
   const results: ResultItem[] = (() => {
     const q = query.toLowerCase();
 
+    // Merge user's channels with public channels (deduplicate by id)
+    const allChannels = [...channels, ...publicChannels.filter((c) => !joinedIds.has(c.id))];
+
     // Filter channels
-    const filteredChannels = channels.filter((c) => {
+    const filteredChannels = allChannels.filter((c) => {
       if (!q) return true;
       return c.name.toLowerCase().includes(q) || c.slug?.toLowerCase().includes(q);
     });
@@ -112,12 +119,15 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
   }, [selectedIndex]);
 
   const navigateChannel = useCallback(
-    (channelId: string) => {
+    async (channelId: string) => {
+      if (!joinedIds.has(channelId)) {
+        await api.post(`/api/v1/channels/${channelId}/join`, {}).catch(() => {});
+      }
       setActiveChannel(channelId);
       router.push(`/channel/${channelId}`);
       onClose();
     },
-    [setActiveChannel, router, onClose],
+    [joinedIds, setActiveChannel, router, onClose],
   );
 
   const openDM = useCallback(
@@ -177,7 +187,7 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] animate-in fade-in-0 duration-150" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
         className="relative w-full max-w-lg rounded-xl border border-border bg-panel-bg shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
@@ -247,7 +257,7 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
                       {channel.name}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      {isDM ? 'DM' : channel.type === 'private' ? 'Private' : 'Channel'}
+                      {isDM ? 'DM' : channel.type === 'private' ? 'Private' : !joinedIds.has(channel.id) ? 'Join' : 'Channel'}
                     </span>
                     {unread > 0 && (
                       <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text">

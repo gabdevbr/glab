@@ -59,6 +59,22 @@ func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, items)
 }
 
+// Browse handles GET /api/v1/channels/browse — returns all public channels.
+func (h *ChannelHandler) Browse(w http.ResponseWriter, r *http.Request) {
+	channels, err := h.queries.ListPublicChannels(r.Context())
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to list public channels")
+		return
+	}
+
+	items := make([]ChannelResponse, len(channels))
+	for i, c := range channels {
+		items[i] = channelToResponse(c)
+	}
+
+	respondJSON(w, http.StatusOK, items)
+}
+
 // Create handles POST /api/v1/channels.
 func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 	claims := auth.UserFromContext(r.Context())

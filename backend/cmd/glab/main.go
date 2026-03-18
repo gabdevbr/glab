@@ -192,6 +192,7 @@ func main() {
 
 		// Channels
 		r.Get("/api/v1/channels", channelHandler.List)
+		r.Get("/api/v1/channels/browse", channelHandler.Browse)
 		r.Post("/api/v1/channels", channelHandler.Create)
 		r.Get("/api/v1/channels/{id}", channelHandler.GetByID)
 		r.Patch("/api/v1/channels/{id}", channelHandler.Update)
