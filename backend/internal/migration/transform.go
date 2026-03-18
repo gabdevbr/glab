@@ -199,6 +199,12 @@ func TransformChannels(rcRooms []RCRoom, idMap *IDMap, systemUserID uuid.UUID) [
 			name = rc.ID
 		}
 
+		// For DMs, the RC "name" is a concatenation of user IDs (e.g., "abc123def456").
+		// Use the participant usernames joined by " & " instead for a readable name.
+		if typ == "dm" && len(rc.Usernames) > 0 {
+			name = strings.Join(rc.Usernames, " & ")
+		}
+
 		slug := generateSlug(name)
 		if count, ok := slugSeen[slug]; ok {
 			slug = fmt.Sprintf("%s-%d", slug, count+1)
