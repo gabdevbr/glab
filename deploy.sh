@@ -4,15 +4,19 @@ set -euo pipefail
 
 DEPLOY_HOST="${DEPLOY_HOST:-your-server.example.com}"
 DEPLOY_USER="${DEPLOY_USER:-ubuntu}"
+DEPLOY_PORT="${DEPLOY_PORT:-22}"
 GLAB_DOMAIN="${GLAB_DOMAIN:-glab.example.com}"
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 DEPLOY_DIR="${DEPLOY_DIR:-/home/${DEPLOY_USER}/glab}"
 
-echo "=== Deploying Glab to $REMOTE:$DEPLOY_DIR ==="
+SSH_OPTS="-p ${DEPLOY_PORT} -o StrictHostKeyChecking=accept-new"
+
+echo "=== Deploying Glab to $REMOTE:$DEPLOY_DIR (port $DEPLOY_PORT) ==="
 
 # Sync files to remote
-echo "[1/5] Syncing files..."
+echo "[1/6] Syncing files..."
 rsync -avz --delete \
+    -e "ssh ${SSH_OPTS}" \
     --exclude='.git' \
     --exclude='node_modules' \
     --exclude='.next' \
@@ -20,11 +24,24 @@ rsync -avz --delete \
     --exclude='backend/tmp' \
     --exclude='migrate/vendor' \
     --exclude='.env' \
+    --exclude='.playwright-mcp' \
     ./ "$REMOTE:$DEPLOY_DIR/"
 
+# Install nginx if not present
+echo "[2/6] Ensuring nginx is installed..."
+ssh ${SSH_OPTS} "$REMOTE" bash -s <<'INSTALLSCRIPT'
+if ! command -v nginx &>/dev/null; then
+    apt-get update -qq && apt-get install -y -qq nginx >/dev/null 2>&1
+    systemctl enable nginx
+    echo "  nginx installed"
+else
+    echo "  nginx already installed"
+fi
+INSTALLSCRIPT
+
 # Generate .env if not present on server
-echo "[2/5] Setting up environment..."
-ssh "$REMOTE" bash -s <<ENVSCRIPT
+echo "[3/6] Setting up environment..."
+ssh ${SSH_OPTS} "$REMOTE" bash -s <<ENVSCRIPT
 cd "$DEPLOY_DIR"
 if [ ! -f .env ]; then
     JWT_SECRET=\$(openssl rand -hex 32)
@@ -50,8 +67,8 @@ fi
 ENVSCRIPT
 
 # Generate SSL cert if not present
-echo "[3/5] Setting up SSL..."
-ssh "$REMOTE" bash -s <<SSLSCRIPT
+echo "[4/6] Setting up SSL..."
+ssh ${SSH_OPTS} "$REMOTE" bash -s <<SSLSCRIPT
 if [ ! -f /etc/nginx/ssl/glab.crt ]; then
     sudo mkdir -p /etc/nginx/ssl
     sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
@@ -65,8 +82,8 @@ fi
 SSLSCRIPT
 
 # Install nginx site config
-echo "[4/5] Configuring nginx..."
-ssh "$REMOTE" bash -s <<NGINXSCRIPT
+echo "[5/6] Configuring nginx..."
+ssh ${SSH_OPTS} "$REMOTE" bash -s <<NGINXSCRIPT
 sudo sed "s/YOUR_DOMAIN/${GLAB_DOMAIN}/g" "$DEPLOY_DIR/nginx/glab-site.conf" \
     | sudo tee /etc/nginx/sites-enabled/glab > /dev/null
 sudo nginx -t 2>&1 && sudo systemctl reload nginx
@@ -74,12 +91,12 @@ echo "  nginx configured and reloaded"
 NGINXSCRIPT
 
 # Build and start containers
-echo "[5/5] Building and starting containers..."
-ssh "$REMOTE" "cd $DEPLOY_DIR && docker compose build && docker compose up -d"
+echo "[6/6] Building and starting containers..."
+ssh ${SSH_OPTS} "$REMOTE" "cd $DEPLOY_DIR && docker compose build && docker compose up -d"
 
 echo ""
 echo "=== Deploy complete ==="
-ssh "$REMOTE" "cd $DEPLOY_DIR && docker compose ps"
+ssh ${SSH_OPTS} "$REMOTE" "cd $DEPLOY_DIR && docker compose ps"
 echo ""
 echo "Access: https://${GLAB_DOMAIN}"
 echo "Default login: admin / admin123"

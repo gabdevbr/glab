@@ -359,8 +359,15 @@ func (c *Client) GetMessages(roomID, roomType string, oldest, latest time.Time) 
 	return all, nil
 }
 
-// DownloadFile downloads a file from RocketChat. The caller must close the reader.
-func (c *Client) DownloadFile(fileURL string) (io.ReadCloser, error) {
+// FileDownload holds the response from downloading a RocketChat file.
+type FileDownload struct {
+	Body        io.ReadCloser
+	Size        int64  // from Content-Length; -1 if unknown
+	ContentType string // from Content-Type header
+}
+
+// DownloadFile downloads a file from RocketChat. The caller must close Body.
+func (c *Client) DownloadFile(fileURL string) (*FileDownload, error) {
 	// Resolve relative URLs.
 	u := fileURL
 	if len(u) > 0 && u[0] == '/' {
@@ -384,5 +391,9 @@ func (c *Client) DownloadFile(fileURL string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("download returned %d for %s", resp.StatusCode, fileURL)
 	}
 
-	return resp.Body, nil
+	return &FileDownload{
+		Body:        resp.Body,
+		Size:        resp.ContentLength,
+		ContentType: resp.Header.Get("Content-Type"),
+	}, nil
 }

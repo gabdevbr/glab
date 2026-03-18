@@ -15,6 +15,7 @@ import (
 
 	"github.com/geovendas/glab/migrate/internal/loader"
 	"github.com/geovendas/glab/migrate/internal/rocketchat"
+	"github.com/geovendas/glab/migrate/internal/s3uploader"
 	"github.com/geovendas/glab/migrate/internal/transform"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -42,7 +43,16 @@ func main() {
 	loadOnly := flag.Bool("load-only", false, "Only load from files to DB (no RC export)")
 	since := flag.String("since", "", "Only messages after this date (RFC3339)")
 	migrateFiles := flag.Bool("migrate-files", false, "Download and migrate files from RocketChat")
-	uploadDir := flag.String("upload-dir", "./uploads", "Directory for migrated files")
+	uploadDir := flag.String("upload-dir", "./uploads", "Directory for migrated files (local mode)")
+
+	// S3 flags — when set, files stream directly to S3 instead of local disk.
+	s3Endpoint := flag.String("s3-endpoint", "", "S3-compatible endpoint URL (e.g. https://s3.us-east.cloud-object-storage.appdomain.cloud)")
+	s3Bucket := flag.String("s3-bucket", "", "S3 bucket name")
+	s3Region := flag.String("s3-region", "us-east-1", "S3 region")
+	s3AccessKey := flag.String("s3-access-key", "", "S3 access key ID")
+	s3SecretKey := flag.String("s3-secret-key", "", "S3 secret access key")
+	s3KeyPrefix := flag.String("s3-key-prefix", "", "Optional prefix for all S3 keys")
+	s3PathStyle := flag.Bool("s3-path-style", false, "Use path-style addressing (required for MinIO, IBM COS)")
 
 	flag.Parse()
 
@@ -183,7 +193,27 @@ func main() {
 		// File download (optional, during export phase).
 		if *migrateFiles {
 			log.Println("=== Export: Downloading files ===")
-			downloadFiles(rc, *dataDir, msgDir, *uploadDir)
+
+			// Build S3 uploader if configured; nil means local disk mode.
+			var s3up *s3uploader.Uploader
+			if *s3Bucket != "" {
+				var err error
+				s3up, err = s3uploader.New(context.Background(), s3uploader.Config{
+					Endpoint:       *s3Endpoint,
+					Region:         *s3Region,
+					Bucket:         *s3Bucket,
+					AccessKeyID:    *s3AccessKey,
+					SecretAccessKey: *s3SecretKey,
+					KeyPrefix:      *s3KeyPrefix,
+					ForcePathStyle: *s3PathStyle,
+				})
+				if err != nil {
+					log.Fatalf("Failed to initialize S3: %v", err)
+				}
+				log.Printf("S3 mode: streaming files to %s/%s", *s3Bucket, *s3KeyPrefix)
+			}
+
+			downloadFiles(rc, *dataDir, msgDir, *uploadDir, s3up)
 		}
 	}
 
@@ -430,15 +460,17 @@ func readJSONL[T any](path string) []T {
 	return items
 }
 
-// downloadFiles handles Phase 4 file migration.
-func downloadFiles(rc *rocketchat.Client, dataDir, msgDir, uploadDir string) {
-	os.MkdirAll(uploadDir, 0o755)
+// downloadFiles handles file migration. When s3up is non-nil, files stream
+// directly from RocketChat to S3 (zero local disk). Otherwise, saves to uploadDir.
+func downloadFiles(rc *rocketchat.Client, dataDir, msgDir, uploadDir string, s3up *s3uploader.Uploader) {
+	if s3up == nil {
+		os.MkdirAll(uploadDir, 0o755)
+	}
 
 	// Read rooms for ID mapping.
 	rcRooms := loadJSON[[]rocketchat.RCRoom](filepath.Join(dataDir, "rooms.json"))
 	idMap := transform.NewIDMap()
 
-	// We need room IDs in the map for file path generation.
 	for _, r := range rcRooms {
 		idMap.Rooms[r.ID] = transform.DeterministicID("room:" + r.ID)
 	}
@@ -446,6 +478,8 @@ func downloadFiles(rc *rocketchat.Client, dataDir, msgDir, uploadDir string) {
 	// Scan all message files for file attachments.
 	msgFiles, _ := filepath.Glob(filepath.Join(msgDir, "*.jsonl"))
 	fileCount := 0
+	skipped := 0
+	ctx := context.Background()
 
 	for _, msgFile := range msgFiles {
 		msgs := readJSONL[rocketchat.RCMessage](msgFile)
@@ -459,40 +493,70 @@ func downloadFiles(rc *rocketchat.Client, dataDir, msgDir, uploadDir string) {
 				continue
 			}
 
-			fileURL := fmt.Sprintf("/file-upload/%s/%s", msg.File.ID, msg.File.Name)
-			dir := filepath.Join(uploadDir, channelID.String())
-			os.MkdirAll(dir, 0o755)
+			fileName := fmt.Sprintf("%s-%s",
+				transform.DeterministicID("file:"+msg.File.ID).String()[:8], msg.File.Name)
+			s3Key := channelID.String() + "/" + fileName
 
-			localPath := filepath.Join(dir, fmt.Sprintf("%s-%s",
-				transform.DeterministicID("file:"+msg.File.ID).String()[:8], msg.File.Name))
-
-			// Skip if already downloaded.
-			if _, err := os.Stat(localPath); err == nil {
-				continue
+			// Incremental: skip if already exists at destination.
+			if s3up != nil {
+				exists, err := s3up.Exists(ctx, s3Key)
+				if err != nil {
+					log.Printf("WARNING: S3 exists check failed for %s: %v", msg.File.Name, err)
+					continue
+				}
+				if exists {
+					skipped++
+					continue
+				}
+			} else {
+				dir := filepath.Join(uploadDir, channelID.String())
+				os.MkdirAll(dir, 0o755)
+				localPath := filepath.Join(dir, fileName)
+				if _, err := os.Stat(localPath); err == nil {
+					skipped++
+					continue
+				}
 			}
 
-			body, err := rc.DownloadFile(fileURL)
+			// Download from RocketChat.
+			fileURL := fmt.Sprintf("/file-upload/%s/%s", msg.File.ID, msg.File.Name)
+			dl, err := rc.DownloadFile(fileURL)
 			if err != nil {
 				log.Printf("WARNING: Failed to download %s: %v", msg.File.Name, err)
 				continue
 			}
 
-			out, err := os.Create(localPath)
-			if err != nil {
-				body.Close()
-				continue
+			if s3up != nil {
+				// Stream directly to S3 — no local disk.
+				err = s3up.Put(ctx, s3Key, dl.Body, dl.ContentType, dl.Size)
+				dl.Body.Close()
+				if err != nil {
+					log.Printf("WARNING: Failed to upload %s to S3: %v", msg.File.Name, err)
+					continue
+				}
+			} else {
+				// Save to local disk.
+				localPath := filepath.Join(uploadDir, channelID.String(), fileName)
+				out, err := os.Create(localPath)
+				if err != nil {
+					dl.Body.Close()
+					continue
+				}
+				io.Copy(out, dl.Body)
+				out.Close()
+				dl.Body.Close()
 			}
 
-			io.Copy(out, body)
-			out.Close()
-			body.Close()
 			fileCount++
-
 			if fileCount%100 == 0 {
-				log.Printf("  Downloaded %d files...", fileCount)
+				log.Printf("  Migrated %d files (skipped %d existing)...", fileCount, skipped)
 			}
 		}
 	}
 
-	log.Printf("Downloaded %d files to %s", fileCount, uploadDir)
+	dest := uploadDir
+	if s3up != nil {
+		dest = "S3"
+	}
+	log.Printf("Migrated %d files to %s (skipped %d existing)", fileCount, dest, skipped)
 }

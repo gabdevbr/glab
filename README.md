@@ -24,13 +24,13 @@
 </p>
 
 <p align="center">
-  <a href="#-features">Features</a>&nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="#-quick-start">Quick Start</a>&nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="#%EF%B8%8F-configuration">Configuration</a>&nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="#-deployment">Deployment</a>&nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="#-api-reference">API</a>&nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="#-architecture">Architecture</a>&nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="#-contributing">Contributing</a>
+  <a href="#highlights">Features</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#quick-start">Quick Start</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#configuration">Configuration</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#deployment">Deployment</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#api-reference">API</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#architecture">Architecture</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#contributing">Contributing</a>
 </p>
 
 ---
@@ -79,7 +79,7 @@ Dashboard with live stats, user management, channel management, storage configur
 ### Prerequisites
 
 - **Go** 1.25+
-- **Node.js** 22+
+- **Node.js** 20+
 - **Docker** & Docker Compose
 
 ```bash
@@ -133,7 +133,7 @@ Glab uses **6 environment variables** for bootstrap. Everything else lives in th
 | **Channels** | View and manage all channels |
 | **Storage** | Switch between local and S3-compatible storage. Test connection. Migrate files between backends with real-time progress bar |
 | **AI** | Configure gateway URL, token, and default model. Test connectivity. Supports any OpenAI-compatible API |
-| **Migration** | Import users, channels, messages, reactions, files, and emojis from RocketChat |
+| **Migration** | Import users, channels, messages, reactions, and files from RocketChat |
 
 <br/>
 
@@ -152,6 +152,7 @@ cp .env.example .env        # edit with your secrets
 # 2. Deploy
 export DEPLOY_HOST=your-server.com
 export DEPLOY_USER=ubuntu
+export DEPLOY_PORT=22               # optional, defaults to 22
 export GLAB_DOMAIN=glab.example.com
 ./deploy.sh
 ```
@@ -247,6 +248,16 @@ All endpoints are prefixed with `/api/v1`. Authentication via `Authorization: Be
 </details>
 
 <details>
+<summary><strong>Custom Emojis</strong></summary>
+
+| Method | Path | Description |
+|:-------|:-----|:------------|
+| `GET` | `/emojis/custom` | List custom emojis |
+| `GET` | `/emojis/custom/{name}` | Serve emoji image |
+
+</details>
+
+<details>
 <summary><strong>AI Agents</strong></summary>
 
 | Method | Path | Description |
@@ -255,6 +266,32 @@ All endpoints are prefixed with `/api/v1`. Authentication via `Authorization: Be
 | `GET` | `/agents/{slug}` | Get agent details |
 | `GET` | `/agents/{slug}/sessions` | List user's sessions |
 | `GET` | `/agents/{slug}/sessions/{id}/messages` | Get session messages |
+
+</details>
+
+<details>
+<summary><strong>API Tokens</strong></summary>
+
+| Method | Path | Description |
+|:-------|:-----|:------------|
+| `GET` | `/tokens` | List API tokens |
+| `POST` | `/tokens` | Create API token |
+| `DELETE` | `/tokens/{id}` | Revoke API token |
+
+</details>
+
+<details>
+<summary><strong>Admin — Users</strong></summary>
+
+| Method | Path | Description |
+|:-------|:-----|:------------|
+| `GET` | `/admin/stats` | Dashboard statistics |
+| `GET` | `/admin/users` | List all users |
+| `POST` | `/admin/users` | Create user |
+| `DELETE` | `/admin/users/{id}` | Deactivate user |
+| `PATCH` | `/admin/users/{id}/role` | Change user role |
+| `POST` | `/admin/users/{id}/reset-password` | Reset password |
+| `GET` | `/admin/channels` | List all channels |
 
 </details>
 
@@ -280,6 +317,21 @@ All endpoints are prefixed with `/api/v1`. Authentication via `Authorization: Be
 | `GET` | `/admin/ai/config` | Get AI gateway config |
 | `PUT` | `/admin/ai/config` | Save AI gateway config |
 | `POST` | `/admin/ai/test` | Test gateway connectivity |
+
+</details>
+
+<details>
+<summary><strong>Admin — RocketChat Migration</strong></summary>
+
+| Method | Path | Description |
+|:-------|:-----|:------------|
+| `POST` | `/admin/migration/start` | Start RC migration |
+| `POST` | `/admin/migration/files` | Migrate files |
+| `POST` | `/admin/migration/cancel` | Cancel migration |
+| `GET` | `/admin/migration/status` | Migration status |
+| `GET` | `/admin/migration/logs` | Migration logs |
+| `GET` | `/admin/migration/jobs` | List migration jobs |
+| `GET` | `/admin/migration/rooms` | Room migration states |
 
 </details>
 
@@ -382,6 +434,16 @@ migrate/                    RocketChat migration CLI (separate Go module)
 
 <br/>
 
+## Security
+
+If you discover a security vulnerability, please report it privately via email to **gabriel@geovendas.com**. Do not open a public issue.
+
+<br/>
+
+---
+
+<br/>
+
 ## Contributing
 
 We welcome contributions! See **[CONTRIBUTING.md](CONTRIBUTING.md)** for guidelines.
@@ -405,7 +467,7 @@ You are free to use, modify, and distribute this software. If you run a modified
 <br/>
 
 <p align="center">
-  <sub>Sponsored by</sub><br/><br/>
+  <sub>Developed at</sub><br/><br/>
   <a href="https://geovendas.com">
     <img src="https://geovendas.com/wp-content/uploads/2025/02/logo_geovendas.svg" alt="Geovendas" height="40" />
   </a>
@@ -413,7 +475,7 @@ You are free to use, modify, and distribute this software. If you run a modified
 
 <p align="center">
   <sub>
-    Built with care by <a href="https://gab.dev.br">gab.dev.br</a><br/>
+    Built by <a href="https://gab.dev.br">gab.dev.br</a><br/>
     If Glab helps your team, consider giving it a star.
   </sub>
 </p>
