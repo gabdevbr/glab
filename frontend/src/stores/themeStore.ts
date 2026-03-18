@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ThemeId = 'dark' | 'classic-dark' | 'light' | 'dracula';
+export type ThemeId = 'dark-geo' | 'light-geo' | 'dark' | 'classic-dark' | 'light' | 'dracula';
 
 export interface ThemeOption {
   id: ThemeId;
@@ -10,6 +10,8 @@ export interface ThemeOption {
 }
 
 export const THEMES: ThemeOption[] = [
+  { id: 'dark-geo', label: 'Dark Geo', isDark: true, accent: '#06F4E4' },
+  { id: 'light-geo', label: 'Light Geo', isDark: false, accent: '#06F4E4' },
   { id: 'dark', label: 'Dark', isDark: true, accent: '#06F4E4' },
   { id: 'classic-dark', label: 'Classic Dark', isDark: true, accent: '#818cf8' },
   { id: 'light', label: 'Light', isDark: false, accent: '#0d9488' },
@@ -17,7 +19,7 @@ export const THEMES: ThemeOption[] = [
 ];
 
 const STORAGE_KEY = 'glab_theme';
-const DEFAULT_THEME: ThemeId = 'dark';
+const DEFAULT_THEME: ThemeId = 'dark-geo';
 
 function getInitialTheme(): ThemeId {
   if (typeof window === 'undefined') return DEFAULT_THEME;

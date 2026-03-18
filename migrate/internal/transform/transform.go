@@ -2,6 +2,7 @@ package transform
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -224,8 +225,11 @@ func TransformChannels(rcRooms []rocketchat.RCRoom, idMap *IDMap, systemUserID u
 		}
 
 		name := rc.Name
-		if name == "" {
-			name = rc.ID // DMs might not have names
+		if name == "" && rc.Type == "d" && len(rc.Usernames) > 0 {
+			// DMs: use participant usernames as display name.
+			name = strings.Join(rc.Usernames, ", ")
+		} else if name == "" {
+			name = rc.ID
 		}
 
 		slug := generateSlug(name)
@@ -263,6 +267,7 @@ func TransformMembers(rcRooms []rocketchat.RCRoom, idMap *IDMap) []GlabMember {
 		for _, username := range rc.Usernames {
 			userID, ok := idMap.UsernameToID[username]
 			if !ok {
+				log.Printf("  WARN: skipping member %q (not in imported users)", username)
 				continue
 			}
 

@@ -110,6 +110,25 @@ func main() {
 		allRooms = append(allRooms, rcChannels...)
 		allRooms = append(allRooms, rcGroups...)
 		allRooms = append(allRooms, rcDMs...)
+
+		// Fetch complete member lists per room (the inline Usernames field
+		// from channels.list/groups.list can be truncated for large rooms).
+		log.Println("=== Export: Fetching room members ===")
+		for i, room := range allRooms {
+			if room.Type == "d" {
+				continue // DMs always have complete member list
+			}
+			members, err := rc.GetRoomMembers(room.ID, room.Type)
+			if err != nil {
+				log.Printf("  WARN: failed to fetch members for %s (%s): %v", room.Name, room.ID, err)
+				continue // keep existing Usernames as fallback
+			}
+			if len(members) > len(room.Usernames) {
+				log.Printf("  %s: %d → %d members (was truncated)", room.Name, len(room.Usernames), len(members))
+			}
+			allRooms[i].Usernames = members
+		}
+
 		saveJSON(filepath.Join(*dataDir, "rooms.json"), allRooms)
 
 		// Export messages per room (incremental).

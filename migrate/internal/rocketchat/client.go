@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -22,7 +23,7 @@ type Client struct {
 // NewClient creates a RocketChat API client.
 func NewClient(baseURL, authToken, userID string) *Client {
 	return &Client{
-		baseURL:   baseURL,
+		baseURL:   strings.TrimRight(baseURL, "/"),
 		authToken: authToken,
 		userID:    userID,
 		client: &http.Client{
@@ -275,11 +276,18 @@ func (c *Client) GetDMs() ([]RCRoom, error) {
 }
 
 // GetRoomMembers returns usernames of members in a room.
-func (c *Client) GetRoomMembers(roomID string) ([]string, error) {
+// roomType should be "c" (channel) or "p" (private group).
+func (c *Client) GetRoomMembers(roomID, roomType string) ([]string, error) {
+	endpoint := "/api/v1/channels.members"
+	switch roomType {
+	case "p":
+		endpoint = "/api/v1/groups.members"
+	}
+
 	type member struct {
 		Username string `json:"username"`
 	}
-	members, err := fetchAllPaginated[member](c, "/api/v1/channels.members", "members", url.Values{
+	members, err := fetchAllPaginated[member](c, endpoint, "members", url.Values{
 		"roomId": {roomID},
 	})
 	if err != nil {

@@ -1,0 +1,2 @@
+-- No-op: cannot restore original RocketChat avatar URLs.
+-- They were external URLs that no longer work due to CORS anyway.
