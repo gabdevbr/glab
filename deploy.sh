@@ -97,7 +97,7 @@ NGINXSCRIPT
 
 # Install backup script and cron
 echo "[6/7] Setting up backups..."
-scp ${SSH_OPTS/#-p/-P} "$DEPLOY_DIR/backup.sh" "$REMOTE:/root/backup.sh"
+scp ${SSH_OPTS/#-p/-P} ./backup.sh "$REMOTE:/root/backup.sh"
 ssh ${SSH_OPTS} "$REMOTE" bash -s <<'BACKUPSCRIPT'
 chmod +x /root/backup.sh
 mkdir -p /root/backup
