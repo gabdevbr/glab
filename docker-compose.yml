@@ -11,7 +11,7 @@ services:
       REDIS_URL: redis://glab-redis:6379
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
     volumes:
-      - glab-uploads:/data/uploads
+      - ./data/uploads:/data/uploads
     ports:
       - "${API_PORT:-8082}:8080"
     deploy:
@@ -58,7 +58,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - glab-pgdata:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     deploy:
       resources:
         limits:
@@ -76,7 +76,7 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
-      - glab-redis:/data
+      - ./data/redis:/data
     deploy:
       resources:
         limits:
@@ -88,7 +88,3 @@ services:
       timeout: 5s
       retries: 5
 
-volumes:
-  glab-pgdata:
-  glab-redis:
-  glab-uploads:
