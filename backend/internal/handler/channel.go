@@ -66,14 +66,18 @@ func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items := make([]ChannelResponse, len(channels))
-	for i, c := range channels {
-		items[i] = channelToResponse(c)
+	items := make([]ChannelResponse, 0, len(channels))
+	for _, c := range channels {
+		resp := channelToResponse(c)
 		if c.Type == "dm" {
-			if name, ok := dmNames[items[i].ID]; ok {
-				items[i].Name = name
+			if name, ok := dmNames[resp.ID]; ok {
+				resp.Name = name
+			} else {
+				// DM with no resolvable other member — skip it
+				continue
 			}
 		}
+		items = append(items, resp)
 	}
 
 	respondJSON(w, http.StatusOK, items)

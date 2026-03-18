@@ -63,6 +63,11 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     api.get<User[]>('/api/v1/users').then(setUsers).catch(() => {});
   }, []);
 
+  // Auto-focus textarea when channel changes
+  useEffect(() => {
+    setTimeout(() => textareaRef.current?.focus(), 100);
+  }, [channelId]);
+
   const adjustHeight = useCallback(() => {
     const ta = textareaRef.current;
     if (!ta) return;
