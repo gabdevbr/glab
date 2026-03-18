@@ -22,10 +22,11 @@ func NewMessageHandler(q *repository.Queries) *MessageHandler {
 
 // listChannelMessagesRowToResponse converts a ListChannelMessagesRow to MessageResponse.
 func listChannelMessagesRowToResponse(m repository.ListChannelMessagesRow) MessageResponse {
+	uid := uuidToString(m.UserID)
 	return MessageResponse{
 		ID:          uuidToString(m.ID),
 		ChannelID:   uuidToString(m.ChannelID),
-		UserID:      uuidToString(m.UserID),
+		UserID:      uid,
 		ThreadID:    uuidToString(m.ThreadID),
 		Content:     m.Content,
 		ContentType: m.ContentType,
@@ -35,17 +36,18 @@ func listChannelMessagesRowToResponse(m repository.ListChannelMessagesRow) Messa
 		UpdatedAt:   timestampToString(m.UpdatedAt),
 		Username:    m.Username,
 		DisplayName: m.DisplayName,
-		AvatarURL:   m.AvatarUrl.String,
+		AvatarURL:   resolveAvatarURL(m.AvatarUrl.String, uid),
 		IsBot:       m.IsBot,
 	}
 }
 
 // pinnedMessageRowToResponse converts a ListPinnedMessagesRow to MessageResponse.
 func pinnedMessageRowToResponse(m repository.ListPinnedMessagesRow) MessageResponse {
+	uid := uuidToString(m.UserID)
 	return MessageResponse{
 		ID:          uuidToString(m.ID),
 		ChannelID:   uuidToString(m.ChannelID),
-		UserID:      uuidToString(m.UserID),
+		UserID:      uid,
 		ThreadID:    uuidToString(m.ThreadID),
 		Content:     m.Content,
 		ContentType: m.ContentType,
@@ -55,17 +57,18 @@ func pinnedMessageRowToResponse(m repository.ListPinnedMessagesRow) MessageRespo
 		UpdatedAt:   timestampToString(m.UpdatedAt),
 		Username:    m.Username,
 		DisplayName: m.DisplayName,
-		AvatarURL:   m.AvatarUrl.String,
+		AvatarURL:   resolveAvatarURL(m.AvatarUrl.String, uid),
 		IsBot:       m.IsBot,
 	}
 }
 
 // threadMessageRowToResponse converts a ListThreadMessagesRow to MessageResponse.
 func threadMessageRowToResponse(m repository.ListThreadMessagesRow) MessageResponse {
+	uid := uuidToString(m.UserID)
 	return MessageResponse{
 		ID:          uuidToString(m.ID),
 		ChannelID:   uuidToString(m.ChannelID),
-		UserID:      uuidToString(m.UserID),
+		UserID:      uid,
 		ThreadID:    uuidToString(m.ThreadID),
 		Content:     m.Content,
 		ContentType: m.ContentType,
@@ -75,7 +78,7 @@ func threadMessageRowToResponse(m repository.ListThreadMessagesRow) MessageRespo
 		UpdatedAt:   timestampToString(m.UpdatedAt),
 		Username:    m.Username,
 		DisplayName: m.DisplayName,
-		AvatarURL:   m.AvatarUrl.String,
+		AvatarURL:   resolveAvatarURL(m.AvatarUrl.String, uid),
 		IsBot:       m.IsBot,
 	}
 }
@@ -191,10 +194,11 @@ func (h *MessageHandler) ListThreadMessages(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Build parent message response
+	parentUID := uuidToString(parent.UserID)
 	parentResp := MessageResponse{
 		ID:          uuidToString(parent.ID),
 		ChannelID:   uuidToString(parent.ChannelID),
-		UserID:      uuidToString(parent.UserID),
+		UserID:      parentUID,
 		ThreadID:    uuidToString(parent.ThreadID),
 		Content:     parent.Content,
 		ContentType: parent.ContentType,
@@ -204,7 +208,7 @@ func (h *MessageHandler) ListThreadMessages(w http.ResponseWriter, r *http.Reque
 		UpdatedAt:   timestampToString(parent.UpdatedAt),
 		Username:    parent.Username,
 		DisplayName: parent.DisplayName,
-		AvatarURL:   parent.AvatarUrl.String,
+		AvatarURL:   resolveAvatarURL(parent.AvatarUrl.String, parentUID),
 		IsBot:       parent.IsBot,
 	}
 

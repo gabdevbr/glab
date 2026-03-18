@@ -1074,15 +1074,23 @@ func timestampToString(t pgtype.Timestamptz) string {
 	return t.Time.Format(time.RFC3339)
 }
 
+func resolveAvatarURL(raw string, userID string) string {
+	if len(raw) > 8 && raw[:8] == "avatars/" {
+		return "/api/v1/users/" + userID + "/avatar"
+	}
+	return raw
+}
+
 // messageRowToNewPayload converts a GetMessageByIDRow to a MessageNewPayload.
 func messageRowToNewPayload(m repository.GetMessageByIDRow) MessageNewPayload {
+	uid := uuidToString(m.UserID)
 	return MessageNewPayload{
 		ID:          uuidToString(m.ID),
 		ChannelID:   uuidToString(m.ChannelID),
-		UserID:      uuidToString(m.UserID),
+		UserID:      uid,
 		Username:    m.Username,
 		DisplayName: m.DisplayName,
-		AvatarURL:   m.AvatarUrl.String,
+		AvatarURL:   resolveAvatarURL(m.AvatarUrl.String, uid),
 		Content:     m.Content,
 		ContentType: m.ContentType,
 		ThreadID:    uuidToString(m.ThreadID),

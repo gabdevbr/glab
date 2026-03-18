@@ -110,12 +110,13 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]adminUserItem, len(users))
 	for i, u := range users {
+		uid := uuidToString(u.ID)
 		items[i] = adminUserItem{
-			ID:            uuidToString(u.ID),
+			ID:            uid,
 			Username:      u.Username,
 			Email:         u.Email,
 			DisplayName:   u.DisplayName,
-			AvatarURL:     u.AvatarUrl.String,
+			AvatarURL:     resolveAvatarURL(u.AvatarUrl.String, uid),
 			Role:          u.Role,
 			Status:        u.Status,
 			LastSeen:      timestampToString(u.LastSeen),

@@ -80,6 +80,67 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+// ChangePassword handles POST /api/v1/auth/change-password.
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var body struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	if err := parseBody(r, &body); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if body.CurrentPassword == "" || body.NewPassword == "" {
+		respondError(w, http.StatusBadRequest, "current_password and new_password are required")
+		return
+	}
+	if len(body.NewPassword) < 6 {
+		respondError(w, http.StatusBadRequest, "new password must be at least 6 characters")
+		return
+	}
+
+	uid, err := parseUUID(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "invalid user id")
+		return
+	}
+
+	user, err := h.queries.GetUserByID(r.Context(), uid)
+	if err != nil {
+		respondError(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	if err := auth.CheckPassword(user.PasswordHash, body.CurrentPassword); err != nil {
+		respondError(w, http.StatusBadRequest, "current password is incorrect")
+		return
+	}
+
+	hash, err := auth.HashPassword(body.NewPassword)
+	if err != nil {
+		slog.Error("failed to hash new password", "error", err)
+		respondError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	if err := h.queries.UpdatePasswordHash(r.Context(), repository.UpdatePasswordHashParams{
+		ID:           uid,
+		PasswordHash: hash,
+	}); err != nil {
+		slog.Error("failed to update password", "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to update password")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 // Me handles GET /api/v1/auth/me.
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	claims := auth.UserFromContext(r.Context())

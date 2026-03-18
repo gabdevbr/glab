@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -166,14 +167,24 @@ type UserResponse struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
+// resolveAvatarURL transforms a storage key like "avatars/{id}.png" into
+// the public serving URL "/api/v1/users/{id}/avatar". External URLs pass through.
+func resolveAvatarURL(raw string, userID string) string {
+	if strings.HasPrefix(raw, "avatars/") {
+		return "/api/v1/users/" + userID + "/avatar"
+	}
+	return raw
+}
+
 // userToResponse converts a repository.User to a safe UserResponse.
 func userToResponse(u repository.User) UserResponse {
+	uid := uuidToString(u.ID)
 	return UserResponse{
-		ID:          uuidToString(u.ID),
+		ID:          uid,
 		Username:    u.Username,
 		Email:       u.Email,
 		DisplayName: u.DisplayName,
-		AvatarURL:   u.AvatarUrl.String,
+		AvatarURL:   resolveAvatarURL(u.AvatarUrl.String, uid),
 		Role:        u.Role,
 		Status:      u.Status,
 		LastSeen:    timestampToString(u.LastSeen),

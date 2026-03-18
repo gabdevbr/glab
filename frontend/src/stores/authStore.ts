@@ -9,6 +9,7 @@ interface AuthState {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   loadFromStorage: () => Promise<void>;
+  updateUser: (updated: Partial<User>) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -28,6 +29,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     api.setToken(null);
     localStorage.removeItem('glab_token');
     set({ user: null, token: null });
+  },
+  updateUser: (updated) => {
+    set((state) => ({
+      user: state.user ? { ...state.user, ...updated } : null,
+    }));
   },
   loadFromStorage: async () => {
     const token = localStorage.getItem('glab_token');

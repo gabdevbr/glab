@@ -182,10 +182,11 @@ func (h *AgentHandler) GetSessionMessages(w http.ResponseWriter, r *http.Request
 
 	items := make([]MessageResponse, len(msgs))
 	for i, m := range msgs {
+		uid := uuidToString(m.UserID)
 		items[i] = MessageResponse{
 			ID:          uuidToString(m.ID),
 			ChannelID:   uuidToString(m.ChannelID),
-			UserID:      uuidToString(m.UserID),
+			UserID:      uid,
 			ThreadID:    uuidToString(m.ThreadID),
 			Content:     m.Content,
 			ContentType: m.ContentType,
@@ -195,7 +196,7 @@ func (h *AgentHandler) GetSessionMessages(w http.ResponseWriter, r *http.Request
 			UpdatedAt:   timestampToString(m.UpdatedAt),
 			Username:    m.Username,
 			DisplayName: m.DisplayName,
-			AvatarURL:   m.AvatarUrl.String,
+			AvatarURL:   resolveAvatarURL(m.AvatarUrl.String, uid),
 			IsBot:       m.IsBot,
 		}
 	}

@@ -119,7 +119,7 @@ func main() {
 	go hub.Run()
 
 	authHandler := handler.NewAuthHandler(queries, cfg.JWTSecret, cfg.JWTExpiry)
-	userHandler := handler.NewUserHandler(queries)
+	userHandler := handler.NewUserHandler(queries, storageSvc)
 	channelHandler := handler.NewChannelHandler(queries)
 	messageHandler := handler.NewMessageHandler(queries)
 	agentHandler := handler.NewAgentHandler(queries)
@@ -181,11 +181,14 @@ func main() {
 
 		// Auth
 		r.Get("/api/v1/auth/me", authHandler.Me)
+		r.Post("/api/v1/auth/change-password", authHandler.ChangePassword)
 
 		// Users
 		r.Get("/api/v1/users", userHandler.List)
 		r.Get("/api/v1/users/{id}", userHandler.GetByID)
 		r.Patch("/api/v1/users/{id}", userHandler.Update)
+		r.Post("/api/v1/users/{id}/avatar", userHandler.UploadAvatar)
+		r.Get("/api/v1/users/{id}/avatar", userHandler.ServeAvatar)
 
 		// Channels
 		r.Get("/api/v1/channels", channelHandler.List)

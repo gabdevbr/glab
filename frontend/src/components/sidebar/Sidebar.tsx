@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -8,9 +9,12 @@ import { DMList } from './DMList';
 import { AgentList } from './AgentList';
 import { CreateChannelDialog } from './CreateChannelDialog';
 import { NewDMDialog } from './NewDMDialog';
+import { ProfileModal } from './ProfileModal';
 import { LogOut, Bot, Settings, ChevronDown, Search, LayoutDashboard, Users, Hash, ArrowLeftRight, Key } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 interface SidebarProps {
   onOpenSearch?: () => void;
@@ -20,6 +24,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   function handleLogout() {
     logout();
@@ -163,16 +168,28 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
       {/* Bottom user bar */}
       {user && (
         <div className="flex items-center gap-2 border-t border-border px-4 py-2.5">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded bg-accent-primary text-xs font-bold text-accent-primary-text">
-            {user.display_name?.charAt(0).toUpperCase() || '?'}
-          </div>
-          <div className="min-w-0 flex-1">
+          <button
+            onClick={() => setProfileOpen(true)}
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-md p-0.5 -ml-0.5 transition-colors hover:bg-sidebar-hover"
+          >
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-primary text-xs font-bold text-accent-primary-text overflow-hidden">
+              {user.avatar_url ? (
+                <img
+                  src={user.avatar_url.startsWith('/') ? `${API_URL}${user.avatar_url}` : user.avatar_url}
+                  alt={user.display_name}
+                  className="size-7 rounded-full object-cover"
+                />
+              ) : (
+                user.display_name?.charAt(0).toUpperCase() || '?'
+              )}
+            </div>
             <p className="truncate text-sm font-medium text-foreground">{user.display_name}</p>
-          </div>
+          </button>
           <ThemeSwitcher />
           <span className="inline-block size-2 shrink-0 rounded-full bg-status-online" />
         </div>
       )}
+      <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
     </aside>
   );
 }

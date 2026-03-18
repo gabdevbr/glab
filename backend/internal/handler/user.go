@@ -1,24 +1,35 @@
 package handler
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"log/slog"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/geovendas/glab/backend/internal/auth"
 	"github.com/geovendas/glab/backend/internal/repository"
+	"github.com/geovendas/glab/backend/internal/storage"
 )
+
+const maxAvatarSize = 5 << 20 // 5 MB
 
 // UserHandler handles user endpoints.
 type UserHandler struct {
-	queries *repository.Queries
+	queries    *repository.Queries
+	storageSvc *storage.StorageService
 }
 
 // NewUserHandler creates a UserHandler.
-func NewUserHandler(q *repository.Queries) *UserHandler {
-	return &UserHandler{queries: q}
+func NewUserHandler(q *repository.Queries, svc *storage.StorageService) *UserHandler {
+	return &UserHandler{queries: q, storageSvc: svc}
 }
 
 // List handles GET /api/v1/users.
@@ -61,12 +72,13 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]listUserItem, len(users))
 	for i, u := range users {
+		uid := uuidToString(u.ID)
 		items[i] = listUserItem{
-			ID:          uuidToString(u.ID),
+			ID:          uid,
 			Username:    u.Username,
 			Email:       u.Email,
 			DisplayName: u.DisplayName,
-			AvatarURL:   u.AvatarUrl.String,
+			AvatarURL:   resolveAvatarURL(u.AvatarUrl.String, uid),
 			Role:        u.Role,
 			Status:      u.Status,
 			LastSeen:    timestampToString(u.LastSeen),
@@ -144,4 +156,108 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, userToResponse(user))
+}
+
+// UploadAvatar handles POST /api/v1/users/{id}/avatar.
+func (h *UserHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	targetID := chi.URLParam(r, "id")
+	uid, err := parseUUID(targetID)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	if claims.UserID != targetID && claims.Role != "admin" {
+		respondError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarSize)
+	if err := r.ParseMultipartForm(maxAvatarSize); err != nil {
+		respondError(w, http.StatusBadRequest, "file too large (max 5MB)")
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "missing file field")
+		return
+	}
+	defer file.Close()
+
+	mimeType := header.Header.Get("Content-Type")
+	if mimeType == "" || mimeType == "application/octet-stream" {
+		mimeType = mime.TypeByExtension(filepath.Ext(header.Filename))
+	}
+	if !strings.HasPrefix(mimeType, "image/") {
+		respondError(w, http.StatusBadRequest, "only image files are allowed")
+		return
+	}
+
+	ext := filepath.Ext(header.Filename)
+	if ext == "" {
+		ext = ".jpg"
+	}
+	key := fmt.Sprintf("avatars/%s%s", targetID, ext)
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to read file")
+		return
+	}
+
+	if err := h.storageSvc.Backend().Put(r.Context(), key, bytes.NewReader(data), mimeType, int64(len(data))); err != nil {
+		slog.Error("failed to store avatar", "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to store avatar")
+		return
+	}
+
+	// Store storage key in avatar_url — userToResponse transforms it to the public URL.
+	user, err := h.queries.UpdateUser(r.Context(), repository.UpdateUserParams{
+		ID:        uid,
+		AvatarUrl: pgtype.Text{String: key, Valid: true},
+	})
+	if err != nil {
+		slog.Error("failed to update avatar_url", "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to update avatar")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, userToResponse(user))
+}
+
+// ServeAvatar handles GET /api/v1/users/{id}/avatar.
+func (h *UserHandler) ServeAvatar(w http.ResponseWriter, r *http.Request) {
+	targetID := chi.URLParam(r, "id")
+	uid, err := parseUUID(targetID)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	user, err := h.queries.GetUserByID(r.Context(), uid)
+	if err != nil {
+		respondError(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	avatarKey := user.AvatarUrl.String
+	if !strings.HasPrefix(avatarKey, "avatars/") {
+		respondError(w, http.StatusNotFound, "no avatar")
+		return
+	}
+
+	mimeType := mime.TypeByExtension(filepath.Ext(avatarKey))
+	if mimeType == "" {
+		mimeType = "image/jpeg"
+	}
+
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	h.storageSvc.ServeFile(w, r, avatarKey, mimeType, filepath.Base(avatarKey), h.storageSvc.Backend().Type())
 }

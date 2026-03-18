@@ -285,7 +285,7 @@ func (h *APITokenHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 			UserID:      uuidToString(fullMsg.UserID),
 			Username:    fullMsg.Username,
 			DisplayName: fullMsg.DisplayName,
-			AvatarURL:   fullMsg.AvatarUrl.String,
+			AvatarURL:   resolveAvatarURL(fullMsg.AvatarUrl.String, uuidToString(fullMsg.UserID)),
 			Content:     fullMsg.Content,
 			ContentType: fullMsg.ContentType,
 			ThreadID:    uuidToString(fullMsg.ThreadID),

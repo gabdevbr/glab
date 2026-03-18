@@ -100,16 +100,17 @@ type SearchResultResponse struct {
 }
 
 func searchResultForUserToResponse(m repository.SearchMessagesForUserRow) SearchResultResponse {
+	uid := uuidToString(m.UserID)
 	return SearchResultResponse{
 		ID:          uuidToString(m.ID),
 		ChannelID:   uuidToString(m.ChannelID),
-		UserID:      uuidToString(m.UserID),
+		UserID:      uid,
 		Content:     m.Content,
 		ContentType: m.ContentType,
 		CreatedAt:   timestampToString(m.CreatedAt),
 		Username:    m.Username,
 		DisplayName: m.DisplayName,
-		AvatarURL:   m.AvatarUrl.String,
+		AvatarURL:   resolveAvatarURL(m.AvatarUrl.String, uid),
 		IsBot:       m.IsBot,
 		Rank:        m.Rank,
 	}
