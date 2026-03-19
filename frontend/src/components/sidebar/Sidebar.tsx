@@ -18,6 +18,14 @@ import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboa
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
+import { usePresenceStore } from '@/stores/presenceStore';
+import { wsClient } from '@/lib/ws';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   DndContext,
   closestCenter,
@@ -182,6 +190,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const myStatus = usePresenceStore((s) => user ? (s.statuses[user.id] || user.status) : 'offline');
   const [profileOpen, setProfileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [creatingSection, setCreatingSection] = useState(false);
@@ -537,7 +546,31 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
           >
             <Bug className="size-3.5" />
           </a>
-          <span className="inline-block size-2 shrink-0 rounded-full bg-status-online" />
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md hover:bg-sidebar-hover size-7 transition-colors" title="Change status">
+              <span className={cn(
+                'inline-block size-2.5 shrink-0 rounded-full',
+                myStatus === 'online' ? 'bg-status-online'
+                  : myStatus === 'away' ? 'bg-status-away'
+                  : myStatus === 'dnd' ? 'bg-status-dnd'
+                  : 'bg-status-offline',
+              )} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top">
+              {([
+                { value: 'online', label: 'Online', color: 'bg-status-online' },
+                { value: 'away', label: 'Away', color: 'bg-status-away' },
+                { value: 'dnd', label: 'Do not disturb', color: 'bg-status-dnd' },
+                { value: 'offline', label: 'Invisible', color: 'bg-status-offline' },
+              ] as const).map(opt => (
+                <DropdownMenuItem key={opt.value} onClick={() => wsClient.send('presence.update', { status: opt.value })}>
+                  <span className={cn('mr-2 inline-block size-2 rounded-full', opt.color)} />
+                  {opt.label}
+                  {myStatus === opt.value && <span className="ml-auto text-xs text-muted-foreground">current</span>}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
       <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
