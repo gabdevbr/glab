@@ -43,7 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MoreHorizontal, UserPlus, Search, Shield, Key, Trash2, ArrowUpDown } from 'lucide-react';
+import { MoreHorizontal, UserPlus, Search, Shield, Key, Trash2, ArrowUpDown, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type SortField = 'display_name' | 'email' | 'role' | 'status';
@@ -54,6 +54,7 @@ export default function AdminUsersPage() {
   const isLoading = useAdminStore((s) => s.isLoading);
   const fetchUsers = useAdminStore((s) => s.fetchUsers);
   const createUser = useAdminStore((s) => s.createUser);
+  const updateUser = useAdminStore((s) => s.updateUser);
   const deleteUser = useAdminStore((s) => s.deleteUser);
   const changeRole = useAdminStore((s) => s.changeRole);
   const resetPassword = useAdminStore((s) => s.resetPassword);
@@ -64,6 +65,8 @@ export default function AdminUsersPage() {
   const [sortField, setSortField] = useState<SortField>('display_name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [showCreate, setShowCreate] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState<AdminUser | null>(null);
+  const [editForm, setEditForm] = useState({ display_name: '', email: '' });
   const [showRoleDialog, setShowRoleDialog] = useState<AdminUser | null>(null);
   const [showResetDialog, setShowResetDialog] = useState<AdminUser | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState<AdminUser | null>(null);
@@ -111,6 +114,17 @@ export default function AdminUsersPage() {
       await createUser(createForm);
       setShowCreate(false);
       setCreateForm({ username: '', email: '', display_name: '', password: '', role: 'user' });
+      fetchUsers(search);
+    } catch {
+      // error handled by store
+    }
+  };
+
+  const handleEditUser = async () => {
+    if (!showEditDialog) return;
+    try {
+      await updateUser(showEditDialog.id, editForm);
+      setShowEditDialog(null);
       fetchUsers(search);
     } catch {
       // error handled by store
@@ -287,6 +301,9 @@ export default function AdminUsersPage() {
                         <MoreHorizontal className="size-3.5" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => { setShowEditDialog(u); setEditForm({ display_name: u.display_name, email: u.email }); }}>
+                          <Pencil className="mr-2 size-3.5" /> Edit
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { setShowRoleDialog(u); setNewRole(u.role); }}>
                           <Shield className="mr-2 size-3.5" /> Change Role
                         </DropdownMenuItem>
@@ -353,6 +370,32 @@ export default function AdminUsersPage() {
             <Button onClick={handleCreate} disabled={!createForm.username || !createForm.email || !createForm.password}>
               Create
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!showEditDialog} onOpenChange={() => setShowEditDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit {showEditDialog?.display_name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Input
+              placeholder="Display Name"
+              value={editForm.display_name}
+              onChange={(e) => setEditForm(p => ({ ...p, display_name: e.target.value }))}
+            />
+            <Input
+              placeholder="Email"
+              type="email"
+              value={editForm.email}
+              onChange={(e) => setEditForm(p => ({ ...p, email: e.target.value }))}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(null)}>Cancel</Button>
+            <Button onClick={handleEditUser} disabled={!editForm.display_name || !editForm.email}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

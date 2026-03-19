@@ -51,6 +51,7 @@ interface AdminState {
     password: string;
     role: string;
   }) => Promise<void>;
+  updateUser: (id: string, data: { display_name?: string; email?: string }) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   changeRole: (id: string, role: string) => Promise<void>;
   resetPassword: (id: string, password: string) => Promise<void>;
@@ -94,6 +95,10 @@ export const useAdminStore = create<AdminState>((set) => ({
 
   createUser: async (data) => {
     await api.post('/api/v1/admin/users', data);
+  },
+
+  updateUser: async (id, data) => {
+    await api.patch(`/api/v1/users/${id}`, data);
   },
 
   deleteUser: async (id) => {
