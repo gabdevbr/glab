@@ -18,6 +18,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { ImageLightbox } from './ImageLightbox';
 import { MoreHorizontal, Pin, PinOff, Pencil, Trash2, MessageSquare, SmilePlus } from 'lucide-react';
 import { MentionText } from './MentionText';
+import { has as hasEmoji, get as getEmoji } from 'node-emoji';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
 
@@ -47,7 +48,20 @@ function ensureCustomEmojisLoaded(onLoaded: () => void) {
     });
 }
 
+/**
+ * Resolves an emoji shortcode to its display form.
+ * Returns { type: 'custom', name } for custom emojis,
+ * { type: 'unicode', emoji } for standard shortcodes, or null if unknown.
+ */
+function resolveEmoji(name: string): { type: 'custom'; name: string } | { type: 'unicode'; emoji: string } | null {
+  if (customEmojiNames?.has(name)) return { type: 'custom', name };
+  const unicode = getEmoji(name);
+  if (unicode) return { type: 'unicode', emoji: unicode };
+  return null;
+}
+
 const URL_REGEX = /https?:\/\/[^\s<>'")\]]+/g;
+const IMAGE_URL_REGEX = /\.(gif|gifv|webp|png|jpg|jpeg)(\?[^\s]*)?$/i;
 
 function renderWithLinks(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -59,17 +73,31 @@ function renderWithLinks(text: string): React.ReactNode[] {
       parts.push(text.slice(lastIndex, match.index));
     }
     const url = match[0].replace(/[.,;:!?)]+$/, '');
-    parts.push(
-      <a
-        key={`link-${match.index}`}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-link-text underline hover:text-link-hover"
-      >
-        {url}
-      </a>,
-    );
+
+    // Render image URLs inline instead of as links
+    if (IMAGE_URL_REGEX.test(url)) {
+      parts.push(
+        <img
+          key={`img-${match.index}`}
+          src={url}
+          alt="image"
+          className="mt-1 max-h-64 max-w-xs rounded-lg border border-border"
+          loading="lazy"
+        />,
+      );
+    } else {
+      parts.push(
+        <a
+          key={`link-${match.index}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-link-text underline hover:text-link-hover"
+        >
+          {url}
+        </a>,
+      );
+    }
     lastIndex = match.index + url.length;
   }
 
@@ -81,29 +109,37 @@ function renderWithLinks(text: string): React.ReactNode[] {
 }
 
 function renderWithCustomEmojis(text: string): React.ReactNode[] {
-  if (!customEmojiNames || customEmojiNames.size === 0) return renderWithLinks(text);
-
   const parts: React.ReactNode[] = [];
-  const regex = /:([a-zA-Z0-9_-]+):/g;
+  const regex = /:([a-zA-Z0-9_+-]+):/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(text)) !== null) {
-    const emojiName = match[1];
-    if (!customEmojiNames.has(emojiName)) continue;
+    const resolved = resolveEmoji(match[1]);
+    if (!resolved) continue;
 
     if (match.index > lastIndex) {
       parts.push(...renderWithLinks(text.slice(lastIndex, match.index)));
     }
-    parts.push(
-      <img
-        key={`${match.index}-${emojiName}`}
-        src={`${API_URL}/api/v1/emojis/custom/${emojiName}`}
-        alt={`:${emojiName}:`}
-        title={`:${emojiName}:`}
-        className="inline-block size-5 align-text-bottom"
-      />,
-    );
+
+    if (resolved.type === 'custom') {
+      parts.push(
+        <img
+          key={`${match.index}-${resolved.name}`}
+          src={`${API_URL}/api/v1/emojis/custom/${resolved.name}`}
+          alt={`:${resolved.name}:`}
+          title={`:${resolved.name}:`}
+          className="inline-block size-5 align-text-bottom"
+        />,
+      );
+    } else {
+      parts.push(
+        <span key={`${match.index}-${match[1]}`} title={`:${match[1]}:`}>
+          {resolved.emoji}
+        </span>,
+      );
+    }
+
     lastIndex = match.index + match[0].length;
   }
 
@@ -491,15 +527,19 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
             )}
           >
             <span>
-              {customEmojiNames?.has(g.emoji) ? (
-                <img
-                  src={`${API_URL}/api/v1/emojis/custom/${g.emoji}`}
-                  alt={g.emoji}
-                  className="inline-block size-4"
-                />
-              ) : (
-                g.emoji
-              )}
+              {(() => {
+                const resolved = resolveEmoji(g.emoji);
+                if (resolved?.type === 'custom') {
+                  return (
+                    <img
+                      src={`${API_URL}/api/v1/emojis/custom/${resolved.name}`}
+                      alt={g.emoji}
+                      className="inline-block size-4"
+                    />
+                  );
+                }
+                return resolved?.emoji || g.emoji;
+              })()}
             </span>
             <span>{g.count}</span>
           </button>

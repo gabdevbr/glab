@@ -26,6 +26,7 @@ import (
 	"github.com/gabdevbr/glab/backend/internal/auth"
 	"github.com/gabdevbr/glab/backend/internal/config"
 	"github.com/gabdevbr/glab/backend/internal/db"
+	"github.com/gabdevbr/glab/backend/internal/giphy"
 	"github.com/gabdevbr/glab/backend/internal/handler"
 	"github.com/gabdevbr/glab/backend/internal/migration"
 	"github.com/gabdevbr/glab/backend/internal/repository"
@@ -115,6 +116,9 @@ func main() {
 	// AI config service
 	aiCfgSvc := ai.NewGatewayConfigService(queries)
 
+	// Giphy config service
+	giphyCfgSvc := giphy.NewConfigService(queries)
+
 	// WebSocket hub (created early so handlers can reference it)
 	hub := ws.NewHub()
 	go hub.Run()
@@ -142,6 +146,8 @@ func main() {
 	storageMigrator := storage.NewMigrator(queries, localBackend, swappable, hub)
 	storageAdminHandler := handler.NewStorageAdminHandler(queries, storageCfgSvc, storageSvc, swappable, storageMigrator)
 	aiAdminHandler := handler.NewAIAdminHandler(queries, aiCfgSvc)
+	giphyHandler := handler.NewGiphyHandler(giphyCfgSvc)
+	giphyAdminHandler := handler.NewGiphyAdminHandler(giphyCfgSvc)
 
 	// Migration engine
 	migrationEngine := migration.NewEngine(pool, queries, hub, cfg.UploadDir)
@@ -239,6 +245,10 @@ func main() {
 		// Custom emojis (serving is public — see above)
 		r.Get("/api/v1/emojis/custom", emojiHandler.List)
 
+		// Giphy proxy
+		r.Get("/api/v1/giphy/search", giphyHandler.Search)
+		r.Get("/api/v1/giphy/trending", giphyHandler.Trending)
+
 		// Agents
 		r.Get("/api/v1/agents", agentHandler.List)
 		r.Get("/api/v1/agents/{slug}", agentHandler.GetBySlug)
@@ -278,6 +288,10 @@ func main() {
 		r.Get("/api/v1/admin/ai/config", aiAdminHandler.GetConfig)
 		r.Put("/api/v1/admin/ai/config", aiAdminHandler.PutConfig)
 		r.Post("/api/v1/admin/ai/test", aiAdminHandler.TestConnection)
+
+		// Admin — Giphy config
+		r.Get("/api/v1/admin/giphy/config", giphyAdminHandler.GetConfig)
+		r.Put("/api/v1/admin/giphy/config", giphyAdminHandler.PutConfig)
 
 		// Admin — migration
 		r.Post("/api/v1/admin/migration/start", migrationHandler.Start)

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, KeyboardEvent, FormEvent } from 'react';
+import { useState, useRef, useCallback, useEffect, KeyboardEvent, FormEvent, DragEvent, ClipboardEvent } from 'react';
 import { wsClient } from '@/lib/ws';
 import { api } from '@/lib/api';
 import { User, Channel } from '@/lib/types';
 import { useAuthStore } from '@/stores/authStore';
 import { MentionAutocomplete, getMentionItemCount } from './MentionAutocomplete';
+import { SlashCommandPopup, getSlashCommandCount, getMatchedCommand } from './SlashCommandPopup';
 import { Paperclip, X, Lock } from 'lucide-react';
 
 interface MessageInputProps {
@@ -50,9 +51,12 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
   const [content, setContent] = useState('');
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [users, setUsers] = useState<User[]>([]);
+  const [slashInput, setSlashInput] = useState<string | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,12 +100,21 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
   function handleInput(value: string) {
     setContent(value);
 
-    // Detect @mention
-    const ta = textareaRef.current;
-    if (ta) {
-      const q = detectMention(value, ta.selectionStart);
-      setMentionQuery(q);
-      setMentionIndex(0);
+    // Detect slash command at start of input
+    if (value.startsWith('/')) {
+      setSlashInput(value.slice(1)); // everything after the "/"
+      setSlashIndex(0);
+      setMentionQuery(null);
+    } else {
+      setSlashInput(null);
+
+      // Detect @mention
+      const ta = textareaRef.current;
+      if (ta) {
+        const q = detectMention(value, ta.selectionStart);
+        setMentionQuery(q);
+        setMentionIndex(0);
+      }
     }
 
     // Debounced typing indicator
@@ -136,6 +149,25 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
       const newCursor = atPos + username.length + 2; // @username + space
       ta.focus();
       ta.setSelectionRange(newCursor, newCursor);
+    });
+  }
+
+  function handleGifSelect(gifUrl: string) {
+    if (!isConnected) return;
+    wsClient.send('message.send', {
+      channel_id: channelId,
+      content: gifUrl,
+      ...(threadId ? { thread_id: threadId } : {}),
+    });
+    setContent('');
+    setSlashInput(null);
+    lastTypingSentRef.current = 0;
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current;
+      if (ta) {
+        ta.style.height = 'auto';
+        ta.focus();
+      }
     });
   }
 
@@ -182,7 +214,88 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e: DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+  }
+
+  function handleDrop(e: DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      setUploadingFile(file);
+      handleFileUpload(file);
+    }
+  }
+
+  function handlePaste(e: ClipboardEvent<HTMLTextAreaElement>) {
+    const files = e.clipboardData.files;
+    if (files.length > 0) {
+      e.preventDefault();
+      const file = files[0];
+      setUploadingFile(file);
+      handleFileUpload(file);
+    }
+  }
+
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    // Slash command keyboard handling
+    if (slashInput !== null) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSlashInput(null);
+        setContent('');
+        return;
+      }
+      const cmdCount = getSlashCommandCount(slashInput);
+      if (cmdCount > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSlashIndex((i) => i + 1);
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSlashIndex((i) => Math.max(0, i - 1));
+          return;
+        }
+        if (e.key === 'Tab' || e.key === 'Enter') {
+          // Auto-complete the matched command
+          const matched = getMatchedCommand(slashInput);
+          if (!matched) {
+            // Complete to first matching command
+            e.preventDefault();
+            const commands = ['giphy'];
+            const commandName = slashInput.split(/\s+/)[0]?.toLowerCase() || '';
+            const match = commands.filter((c) => c.startsWith(commandName))[slashIndex % cmdCount];
+            if (match) {
+              const newValue = `/${match} `;
+              setContent(newValue);
+              setSlashInput(newValue.slice(1));
+              requestAnimationFrame(() => {
+                const ta = textareaRef.current;
+                if (ta) {
+                  ta.setSelectionRange(newValue.length, newValue.length);
+                }
+              });
+            }
+            return;
+          }
+        }
+      }
+      // In GIF mode, Enter should not send — let the popup handle clicks
+      if (getMatchedCommand(slashInput) && e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        return;
+      }
+    }
+
     if (mentionQuery !== null) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -307,7 +420,17 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
   }
 
   return (
-    <div className="relative px-5 pb-5 pt-2">
+    <div className="relative px-5 pb-5 pt-2" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+      {/* Slash command popup */}
+      {slashInput !== null && (
+        <SlashCommandPopup
+          input={slashInput}
+          onSelectGif={handleGifSelect}
+          onClose={() => { setSlashInput(null); setContent(''); }}
+          selectedIndex={slashIndex}
+        />
+      )}
+
       {/* Mention autocomplete */}
       {mentionQuery !== null && (
         <MentionAutocomplete
@@ -322,6 +445,13 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
           onSelect={insertMention}
           onClose={() => setMentionQuery(null)}
         />
+      )}
+
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-accent bg-accent/10">
+          <span className="text-sm font-medium text-accent">Drop file to upload</span>
+        </div>
       )}
 
       {/* Upload progress */}
@@ -341,6 +471,7 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
             value={content}
             onChange={(e) => handleInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={`Message #${channelName}`}
             disabled={!isConnected}
             rows={1}
