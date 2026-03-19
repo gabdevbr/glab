@@ -630,20 +630,61 @@
 }
 
 /* ============================================================
-   Prose theming for markdown (bot messages)
+   Prose theming for markdown (all messages)
    ============================================================ */
-[data-theme="light"] .prose-themed,
-[data-theme="light-geo"] .prose-themed {
-  --tw-prose-body: oklch(0.28 0.027 263);
-  --tw-prose-headings: oklch(0.13 0.028 261);
-  --tw-prose-links: var(--link-text);
-  --tw-prose-code: oklch(0.13 0.028 261);
+.prose-chat {
+  line-height: 1.5;
 }
-.dark .prose-themed {
-  --tw-prose-invert-body: oklch(0.93 0.008 255);
-  --tw-prose-invert-headings: oklch(0.97 0.004 264);
-  --tw-prose-invert-links: var(--link-text);
-  --tw-prose-invert-code: oklch(0.97 0.004 264);
+.prose-chat p {
+  margin: 0;
+}
+.prose-chat p + p {
+  margin-top: 0.25em;
+}
+.prose-chat ul,
+.prose-chat ol {
+  margin: 0.25em 0;
+  padding-left: 1.5em;
+}
+.prose-chat ul {
+  list-style-type: disc;
+}
+.prose-chat ol {
+  list-style-type: decimal;
+}
+.prose-chat li {
+  margin: 0.1em 0;
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3,
+.prose-chat h4 {
+  font-weight: 600;
+  margin: 0.5em 0 0.25em;
+}
+.prose-chat h1 { font-size: 1.25em; }
+.prose-chat h2 { font-size: 1.125em; }
+.prose-chat h3 { font-size: 1em; }
+.prose-chat hr {
+  border-color: var(--border);
+  margin: 0.75em 0;
+}
+.prose-chat table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  font-size: 0.85em;
+}
+.prose-chat th,
+.prose-chat td {
+  border: 1px solid var(--border);
+  padding: 0.25em 0.75em;
+}
+.prose-chat th {
+  background: var(--secondary);
+  font-weight: 600;
+}
+.prose-chat strong {
+  font-weight: 600;
 }
 
 /* ============================================================

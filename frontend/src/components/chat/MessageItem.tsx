@@ -7,7 +7,9 @@ import { useMessageStore } from '@/stores/messageStore';
 import { wsClient } from '@/lib/ws';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { Components } from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { EmojiPicker } from './EmojiPicker';
 import { ImageLightbox } from './ImageLightbox';
-import { MoreHorizontal, Pin, PinOff, Pencil, Trash2, MessageSquare, SmilePlus } from 'lucide-react';
-import { MentionText } from './MentionText';
+import { MoreHorizontal, Pin, PinOff, Pencil, Trash2, MessageSquare, SmilePlus, Copy, Check } from 'lucide-react';
 import { has as hasEmoji, get as getEmoji } from 'node-emoji';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
@@ -270,6 +271,108 @@ function MentionPill({ name, isGroup, onUserInfoOpen }: { name: string; isGroup:
   );
 }
 
+function CodeBlock({ className, children }: { className?: string; children?: React.ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  const match = /language-(\w+)/.exec(className || '');
+  const language = match ? match[1] : '';
+  const code = String(children).replace(/\n$/, '');
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [code]);
+
+  return (
+    <div className="group/code relative my-2 overflow-hidden rounded-lg border border-border">
+      <div className="flex items-center justify-between bg-secondary/80 px-3 py-1.5 text-[11px] text-muted-foreground">
+        <span>{language || 'code'}</span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1 transition-colors hover:text-foreground"
+        >
+          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <SyntaxHighlighter
+        style={oneDark}
+        language={language || 'text'}
+        PreTag="div"
+        customStyle={{
+          margin: 0,
+          borderRadius: 0,
+          fontSize: '0.8125rem',
+          background: 'oklch(0.18 0.01 260)',
+        }}
+      >
+        {code}
+      </SyntaxHighlighter>
+    </div>
+  );
+}
+
+function InlineCode({ children }: { children?: React.ReactNode }) {
+  return (
+    <code className="rounded bg-secondary/80 px-1.5 py-0.5 text-[0.85em] font-mono text-foreground">
+      {children}
+    </code>
+  );
+}
+
+/** Custom renderers for ReactMarkdown — handles mentions and emojis inside text nodes. */
+function useMarkdownComponents(onUserInfoOpen?: (userId: string) => void): Components {
+  return useMemo(() => ({
+    code({ className, children }) {
+      const isBlock = /language-(\w+)/.test(className || '') || String(children).includes('\n');
+      if (isBlock) {
+        return <CodeBlock className={className}>{children}</CodeBlock>;
+      }
+      return <InlineCode>{children}</InlineCode>;
+    },
+    pre({ children }) {
+      return <>{children}</>;
+    },
+    p({ children }) {
+      return <p className="whitespace-pre-wrap break-words">{processChildren(children, onUserInfoOpen)}</p>;
+    },
+    li({ children }) {
+      return <li>{processChildren(children, onUserInfoOpen)}</li>;
+    },
+    a({ href, children }) {
+      if (href && IMAGE_URL_REGEX.test(href)) {
+        return (
+          <img
+            src={href}
+            alt={String(children)}
+            className="mt-1 max-h-64 max-w-xs rounded-lg border border-border"
+            loading="lazy"
+          />
+        );
+      }
+      return (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="text-link-text underline hover:text-link-hover">
+          {children}
+        </a>
+      );
+    },
+    blockquote({ children }) {
+      return <blockquote className="border-l-2 border-accent-primary/50 pl-3 text-muted-foreground italic">{children}</blockquote>;
+    },
+  }), [onUserInfoOpen]);
+}
+
+/** Walks ReactMarkdown children, replacing string nodes with mention+emoji rendered nodes. */
+function processChildren(children: React.ReactNode, onUserInfoOpen?: (userId: string) => void): React.ReactNode {
+  return React.Children.map(children, (child) => {
+    if (typeof child === 'string') {
+      const nodes = renderWithMentionsAndEmojis(child, onUserInfoOpen);
+      return nodes.length === 1 && typeof nodes[0] === 'string' ? nodes[0] : <>{nodes}</>;
+    }
+    return child;
+  });
+}
+
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -296,6 +399,7 @@ interface MessageItemProps {
 export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }: MessageItemProps) {
   const user = useAuthStore((s) => s.user);
   const channelMessages = useMessageStore((s) => s.messages[message.channel_id]);
+  const mdComponents = useMarkdownComponents(onUserInfoOpen);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -479,17 +583,6 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
       );
     }
 
-    if (message.is_bot) {
-      return (
-        <div className="prose prose-invert prose-sm max-w-none text-sm text-foreground">
-          <ReactMarkdown>{message.content}</ReactMarkdown>
-          {message.edited_at && (
-            <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>
-          )}
-        </div>
-      );
-    }
-
     return (
       <>
         {quotedMessage && (
@@ -498,12 +591,14 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
             <p className="truncate">{quotedMessage.content.slice(0, 120)}</p>
           </div>
         )}
-        <p className="whitespace-pre-wrap break-words text-sm text-foreground">
-          {renderWithMentionsAndEmojis(cleanContent, onUserInfoOpen)}
+        <div className="prose-chat max-w-none text-sm text-foreground">
+          <ReactMarkdown components={mdComponents}>
+            {message.is_bot ? message.content : cleanContent}
+          </ReactMarkdown>
           {message.edited_at && (
             <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>
           )}
-        </p>
+        </div>
       </>
     );
   };
