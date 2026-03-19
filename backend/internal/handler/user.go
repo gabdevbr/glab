@@ -107,6 +107,23 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, userToResponse(user))
 }
 
+// GetByUsername handles GET /api/v1/users/by-username/{username}.
+func (h *UserHandler) GetByUsername(w http.ResponseWriter, r *http.Request) {
+	username := chi.URLParam(r, "username")
+	if username == "" {
+		respondError(w, http.StatusBadRequest, "username is required")
+		return
+	}
+
+	user, err := h.queries.GetUserByUsername(r.Context(), username)
+	if err != nil {
+		respondError(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, userToResponse(user))
+}
+
 // Update handles PATCH /api/v1/users/{id}.
 func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	claims := auth.UserFromContext(r.Context())

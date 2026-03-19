@@ -176,7 +176,7 @@ function parseRCQuote(content: string): { cleanContent: string; rcMsgId: string 
   return { cleanContent, rcMsgId };
 }
 
-function renderWithMentionsAndEmojis(content: string): React.ReactNode[] {
+function renderWithMentionsAndEmojis(content: string, onUserInfoOpen?: (userId: string) => void): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   const mentionRegex = /(?:^|(?<=\s))@(\w+(?:[.-]\w+)*)/g;
   let lastIndex = 0;
@@ -200,7 +200,7 @@ function renderWithMentionsAndEmojis(content: string): React.ReactNode[] {
     // Mention pill
     const displayName = isGroup ? name.toLowerCase() : name;
     parts.push(
-      <MentionPill key={`m${key++}`} name={displayName} isGroup={isGroup} />,
+      <MentionPill key={`m${key++}`} name={displayName} isGroup={isGroup} onUserInfoOpen={onUserInfoOpen} />,
     );
     lastIndex = match.index + match[0].length;
   }
@@ -214,9 +214,15 @@ function renderWithMentionsAndEmojis(content: string): React.ReactNode[] {
   return parts.length > 0 ? parts : renderWithCustomEmojis(content);
 }
 
-function MentionPill({ name, isGroup }: { name: string; isGroup: boolean }) {
+function MentionPill({ name, isGroup, onUserInfoOpen }: { name: string; isGroup: boolean; onUserInfoOpen?: (userId: string) => void }) {
+  const handleClick = useCallback(() => {
+    if (isGroup || !onUserInfoOpen) return;
+    api.get<{ id: string }>(`/api/v1/users/by-username/${name}`).then(u => onUserInfoOpen(u.id)).catch(() => {});
+  }, [name, isGroup, onUserInfoOpen]);
+
   return (
     <span
+      onClick={isGroup ? undefined : handleClick}
       className={cn(
         'inline-flex items-center rounded px-0.5 font-medium text-[0.9em] transition-all duration-150',
         'bg-accent-primary-subtle text-accent-primary-subtle-text',
@@ -457,7 +463,7 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
           </div>
         )}
         <p className="whitespace-pre-wrap break-words text-sm text-foreground">
-          {renderWithMentionsAndEmojis(cleanContent)}
+          {renderWithMentionsAndEmojis(cleanContent, onUserInfoOpen)}
           {message.edited_at && (
             <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>
           )}

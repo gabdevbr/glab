@@ -196,6 +196,7 @@ func main() {
 		// Users
 		r.Get("/api/v1/users", userHandler.List)
 		r.Patch("/api/v1/users/me/preferences", userHandler.UpdatePreferences)
+		r.Get("/api/v1/users/by-username/{username}", userHandler.GetByUsername)
 		r.Get("/api/v1/users/{id}", userHandler.GetByID)
 		r.Patch("/api/v1/users/{id}", userHandler.Update)
 		r.Post("/api/v1/users/{id}/avatar", userHandler.UploadAvatar)
