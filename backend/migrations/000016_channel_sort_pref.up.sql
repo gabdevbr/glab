@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN channel_sort VARCHAR(20) NOT NULL DEFAULT 'activity';

@@ -30,14 +30,15 @@ func (l *Loader) UpsertUsers(ctx context.Context, users []GlabUser) error {
 	batch := &pgx.Batch{}
 	for _, u := range users {
 		batch.Queue(`
-			INSERT INTO users (id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			INSERT INTO users (id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, created_at, rc_user_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 			ON CONFLICT (id) DO UPDATE SET
 				display_name = EXCLUDED.display_name,
 				avatar_url = EXCLUDED.avatar_url,
-				email = EXCLUDED.email
+				email = EXCLUDED.email,
+				rc_user_id = EXCLUDED.rc_user_id
 		`, u.ID, u.Username, u.Email, u.DisplayName, u.AvatarURL,
-			u.PasswordHash, u.Role, u.Status, u.LastSeen, u.IsBot, u.CreatedAt)
+			u.PasswordHash, u.Role, u.Status, u.LastSeen, u.IsBot, u.CreatedAt, u.RCUserID)
 	}
 
 	br := l.pool.SendBatch(ctx, batch)

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
 import './globals.css';
 
 const inter = Inter({
@@ -12,6 +13,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Glab',
   description: 'Internal communication platform',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Glab',
+  },
 };
 
 // Inline script to prevent FOUC — runs before first paint.
@@ -26,12 +33,15 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" data-theme="dark-geo" className="dark" suppressHydrationWarning>
       <head>
+        <meta name="theme-color" content="#1a2332" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider>
           <TooltipProvider>{children}</TooltipProvider>
         </ThemeProvider>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

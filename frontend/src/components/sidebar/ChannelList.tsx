@@ -14,6 +14,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
   ContextMenuSubmenuTrigger,
   ContextMenuSubmenu,
 } from '@/components/ui/context-menu';
@@ -192,10 +193,12 @@ export function ChannelList() {
                     {sections.length > 0 && (
                       <>
                         <ContextMenuSeparator />
-                        <ContextMenuSubmenuTrigger>
-                          <FolderInput className="mr-2 h-4 w-4" />
-                          Move to section
-                          <ChevronRight className="ml-auto h-4 w-4" />
+                        <ContextMenuSub>
+                          <ContextMenuSubmenuTrigger>
+                            <FolderInput className="mr-2 h-4 w-4" />
+                            Move to section
+                            <ChevronRight className="ml-auto h-4 w-4" />
+                          </ContextMenuSubmenuTrigger>
                           <ContextMenuSubmenu>
                             {sections.map((sec) => (
                               <ContextMenuItem key={sec.id} onClick={() => moveChannel(channel.id, sec.id)}>
@@ -203,7 +206,7 @@ export function ChannelList() {
                               </ContextMenuItem>
                             ))}
                           </ContextMenuSubmenu>
-                        </ContextMenuSubmenuTrigger>
+                        </ContextMenuSub>
                       </>
                     )}
                     {user?.role === 'admin' && (

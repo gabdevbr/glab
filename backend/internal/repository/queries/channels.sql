@@ -5,7 +5,14 @@ SELECT * FROM channels WHERE id = $1;
 SELECT * FROM channels WHERE slug = $1;
 
 -- name: ListChannelsForUser :many
-SELECT c.* FROM channels c
+SELECT c.*,
+  (SELECT COUNT(*) FROM messages m
+   WHERE m.channel_id = c.id
+     AND m.thread_id IS NULL
+     AND (cm.last_read_msg_id IS NULL
+       OR m.created_at > (SELECT created_at FROM messages WHERE id = cm.last_read_msg_id))
+  )::int AS unread_count
+FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
   AND (

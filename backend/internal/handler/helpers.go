@@ -214,6 +214,7 @@ type ChannelResponse struct {
 	CreatedAt     string `json:"created_at"`
 	UpdatedAt     string `json:"updated_at"`
 	MemberCount   int    `json:"member_count,omitempty"`
+	UnreadCount   int32  `json:"unread_count"`
 }
 
 // channelToResponse converts a repository.Channel to ChannelResponse.
@@ -231,6 +232,30 @@ func channelToResponse(c repository.Channel) ChannelResponse {
 		LastMessageAt: timestampToString(c.LastMessageAt),
 		CreatedAt:     timestampToString(c.CreatedAt),
 		UpdatedAt:     timestampToString(c.UpdatedAt),
+	}
+	if c.RetentionDays.Valid {
+		v := c.RetentionDays.Int32
+		resp.RetentionDays = &v
+	}
+	return resp
+}
+
+// channelRowToResponse converts a ListChannelsForUserRow (with unread count) to ChannelResponse.
+func channelRowToResponse(c repository.ListChannelsForUserRow) ChannelResponse {
+	resp := ChannelResponse{
+		ID:            uuidToString(c.ID),
+		Name:          c.Name,
+		Slug:          c.Slug,
+		Description:   c.Description.String,
+		Type:          c.Type,
+		Topic:         c.Topic.String,
+		CreatedBy:     uuidToString(c.CreatedBy),
+		IsArchived:    c.IsArchived,
+		ReadOnly:      c.ReadOnly,
+		LastMessageAt: timestampToString(c.LastMessageAt),
+		CreatedAt:     timestampToString(c.CreatedAt),
+		UpdatedAt:     timestampToString(c.UpdatedAt),
+		UnreadCount:   c.UnreadCount,
 	}
 	if c.RetentionDays.Valid {
 		v := c.RetentionDays.Int32

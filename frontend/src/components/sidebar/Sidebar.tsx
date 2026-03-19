@@ -198,6 +198,8 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
+  const markAllRead = useChannelStore((s) => s.markAllRead);
+
   const sections = useSectionStore((s) => s.sections);
   const createSection = useSectionStore((s) => s.createSection);
   const renameSection = useSectionStore((s) => s.renameSection);
@@ -372,11 +374,11 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
         )}
 
         {/* Default Channels section (unassigned non-DM) */}
-        <button
-          onClick={() => setCollapsed((s) => ({ ...s, channels: !s.channels }))}
-          className="mb-1 flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors"
-        >
-          <div className="flex items-center gap-1">
+        <div className="mb-1 flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors">
+          <button
+            onClick={() => setCollapsed((s) => ({ ...s, channels: !s.channels }))}
+            className="flex flex-1 items-center gap-1"
+          >
             {collapsed.channels ? (
               <ChevronRight className="size-3 text-sidebar-section-text" />
             ) : (
@@ -385,8 +387,18 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
             <span className="text-xs font-semibold uppercase tracking-wider text-sidebar-section-text">
               Channels
             </span>
-          </div>
-        </button>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              markAllRead();
+            }}
+            className="rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-sidebar-hover transition-colors"
+            title="Mark all as read"
+          >
+            <CheckCheck className="size-3.5" />
+          </button>
+        </div>
         {!collapsed.channels && (
           <>
             <div className="flex justify-end px-3 -mt-1 mb-1">
@@ -397,11 +409,11 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
         )}
 
         {/* Default DMs section (unassigned DMs) */}
-        <button
-          onClick={() => setCollapsed((s) => ({ ...s, dms: !s.dms }))}
-          className="mt-5 mb-1 flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors"
-        >
-          <div className="flex items-center gap-1">
+        <div className="mt-5 mb-1 flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors">
+          <button
+            onClick={() => setCollapsed((s) => ({ ...s, dms: !s.dms }))}
+            className="flex flex-1 items-center gap-1"
+          >
             {collapsed.dms ? (
               <ChevronRight className="size-3 text-sidebar-section-text" />
             ) : (
@@ -410,8 +422,18 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
             <span className="text-xs font-semibold uppercase tracking-wider text-sidebar-section-text">
               Direct Messages
             </span>
-          </div>
-        </button>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              markAllRead();
+            }}
+            className="rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-sidebar-hover transition-colors"
+            title="Mark all as read"
+          >
+            <CheckCheck className="size-3.5" />
+          </button>
+        </div>
         {!collapsed.dms && (
           <>
             <div className="flex justify-end px-3 -mt-1 mb-1">

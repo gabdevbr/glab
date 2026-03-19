@@ -48,6 +48,7 @@ type GlabUser struct {
 	LastSeen     time.Time
 	IsBot        bool
 	CreatedAt    time.Time
+	RCUserID     string // RocketChat user ID for mapping
 }
 
 type GlabChannel struct {
@@ -170,6 +171,7 @@ func TransformUsers(rcUsers []RCUser, idMap *IDMap) []GlabUser {
 			LastSeen:     time.Now(),
 			IsBot:        false,
 			CreatedAt:    time.Now(),
+			RCUserID:     rc.ID,
 		})
 	}
 

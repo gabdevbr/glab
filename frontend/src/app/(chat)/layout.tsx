@@ -26,7 +26,6 @@ export default function ChatLayout({
   const fetchChannels = useChannelStore((s) => s.fetchChannels);
   const fetchSections = useSectionStore((s) => s.fetchSections);
   const incrementUnread = useChannelStore((s) => s.incrementUnread);
-  const activeChannelId = useChannelStore((s) => s.activeChannelId);
   const setStatus = usePresenceStore((s) => s.setStatus);
   const bulkSetStatus = usePresenceStore((s) => s.bulkSetStatus);
   const appendChunk = useAIStreamStore((s) => s.appendChunk);
@@ -123,13 +122,16 @@ export default function ChatLayout({
     const unsub = wsClient.on('message.new', (payload: unknown) => {
       const msg = payload as Message;
       const currentUserId = useAuthStore.getState().user?.id;
+      const currentChannelId = useChannelStore.getState().activeChannelId;
 
       // Skip own messages
       if (msg.user_id === currentUserId) return;
 
       // Only notify for channels not currently being viewed
-      if (msg.channel_id !== activeChannelId) {
-        incrementUnread(msg.channel_id);
+      if (msg.channel_id !== currentChannelId || document.hidden) {
+        if (msg.channel_id !== currentChannelId) {
+          incrementUnread(msg.channel_id);
+        }
 
         // Play sound + browser notification
         playNotificationSound();
@@ -145,13 +147,10 @@ export default function ChatLayout({
           msg.channel_id,
           msg.id,
         );
-      } else if (document.hidden) {
-        // Active channel but tab is hidden — still play sound
-        playNotificationSound();
       }
     });
     return unsub;
-  }, [activeChannelId, incrementUnread, playNotificationSound, showBrowserNotification]);
+  }, [incrementUnread, playNotificationSound, showBrowserNotification]);
 
   // Wire mention notification events (for @mentions specifically)
   useEffect(() => {
@@ -164,8 +163,13 @@ export default function ChatLayout({
         content: string;
       };
 
-      // Always play sound for @mentions
-      playNotificationSound();
+      const currentChannelId = useChannelStore.getState().activeChannelId;
+      const isViewingChannel = data.channel_id === currentChannelId && !document.hidden;
+
+      // Skip sound if user is actively viewing the channel
+      if (!isViewingChannel) {
+        playNotificationSound();
+      }
 
       const channelName =
         useChannelStore.getState().channels.find((c) => c.id === data.channel_id)?.name || 'a channel';

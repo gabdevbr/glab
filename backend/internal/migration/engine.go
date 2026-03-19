@@ -281,6 +281,21 @@ func (e *Engine) run(ctx context.Context, cfg Config, jobID pgtype.UUID) {
 		rcGroups[i].Usernames = members
 	}
 
+	// Fetch complete member lists for DMs (dm.list returns incomplete usernames)
+	e.emitLog(jobID, "info", "export_rooms", "Fetching complete member lists for DMs...", nil)
+	for i := range rcDMs {
+		if cancelled() {
+			e.handleCancellation(jobID, progress)
+			return
+		}
+		members, err := rc.GetRoomMembers(ctx, rcDMs[i].ID, "d")
+		if err != nil {
+			e.emitLog(jobID, "warn", "export_rooms", fmt.Sprintf("DM %s: failed to fetch members: %v", rcDMs[i].Name, err), nil)
+			continue
+		}
+		rcDMs[i].Usernames = members
+	}
+
 	allRooms := make([]RCRoom, 0, len(rcChannels)+len(rcGroups)+len(rcDMs))
 	allRooms = append(allRooms, rcChannels...)
 	allRooms = append(allRooms, rcGroups...)

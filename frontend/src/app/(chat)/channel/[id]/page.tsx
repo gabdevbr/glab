@@ -14,13 +14,15 @@ import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ThreadPanel } from '@/components/chat/ThreadPanel';
 import { PinnedMessages } from '@/components/chat/PinnedMessages';
 import { SearchResults } from '@/components/chat/SearchResults';
+import { UserInfoPanel } from '@/components/chat/UserInfoPanel';
 import { Hash, Users, Pin, Search } from 'lucide-react';
 
 type RightPanel =
   | { type: 'none' }
   | { type: 'thread'; messageId: string }
   | { type: 'pinned' }
-  | { type: 'search' };
+  | { type: 'search' }
+  | { type: 'userInfo'; userId: string };
 
 export default function ChannelPage() {
   const params = useParams<{ id: string }>();
@@ -60,6 +62,14 @@ export default function ChannelPage() {
 
   const handleThreadOpen = useCallback((messageId: string) => {
     setRightPanel({ type: 'thread', messageId });
+  }, []);
+
+  const handleUserInfoOpen = useCallback((userId: string) => {
+    setRightPanel((p) =>
+      p.type === 'userInfo' && p.userId === userId
+        ? { type: 'none' }
+        : { type: 'userInfo', userId },
+    );
   }, []);
 
   // Wire WS event handlers
@@ -234,7 +244,7 @@ export default function ChannelPage() {
         </header>
 
         {/* Messages */}
-        <MessageList channelId={channelId} onThreadOpen={handleThreadOpen} />
+        <MessageList channelId={channelId} onThreadOpen={handleThreadOpen} onUserInfoOpen={handleUserInfoOpen} />
 
         {/* Typing + Input */}
         <TypingIndicator channelId={channelId} />
@@ -262,6 +272,12 @@ export default function ChannelPage() {
       )}
       {rightPanel.type === 'search' && (
         <SearchResults
+          onClose={() => setRightPanel({ type: 'none' })}
+        />
+      )}
+      {rightPanel.type === 'userInfo' && (
+        <UserInfoPanel
+          userId={rightPanel.userId}
           onClose={() => setRightPanel({ type: 'none' })}
         />
       )}

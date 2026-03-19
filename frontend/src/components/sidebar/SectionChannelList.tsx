@@ -15,6 +15,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
   ContextMenuSubmenuTrigger,
   ContextMenuSubmenu,
 } from '@/components/ui/context-menu';
@@ -134,10 +135,12 @@ function MoveToSectionSubmenu({
   const otherSections = sections.filter((s) => s.id !== currentSectionId);
 
   return (
-    <ContextMenuSubmenuTrigger>
-      <MessageCircle className="mr-2 h-4 w-4" />
-      Move to section
-      <ChevronRight className="ml-auto h-4 w-4" />
+    <ContextMenuSub>
+      <ContextMenuSubmenuTrigger>
+        <MessageCircle className="mr-2 h-4 w-4" />
+        Move to section
+        <ChevronRight className="ml-auto h-4 w-4" />
+      </ContextMenuSubmenuTrigger>
       <ContextMenuSubmenu>
         {otherSections.map((sec) => (
           <ContextMenuItem key={sec.id} onClick={() => moveChannel(channelId, sec.id)}>
@@ -145,6 +148,6 @@ function MoveToSectionSubmenu({
           </ContextMenuItem>
         ))}
       </ContextMenuSubmenu>
-    </ContextMenuSubmenuTrigger>
+    </ContextMenuSub>
   );
 }

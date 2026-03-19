@@ -72,6 +72,10 @@ function ContextMenuSeparator({
   )
 }
 
+function ContextMenuSub({ ...props }: MenuPrimitive.SubmenuRoot.Props) {
+  return <MenuPrimitive.SubmenuRoot data-slot="context-menu-sub" {...props} />
+}
+
 function ContextMenuSubmenuTrigger({
   className,
   children,
@@ -125,6 +129,7 @@ export {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
   ContextMenuSubmenuTrigger,
   ContextMenuSubmenu,
 }

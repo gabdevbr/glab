@@ -201,7 +201,14 @@ func (q *Queries) GetDMDisplayNames(ctx context.Context, userID pgtype.UUID) ([]
 }
 
 const listChannelsForUser = `-- name: ListChannelsForUser :many
-SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at FROM channels c
+SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at,
+  (SELECT COUNT(*) FROM messages m
+   WHERE m.channel_id = c.id
+     AND m.thread_id IS NULL
+     AND (cm.last_read_msg_id IS NULL
+       OR m.created_at > (SELECT created_at FROM messages WHERE id = cm.last_read_msg_id))
+  )::int AS unread_count
+FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
   AND (
@@ -225,15 +232,32 @@ type ListChannelsForUserParams struct {
 	Column2 int32       `json:"column_2"`
 }
 
-func (q *Queries) ListChannelsForUser(ctx context.Context, arg ListChannelsForUserParams) ([]Channel, error) {
+type ListChannelsForUserRow struct {
+	ID            pgtype.UUID        `json:"id"`
+	Name          string             `json:"name"`
+	Slug          string             `json:"slug"`
+	Description   pgtype.Text        `json:"description"`
+	Type          string             `json:"type"`
+	Topic         pgtype.Text        `json:"topic"`
+	CreatedBy     pgtype.UUID        `json:"created_by"`
+	IsArchived    bool               `json:"is_archived"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	ReadOnly      bool               `json:"read_only"`
+	RetentionDays pgtype.Int4        `json:"retention_days"`
+	LastMessageAt pgtype.Timestamptz `json:"last_message_at"`
+	UnreadCount   int32              `json:"unread_count"`
+}
+
+func (q *Queries) ListChannelsForUser(ctx context.Context, arg ListChannelsForUserParams) ([]ListChannelsForUserRow, error) {
 	rows, err := q.db.Query(ctx, listChannelsForUser, arg.UserID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Channel{}
+	items := []ListChannelsForUserRow{}
 	for rows.Next() {
-		var i Channel
+		var i ListChannelsForUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -248,6 +272,7 @@ func (q *Queries) ListChannelsForUser(ctx context.Context, arg ListChannelsForUs
 			&i.ReadOnly,
 			&i.RetentionDays,
 			&i.LastMessageAt,
+			&i.UnreadCount,
 		); err != nil {
 			return nil, err
 		}

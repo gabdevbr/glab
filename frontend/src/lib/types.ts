@@ -26,6 +26,7 @@ export interface Channel {
   last_message_at?: string;
   created_at: string;
   member_count?: number;
+  unread_count?: number;
 }
 
 export interface Reaction {

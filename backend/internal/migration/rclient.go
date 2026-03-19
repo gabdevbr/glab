@@ -267,8 +267,11 @@ func (c *RCClient) GetDMs(ctx context.Context) ([]RCRoom, error) {
 // roomType should be "c" (channel) or "p" (private group).
 func (c *RCClient) GetRoomMembers(ctx context.Context, roomID, roomType string) ([]string, error) {
 	endpoint := "/api/v1/channels.members"
-	if roomType == "p" {
+	switch roomType {
+	case "p":
 		endpoint = "/api/v1/groups.members"
+	case "d":
+		endpoint = "/api/v1/dm.members"
 	}
 
 	type member struct {
