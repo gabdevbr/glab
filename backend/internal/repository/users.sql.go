@@ -14,7 +14,7 @@ import (
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, display_name, password_hash, role, is_bot, bot_config)
-VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days, channel_sort
 `
 
 type CreateUserParams struct {
@@ -54,6 +54,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.IsDeactivated,
 		&i.AutoHideDays,
+		&i.ChannelSort,
 	)
 	return i, err
 }
@@ -69,8 +70,19 @@ func (q *Queries) GetAutoHideDays(ctx context.Context, id pgtype.UUID) (int32, e
 	return auto_hide_days, err
 }
 
+const getChannelSort = `-- name: GetChannelSort :one
+SELECT channel_sort FROM users WHERE id = $1
+`
+
+func (q *Queries) GetChannelSort(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getChannelSort, id)
+	var channel_sort string
+	err := row.Scan(&channel_sort)
+	return channel_sort, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days FROM users WHERE email = $1
+SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days, channel_sort FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -92,12 +104,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.UpdatedAt,
 		&i.IsDeactivated,
 		&i.AutoHideDays,
+		&i.ChannelSort,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days FROM users WHERE id = $1
+SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days, channel_sort FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -119,12 +132,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.UpdatedAt,
 		&i.IsDeactivated,
 		&i.AutoHideDays,
+		&i.ChannelSort,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days FROM users WHERE username = $1
+SELECT id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days, channel_sort FROM users WHERE username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -146,13 +160,14 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.UpdatedAt,
 		&i.IsDeactivated,
 		&i.AutoHideDays,
+		&i.ChannelSort,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
 SELECT id, username, email, display_name, avatar_url, role, status, last_seen, is_bot
-FROM users ORDER BY display_name LIMIT $1 OFFSET $2
+FROM users WHERE is_deactivated = FALSE ORDER BY display_name LIMIT $1 OFFSET $2
 `
 
 type ListUsersParams struct {
@@ -216,6 +231,20 @@ func (q *Queries) UpdateAutoHideDays(ctx context.Context, arg UpdateAutoHideDays
 	return err
 }
 
+const updateChannelSort = `-- name: UpdateChannelSort :exec
+UPDATE users SET channel_sort = $2 WHERE id = $1
+`
+
+type UpdateChannelSortParams struct {
+	ID          pgtype.UUID `json:"id"`
+	ChannelSort string      `json:"channel_sort"`
+}
+
+func (q *Queries) UpdateChannelSort(ctx context.Context, arg UpdateChannelSortParams) error {
+	_, err := q.db.Exec(ctx, updateChannelSort, arg.ID, arg.ChannelSort)
+	return err
+}
+
 const updatePasswordHash = `-- name: UpdatePasswordHash :exec
 UPDATE users SET password_hash = $2 WHERE id = $1
 `
@@ -236,7 +265,7 @@ UPDATE users SET
     avatar_url = coalesce($3, avatar_url),
     status = coalesce($4, status),
     email = coalesce($5, email)
-WHERE id = $1 RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days
+WHERE id = $1 RETURNING id, username, email, display_name, avatar_url, password_hash, role, status, last_seen, is_bot, bot_config, created_at, updated_at, is_deactivated, auto_hide_days, channel_sort
 `
 
 type UpdateUserParams struct {
@@ -272,6 +301,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.IsDeactivated,
 		&i.AutoHideDays,
+		&i.ChannelSort,
 	)
 	return i, err
 }
