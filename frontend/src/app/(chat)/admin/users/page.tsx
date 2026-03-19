@@ -43,8 +43,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MoreHorizontal, UserPlus, Search, Shield, Key, Trash2 } from 'lucide-react';
+import { MoreHorizontal, UserPlus, Search, Shield, Key, Trash2, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+type SortField = 'display_name' | 'email' | 'role' | 'status';
+type SortDir = 'asc' | 'desc';
 
 export default function AdminUsersPage() {
   const users = useAdminStore((s) => s.users);
@@ -56,6 +59,10 @@ export default function AdminUsersPage() {
   const resetPassword = useAdminStore((s) => s.resetPassword);
 
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active');
+  const [sortField, setSortField] = useState<SortField>('display_name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [showCreate, setShowCreate] = useState(false);
   const [showRoleDialog, setShowRoleDialog] = useState<AdminUser | null>(null);
   const [showResetDialog, setShowResetDialog] = useState<AdminUser | null>(null);
@@ -75,6 +82,25 @@ export default function AdminUsersPage() {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const filteredUsers = users
+    .filter(u => roleFilter === 'all' || u.role === roleFilter)
+    .filter(u => {
+      if (statusFilter === 'active') return !u.is_deactivated;
+      if (statusFilter === 'deactivated') return u.is_deactivated;
+      return true;
+    })
+    .sort((a, b) => {
+      const va = (a[sortField] ?? '').toLowerCase();
+      const vb = (b[sortField] ?? '').toLowerCase();
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
 
   const handleSearch = useCallback(() => {
     fetchUsers(search);
@@ -144,6 +170,27 @@ export default function AdminUsersPage() {
             Search
           </Button>
         </div>
+        <Select value={roleFilter} onValueChange={(v) => { if (v) setRoleFilter(v); }}>
+          <SelectTrigger className="h-8 w-[120px] text-sm">
+            <SelectValue placeholder="Role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All roles</SelectItem>
+            <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="user">User</SelectItem>
+            <SelectItem value="agent">Agent</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={(v) => { if (v) setStatusFilter(v); }}>
+          <SelectTrigger className="h-8 w-[130px] text-sm">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="deactivated">Deactivated</SelectItem>
+          </SelectContent>
+        </Select>
         <Button size="sm" className="gap-1.5 h-8" onClick={() => setShowCreate(true)}>
           <UserPlus className="size-3.5" />
           Create User
@@ -155,10 +202,26 @@ export default function AdminUsersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[200px]">User</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead className="w-[100px]">Role</TableHead>
-              <TableHead className="w-[80px]">Status</TableHead>
+              <TableHead className="w-[200px]">
+                <button onClick={() => toggleSort('display_name')} className="inline-flex items-center gap-1 hover:text-foreground">
+                  User <ArrowUpDown className="size-3" />
+                </button>
+              </TableHead>
+              <TableHead>
+                <button onClick={() => toggleSort('email')} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Email <ArrowUpDown className="size-3" />
+                </button>
+              </TableHead>
+              <TableHead className="w-[100px]">
+                <button onClick={() => toggleSort('role')} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Role <ArrowUpDown className="size-3" />
+                </button>
+              </TableHead>
+              <TableHead className="w-[80px]">
+                <button onClick={() => toggleSort('status')} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Status <ArrowUpDown className="size-3" />
+                </button>
+              </TableHead>
               <TableHead className="w-[60px]" />
             </TableRow>
           </TableHeader>
@@ -170,14 +233,14 @@ export default function AdminUsersPage() {
                 </TableCell>
               </TableRow>
             )}
-            {!isLoading && users.length === 0 && (
+            {!isLoading && filteredUsers.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
                   No users found
                 </TableCell>
               </TableRow>
             )}
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <TableRow key={u.id} className={cn(u.is_deactivated && 'opacity-50')}>
                 <TableCell>
                   <div className="flex items-center gap-2">
