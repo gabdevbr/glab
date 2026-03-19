@@ -46,8 +46,41 @@ function ensureCustomEmojisLoaded(onLoaded: () => void) {
     });
 }
 
+const URL_REGEX = /https?:\/\/[^\s<>'")\]]+/g;
+
+function renderWithLinks(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = URL_REGEX.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const url = match[0].replace(/[.,;:!?)]+$/, '');
+    parts.push(
+      <a
+        key={`link-${match.index}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-link-text underline hover:text-link-hover"
+      >
+        {url}
+      </a>,
+    );
+    lastIndex = match.index + url.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
+}
+
 function renderWithCustomEmojis(text: string): React.ReactNode[] {
-  if (!customEmojiNames || customEmojiNames.size === 0) return [text];
+  if (!customEmojiNames || customEmojiNames.size === 0) return renderWithLinks(text);
 
   const parts: React.ReactNode[] = [];
   const regex = /:([a-zA-Z0-9_-]+):/g;
@@ -59,7 +92,7 @@ function renderWithCustomEmojis(text: string): React.ReactNode[] {
     if (!customEmojiNames.has(emojiName)) continue;
 
     if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
+      parts.push(...renderWithLinks(text.slice(lastIndex, match.index)));
     }
     parts.push(
       <img
@@ -74,10 +107,10 @@ function renderWithCustomEmojis(text: string): React.ReactNode[] {
   }
 
   if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
+    parts.push(...renderWithLinks(text.slice(lastIndex)));
   }
 
-  return parts.length > 0 ? parts : [text];
+  return parts.length > 0 ? parts : renderWithLinks(text);
 }
 
 // Edit timeout cache shared across all MessageItem instances
@@ -223,6 +256,7 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [quotedMessage, setQuotedMessage] = useState<Message | null>(null);
   const [, setImageLoaded] = useState(false);
 
@@ -479,10 +513,14 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
     );
   };
 
+  const menuOpen = showEmojiPicker || dropdownOpen;
   const actionBar = (
-    <div className="absolute -top-4 right-4 hidden gap-0.5 rounded-lg border border-border bg-panel-bg shadow-lg group-hover:flex">
+    <div className={cn(
+      "absolute -top-4 right-4 flex gap-0.5 rounded-lg border border-border bg-panel-bg shadow-lg transition-opacity",
+      menuOpen ? "opacity-100" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto",
+    )}>
       <button
-        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+        onClick={() => { setDropdownOpen(false); setShowEmojiPicker(!showEmojiPicker); }}
         className="p-1.5 text-muted-foreground hover:text-foreground"
         title="Add reaction"
       >
@@ -495,7 +533,7 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
       >
         <MessageSquare className="size-4" />
       </button>
-      <DropdownMenu>
+      <DropdownMenu open={dropdownOpen} onOpenChange={(open) => { setDropdownOpen(open); if (open) setShowEmojiPicker(false); }}>
         <DropdownMenuTrigger className="p-1.5 text-muted-foreground hover:text-foreground">
           <MoreHorizontal className="size-4" />
         </DropdownMenuTrigger>
