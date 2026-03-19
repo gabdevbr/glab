@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { EmojiPicker } from './EmojiPicker';
+import { ImageLightbox } from './ImageLightbox';
 import { MoreHorizontal, Pin, PinOff, Pencil, Trash2, MessageSquare, SmilePlus } from 'lucide-react';
 import { MentionText } from './MentionText';
 
@@ -258,6 +259,7 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [quotedMessage, setQuotedMessage] = useState<Message | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
   const [, setImageLoaded] = useState(false);
 
   const { cleanContent, rcMsgId } = useMemo(() => parseRCQuote(message.content), [message.content]);
@@ -393,11 +395,14 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
         return (
           <div className="mt-1">
             {isImage ? (
-              <a href={`${API_URL}/api/v1/files/${message.file.id}`} target="_blank" rel="noreferrer">
+              <button
+                onClick={() => setLightboxImage({ src: `${API_URL}/api/v1/files/${message.file!.id}`, alt: message.file!.original_name })}
+                className="cursor-pointer"
+              >
                 <img
                   src={`${API_URL}/api/v1/files/${message.file.id}/thumbnail`}
                   alt={message.file.original_name}
-                  className="max-w-xs rounded-lg border border-border"
+                  className="max-w-xs rounded-lg border border-border hover:brightness-90 transition-[filter]"
                   onLoad={() => setImageLoaded(true)}
                   onError={(e) => {
                     const img = e.currentTarget;
@@ -407,7 +412,7 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
                     }
                   }}
                 />
-              </a>
+              </button>
             ) : (
               <a
                 href={`${API_URL}/api/v1/files/${message.file.id}`}
@@ -579,6 +584,9 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
             <EmojiPicker onSelect={handleReaction} onClose={() => setShowEmojiPicker(false)} />
           </div>
         )}
+        {lightboxImage && (
+          <ImageLightbox src={lightboxImage.src} alt={lightboxImage.alt} onClose={() => setLightboxImage(null)} />
+        )}
       </div>
     );
   }
@@ -644,6 +652,9 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
         <div className="absolute right-2 top-10 z-50">
           <EmojiPicker onSelect={handleReaction} onClose={() => setShowEmojiPicker(false)} />
         </div>
+      )}
+      {lightboxImage && (
+        <ImageLightbox src={lightboxImage.src} alt={lightboxImage.alt} onClose={() => setLightboxImage(null)} />
       )}
     </div>
   );
