@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 
 interface SearchResultsProps {
+  channelId: string;
   onClose: () => void;
 }
 
@@ -21,7 +22,7 @@ function truncate(s: string, max: number): string {
   return s.slice(0, max) + '...';
 }
 
-export function SearchResults({ onClose }: SearchResultsProps) {
+export function SearchResults({ channelId, onClose }: SearchResultsProps) {
   const router = useRouter();
   const channels = useChannelStore((s) => s.channels);
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
@@ -37,7 +38,7 @@ export function SearchResults({ onClose }: SearchResultsProps) {
     setHasSearched(true);
     try {
       const data = await api.get<SearchResult[]>(
-        `/api/v1/search?q=${encodeURIComponent(q)}&limit=20`,
+        `/api/v1/search?q=${encodeURIComponent(q)}&channel_id=${channelId}&limit=20`,
       );
       setResults(data);
     } catch {

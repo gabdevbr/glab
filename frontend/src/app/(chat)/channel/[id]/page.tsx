@@ -272,6 +272,7 @@ export default function ChannelPage() {
       )}
       {rightPanel.type === 'search' && (
         <SearchResults
+          channelId={channelId}
           onClose={() => setRightPanel({ type: 'none' })}
         />
       )}
