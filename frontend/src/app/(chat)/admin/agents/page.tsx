@@ -205,9 +205,9 @@ export default function AdminAgentsPage() {
                   )}
                   <Button variant="ghost" size="icon" onClick={() => openEdit(agent)}><Pencil className="size-4" /></Button>
                   <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="size-4" /></Button>
-                    </AlertDialogTrigger>
+                    <AlertDialogTrigger
+                      render={<Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="size-4" /></Button>}
+                    />
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete {agent.name}?</AlertDialogTitle>
