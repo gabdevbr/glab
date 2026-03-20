@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useChannelStore } from '@/stores/channelStore';
 import { useMessageStore } from '@/stores/messageStore';
 import { usePresenceStore } from '@/stores/presenceStore';
 import { useWSStore } from '@/stores/wsStore';
 import { wsClient } from '@/lib/ws';
-import { Message } from '@/lib/types';
+import { api } from '@/lib/api';
+import { Message, Channel } from '@/lib/types';
 import { MessageList } from '@/components/chat/MessageList';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
@@ -45,17 +46,22 @@ export default function ChannelPage() {
   const isConnected = useWSStore((s) => s.isConnected);
 
   const [rightPanel, setRightPanel] = useState<RightPanel>({ type: 'none' });
+  const [directChannel, setDirectChannel] = useState<Channel | null>(null);
 
-  const isLoadingChannels = useChannelStore((s) => s.isLoading);
-  const fetchChannels = useChannelStore((s) => s.fetchChannels);
-  const channel = channels.find((c) => c.id === channelId);
+  const storeChannel = channels.find((c) => c.id === channelId);
+  const channel = storeChannel ?? directChannel ?? undefined;
 
-  // If channels are loaded but this channel isn't found, refetch once
+  // If channel not in store (e.g. hidden), fetch it directly from the API
+  const fetchedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isLoadingChannels && channels.length > 0 && !channel) {
-      fetchChannels();
+    if (!storeChannel && fetchedRef.current !== channelId) {
+      fetchedRef.current = channelId;
+      api.get<Channel>(`/api/v1/channels/${channelId}`).then(setDirectChannel).catch(() => {});
     }
-  }, [isLoadingChannels, channels.length, channel, fetchChannels]);
+    if (storeChannel) {
+      setDirectChannel(null);
+    }
+  }, [channelId, storeChannel]);
 
   // Set active channel and fetch messages on mount
   useEffect(() => {
@@ -204,15 +210,6 @@ export default function ChannelPage() {
 
   const isDM = channel?.type === 'dm';
   const channelName = channel?.name || '';
-
-  // Show loading state while channels are being fetched
-  if (!channel && (isLoadingChannels || channels.length === 0)) {
-    return (
-      <div className="flex h-full flex-1 items-center justify-center bg-chat-bg">
-        <p className="text-sm text-muted-foreground">Loading channel...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-full flex-1 min-w-0">
