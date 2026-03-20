@@ -238,7 +238,13 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     const files = e.clipboardData.files;
     if (files.length > 0) {
       e.preventDefault();
-      const file = files[0];
+      let file = files[0];
+      // Give clipboard images a meaningful filename instead of browser defaults like "image.png"
+      if (file.type.startsWith('image/')) {
+        const ext = file.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        file = new File([file], `clipboard-${timestamp}.${ext}`, { type: file.type });
+      }
       setUploadingFile(file);
       handleFileUpload(file);
     }
