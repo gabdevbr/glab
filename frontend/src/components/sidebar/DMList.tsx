@@ -57,9 +57,7 @@ export function DMList() {
   return (
     <ul className="space-y-0.5">
       {dmChannels.map((channel) => {
-        // For DMs, the channel name is typically the other user's display name
-        // We use created_by as a rough proxy for presence lookup
-        const presenceStatus = statuses[channel.created_by] || 'offline';
+        const presenceStatus = channel.dm_user_id ? (statuses[channel.dm_user_id] || 'offline') : 'offline';
         const isActive = activeChannelId === channel.id;
         const unread = unreadCounts[channel.id] || 0;
 

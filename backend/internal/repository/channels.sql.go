@@ -167,7 +167,13 @@ SELECT
          WHERE cm2.channel_id = cm.channel_id AND cm2.user_id <> $1
          LIMIT 1),
         c.name
-    ) AS display_name
+    ) AS display_name,
+    COALESCE(
+        (SELECT cm2.user_id FROM channel_members cm2
+         WHERE cm2.channel_id = cm.channel_id AND cm2.user_id <> $1
+         LIMIT 1),
+        c.created_by
+    ) AS other_user_id
 FROM channel_members cm
 JOIN channels c ON c.id = cm.channel_id
 WHERE cm.user_id = $1 AND c.type = 'dm'
@@ -176,10 +182,11 @@ WHERE cm.user_id = $1 AND c.type = 'dm'
 type GetDMDisplayNamesRow struct {
 	ChannelID   pgtype.UUID `json:"channel_id"`
 	DisplayName string      `json:"display_name"`
+	OtherUserID pgtype.UUID `json:"other_user_id"`
 }
 
-// For each DM channel the user belongs to, return the other participant's display name.
-// If no other member exists, falls back to the channel name.
+// For each DM channel the user belongs to, return the other participant's display name and user ID.
+// If no other member exists, falls back to the channel name and created_by.
 func (q *Queries) GetDMDisplayNames(ctx context.Context, userID pgtype.UUID) ([]GetDMDisplayNamesRow, error) {
 	rows, err := q.db.Query(ctx, getDMDisplayNames, userID)
 	if err != nil {
@@ -189,7 +196,7 @@ func (q *Queries) GetDMDisplayNames(ctx context.Context, userID pgtype.UUID) ([]
 	items := []GetDMDisplayNamesRow{}
 	for rows.Next() {
 		var i GetDMDisplayNamesRow
-		if err := rows.Scan(&i.ChannelID, &i.DisplayName); err != nil {
+		if err := rows.Scan(&i.ChannelID, &i.DisplayName, &i.OtherUserID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

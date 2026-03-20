@@ -215,6 +215,7 @@ type ChannelResponse struct {
 	UpdatedAt     string `json:"updated_at"`
 	MemberCount   int    `json:"member_count,omitempty"`
 	UnreadCount   int32  `json:"unread_count"`
+	DMUserID      string `json:"dm_user_id,omitempty"`
 }
 
 // channelToResponse converts a repository.Channel to ChannelResponse.

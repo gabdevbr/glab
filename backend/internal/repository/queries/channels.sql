@@ -51,8 +51,8 @@ WHERE id = $1 RETURNING *;
 DELETE FROM channels WHERE id = $1;
 
 -- name: GetDMDisplayNames :many
--- For each DM channel the user belongs to, return the other participant's display name.
--- If no other member exists, falls back to the channel name.
+-- For each DM channel the user belongs to, return the other participant's display name and user ID.
+-- If no other member exists, falls back to the channel name and created_by.
 SELECT
     cm.channel_id,
     COALESCE(
@@ -61,7 +61,13 @@ SELECT
          WHERE cm2.channel_id = cm.channel_id AND cm2.user_id <> $1
          LIMIT 1),
         c.name
-    ) AS display_name
+    ) AS display_name,
+    COALESCE(
+        (SELECT cm2.user_id FROM channel_members cm2
+         WHERE cm2.channel_id = cm.channel_id AND cm2.user_id <> $1
+         LIMIT 1),
+        c.created_by
+    ) AS other_user_id
 FROM channel_members cm
 JOIN channels c ON c.id = cm.channel_id
 WHERE cm.user_id = $1 AND c.type = 'dm';

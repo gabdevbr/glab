@@ -57,12 +57,19 @@ func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// For DM channels, resolve the other participant's display name.
-	dmNames := make(map[string]string) // channel_id -> other user's display_name
+	// For DM channels, resolve the other participant's display name and user ID.
+	type dmInfo struct {
+		DisplayName string
+		UserID      string
+	}
+	dmInfoMap := make(map[string]dmInfo) // channel_id -> info
 	dmRows, err := h.queries.GetDMDisplayNames(r.Context(), uid)
 	if err == nil {
 		for _, row := range dmRows {
-			dmNames[uuidToString(row.ChannelID)] = row.DisplayName
+			dmInfoMap[uuidToString(row.ChannelID)] = dmInfo{
+				DisplayName: row.DisplayName,
+				UserID:      uuidToString(row.OtherUserID),
+			}
 		}
 	}
 
@@ -70,8 +77,9 @@ func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 	for _, c := range channels {
 		resp := channelRowToResponse(c)
 		if c.Type == "dm" {
-			if name, ok := dmNames[resp.ID]; ok {
-				resp.Name = name
+			if info, ok := dmInfoMap[resp.ID]; ok {
+				resp.Name = info.DisplayName
+				resp.DMUserID = info.UserID
 			} else {
 				// DM with no resolvable other member — skip it
 				continue
