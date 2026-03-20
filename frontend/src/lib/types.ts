@@ -118,6 +118,8 @@ export interface AgentSession {
   user_id: string;
   title: string;
   is_active: boolean;
+  channel_id?: string;
+  last_agent_message?: string;
   created_at: string;
   updated_at: string;
 }

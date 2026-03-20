@@ -374,6 +374,64 @@ func (q *Queries) ListAgentSessions(ctx context.Context, arg ListAgentSessionsPa
 	return items, nil
 }
 
+const listAgentSessionsWithPreview = `-- name: ListAgentSessionsWithPreview :many
+SELECT
+  s.id, s.agent_id, s.user_id, s.title, s.is_active, s.created_at, s.updated_at,
+  c.id AS channel_id,
+  COALESCE((SELECT m.content FROM messages m WHERE m.channel_id = c.id AND m.user_id = (SELECT user_id FROM agents WHERE id = s.agent_id) ORDER BY m.created_at DESC LIMIT 1), '') AS last_agent_message
+FROM agent_sessions s
+LEFT JOIN channels c ON c.slug = 'agent-session-' || s.id::text
+WHERE s.agent_id = $1 AND s.user_id = $2
+ORDER BY s.updated_at DESC
+`
+
+type ListAgentSessionsWithPreviewParams struct {
+	AgentID pgtype.UUID `json:"agent_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
+
+type ListAgentSessionsWithPreviewRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	AgentID          pgtype.UUID        `json:"agent_id"`
+	UserID           pgtype.UUID        `json:"user_id"`
+	Title            pgtype.Text        `json:"title"`
+	IsActive         bool               `json:"is_active"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ChannelID        pgtype.UUID        `json:"channel_id"`
+	LastAgentMessage interface{}        `json:"last_agent_message"`
+}
+
+func (q *Queries) ListAgentSessionsWithPreview(ctx context.Context, arg ListAgentSessionsWithPreviewParams) ([]ListAgentSessionsWithPreviewRow, error) {
+	rows, err := q.db.Query(ctx, listAgentSessionsWithPreview, arg.AgentID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAgentSessionsWithPreviewRow{}
+	for rows.Next() {
+		var i ListAgentSessionsWithPreviewRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.UserID,
+			&i.Title,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ChannelID,
+			&i.LastAgentMessage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAgents = `-- name: ListAgents :many
 SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE status = 'active' ORDER BY name
 `

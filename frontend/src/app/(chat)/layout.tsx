@@ -7,12 +7,10 @@ import { useChannelStore } from '@/stores/channelStore';
 import { useSectionStore } from '@/stores/sectionStore';
 import { usePresenceStore } from '@/stores/presenceStore';
 import { useAIStreamStore } from '@/stores/aiStreamStore';
-import { useAgentStore } from '@/stores/agentStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { wsClient } from '@/lib/ws';
 import { Sidebar } from '@/components/sidebar/Sidebar';
-import { AgentPanel } from '@/components/ai/AgentPanel';
 import { QuickSwitcher } from '@/components/chat/QuickSwitcher';
 import { Message } from '@/lib/types';
 
@@ -30,8 +28,6 @@ export default function ChatLayout({
   const bulkSetStatus = usePresenceStore((s) => s.bulkSetStatus);
   const appendChunk = useAIStreamStore((s) => s.appendChunk);
   const clearStream = useAIStreamStore((s) => s.clearStream);
-  const isPanelOpen = useAgentStore((s) => s.isPanelOpen);
-
   // Quick Switcher state
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const openQuickSwitcher = useCallback(() => setQuickSwitcherOpen(true), []);
@@ -239,7 +235,6 @@ export default function ChatLayout({
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar onOpenSearch={openQuickSwitcher} />
       <main className="flex flex-1 overflow-hidden">{children}</main>
-      {isPanelOpen && <AgentPanel />}
       <QuickSwitcher open={quickSwitcherOpen} onClose={() => setQuickSwitcherOpen(false)} />
     </div>
   );

@@ -48,6 +48,16 @@ SELECT * FROM agent_sessions WHERE id = $1;
 -- name: ListAgentSessions :many
 SELECT * FROM agent_sessions WHERE agent_id = $1 AND user_id = $2 ORDER BY updated_at DESC;
 
+-- name: ListAgentSessionsWithPreview :many
+SELECT
+  s.*,
+  c.id AS channel_id,
+  COALESCE((SELECT m.content FROM messages m WHERE m.channel_id = c.id AND m.user_id = (SELECT user_id FROM agents WHERE id = s.agent_id) ORDER BY m.created_at DESC LIMIT 1), '') AS last_agent_message
+FROM agent_sessions s
+LEFT JOIN channels c ON c.slug = 'agent-session-' || s.id::text
+WHERE s.agent_id = $1 AND s.user_id = $2
+ORDER BY s.updated_at DESC;
+
 -- name: CreateAgentSession :one
 INSERT INTO agent_sessions (agent_id, user_id, title) VALUES ($1, $2, $3) RETURNING *;
 

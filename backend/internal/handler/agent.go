@@ -48,24 +48,28 @@ func agentToResponse(a repository.Agent) AgentResponse {
 
 // AgentSessionResponse is the JSON representation of an agent session.
 type AgentSessionResponse struct {
-	ID        string `json:"id"`
-	AgentID   string `json:"agent_id"`
-	UserID    string `json:"user_id"`
-	Title     string `json:"title"`
-	IsActive  bool   `json:"is_active"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID               string `json:"id"`
+	AgentID          string `json:"agent_id"`
+	UserID           string `json:"user_id"`
+	Title            string `json:"title"`
+	IsActive         bool   `json:"is_active"`
+	ChannelID        string `json:"channel_id,omitempty"`
+	LastAgentMessage string `json:"last_agent_message,omitempty"`
+	CreatedAt        string `json:"created_at"`
+	UpdatedAt        string `json:"updated_at"`
 }
 
-func sessionToResponse(s repository.AgentSession) AgentSessionResponse {
+func sessionWithPreviewToResponse(s repository.ListAgentSessionsWithPreviewRow) AgentSessionResponse {
 	return AgentSessionResponse{
-		ID:        uuidToString(s.ID),
-		AgentID:   uuidToString(s.AgentID),
-		UserID:    uuidToString(s.UserID),
-		Title:     s.Title.String,
-		IsActive:  s.IsActive,
-		CreatedAt: timestampToString(s.CreatedAt),
-		UpdatedAt: timestampToString(s.UpdatedAt),
+		ID:               uuidToString(s.ID),
+		AgentID:          uuidToString(s.AgentID),
+		UserID:           uuidToString(s.UserID),
+		Title:            s.Title.String,
+		IsActive:         s.IsActive,
+		ChannelID:        uuidToString(s.ChannelID),
+		LastAgentMessage: func() string { if v, ok := s.LastAgentMessage.(string); ok { return v }; return "" }(),
+		CreatedAt:        timestampToString(s.CreatedAt),
+		UpdatedAt:        timestampToString(s.UpdatedAt),
 	}
 }
 
@@ -118,7 +122,7 @@ func (h *AgentHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessions, err := h.queries.ListAgentSessions(r.Context(), repository.ListAgentSessionsParams{
+	sessions, err := h.queries.ListAgentSessionsWithPreview(r.Context(), repository.ListAgentSessionsWithPreviewParams{
 		AgentID: agent.ID,
 		UserID:  userUUID,
 	})
@@ -129,7 +133,7 @@ func (h *AgentHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]AgentSessionResponse, len(sessions))
 	for i, s := range sessions {
-		items[i] = sessionToResponse(s)
+		items[i] = sessionWithPreviewToResponse(s)
 	}
 
 	respondJSON(w, http.StatusOK, items)
