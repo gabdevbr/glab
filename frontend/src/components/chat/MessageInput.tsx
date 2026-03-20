@@ -7,7 +7,7 @@ import { User, Channel } from '@/lib/types';
 import { useAuthStore } from '@/stores/authStore';
 import { MentionAutocomplete, getMentionItemCount } from './MentionAutocomplete';
 import { SlashCommandPopup, getSlashCommandCount, getMatchedCommand } from './SlashCommandPopup';
-import { Paperclip, X, Lock } from 'lucide-react';
+import { Paperclip, X, Lock, Bold, Italic, Strikethrough, Code, List, ListOrdered, Quote } from 'lucide-react';
 
 interface MessageInputProps {
   channelId: string;
@@ -499,6 +499,29 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
               title="Attach file"
             >
               <Paperclip className="size-4" />
+            </button>
+            <div className="mx-1 h-4 w-px bg-border/50" />
+            {/* Formatting buttons */}
+            <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '**', '**')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Bold (Ctrl+B)">
+              <Bold className="size-3.5" />
+            </button>
+            <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '_', '_')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Italic (Ctrl+I)">
+              <Italic className="size-3.5" />
+            </button>
+            <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '~~', '~~')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Strikethrough (Ctrl+Shift+X)">
+              <Strikethrough className="size-3.5" />
+            </button>
+            <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '`', '`')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Code (Ctrl+Shift+C)">
+              <Code className="size-3.5" />
+            </button>
+            <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '> ', '')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Quote (Ctrl+Shift+9)">
+              <Quote className="size-3.5" />
+            </button>
+            <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '- ', '')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Bulleted list (Ctrl+Shift+8)">
+              <List className="size-3.5" />
+            </button>
+            <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '1. ', '')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Numbered list (Ctrl+Shift+7)">
+              <ListOrdered className="size-3.5" />
             </button>
             <div className="flex-1" />
           </div>
