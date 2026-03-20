@@ -1,0 +1,1 @@
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS respond_without_mention BOOLEAN NOT NULL DEFAULT false;

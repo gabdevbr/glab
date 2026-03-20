@@ -369,8 +369,11 @@ func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
 
 	// Check for @agent mentions and dispatch AI responses.
 	if h.aiDispatcher != nil {
+		// Explicit @mentions
+		mentioned := make(map[string]bool)
 		mentions := h.parseAgentMentions(payload.Content)
 		for _, slug := range mentions {
+			mentioned[slug] = true
 			agentSlug := slug
 			go h.aiDispatcher.HandleChannelMention(
 				context.Background(),
@@ -381,6 +384,33 @@ func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
 				payload.Content,
 			)
 		}
+
+		// respond_without_mention agents — dispatch to those not already triggered
+		go h.dispatchRespondWithoutMention(payload.ChannelID, client.userID, client.username, payload.Content, mentioned)
+	}
+}
+
+// dispatchRespondWithoutMention fires agents that have respond_without_mention=true,
+// skipping any agents that were already triggered via explicit @mention.
+func (h *MessageHandler) dispatchRespondWithoutMention(channelID, userID, username, content string, alreadyMentioned map[string]bool) {
+	agents, err := h.queries.ListAgentsRespondWithoutMention(context.Background())
+	if err != nil {
+		slog.Error("ws: failed to load respond_without_mention agents", "error", err)
+		return
+	}
+	for _, agent := range agents {
+		if alreadyMentioned[agent.Slug] {
+			continue
+		}
+		slug := agent.Slug
+		go h.aiDispatcher.HandleChannelMention(
+			context.Background(),
+			slug,
+			channelID,
+			userID,
+			username,
+			content,
+		)
 	}
 }
 

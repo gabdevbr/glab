@@ -12,6 +12,7 @@ const adminTabs = [
   { value: '/admin/channels', label: 'Channels', icon: Hash },
   { value: '/admin/storage', label: 'Storage', icon: HardDrive },
   { value: '/admin/ai', label: 'AI', icon: Bot },
+  { value: '/admin/agents', label: 'Agents', icon: Bot },
   { value: '/admin/giphy', label: 'Giphy', icon: Image },
   { value: '/admin/retention', label: 'Retention', icon: Clock },
   { value: '/admin/messages', label: 'Messages', icon: Pencil },

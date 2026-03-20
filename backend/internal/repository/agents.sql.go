@@ -14,7 +14,7 @@ import (
 
 const createAgent = `-- name: CreateAgent :one
 INSERT INTO agents (user_id, slug, name, emoji, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, max_context_messages)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention
 `
 
 type CreateAgentParams struct {
@@ -75,6 +75,7 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent
 		&i.Capabilities,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RespondWithoutMention,
 	)
 	return i, err
 }
@@ -140,8 +141,52 @@ func (q *Queries) CreateAgentUsage(ctx context.Context, arg CreateAgentUsagePara
 	return err
 }
 
+const deleteAgent = `-- name: DeleteAgent :exec
+DELETE FROM agents WHERE id = $1
+`
+
+func (q *Queries) DeleteAgent(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteAgent, id)
+	return err
+}
+
+const getAgentByID = `-- name: GetAgentByID :one
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE id = $1
+`
+
+func (q *Queries) GetAgentByID(ctx context.Context, id pgtype.UUID) (Agent, error) {
+	row := q.db.QueryRow(ctx, getAgentByID, id)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Slug,
+		&i.Name,
+		&i.Emoji,
+		&i.AvatarUrl,
+		&i.Description,
+		&i.Scope,
+		&i.Status,
+		&i.GatewayUrl,
+		&i.GatewayToken,
+		&i.Model,
+		&i.SystemPrompt,
+		&i.MaxTokens,
+		&i.Temperature,
+		&i.BridgeUrl,
+		&i.UseBridge,
+		&i.MaxContextMessages,
+		&i.AutoJoinChannels,
+		&i.Capabilities,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.RespondWithoutMention,
+	)
+	return i, err
+}
+
 const getAgentBySlug = `-- name: GetAgentBySlug :one
-SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at FROM agents WHERE slug = $1
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE slug = $1
 `
 
 func (q *Queries) GetAgentBySlug(ctx context.Context, slug string) (Agent, error) {
@@ -170,12 +215,13 @@ func (q *Queries) GetAgentBySlug(ctx context.Context, slug string) (Agent, error
 		&i.Capabilities,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RespondWithoutMention,
 	)
 	return i, err
 }
 
 const getAgentByUserID = `-- name: GetAgentByUserID :one
-SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at FROM agents WHERE user_id = $1
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE user_id = $1
 `
 
 func (q *Queries) GetAgentByUserID(ctx context.Context, userID pgtype.UUID) (Agent, error) {
@@ -204,6 +250,7 @@ func (q *Queries) GetAgentByUserID(ctx context.Context, userID pgtype.UUID) (Age
 		&i.Capabilities,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RespondWithoutMention,
 	)
 	return i, err
 }
@@ -328,7 +375,7 @@ func (q *Queries) ListAgentSessions(ctx context.Context, arg ListAgentSessionsPa
 }
 
 const listAgents = `-- name: ListAgents :many
-SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at FROM agents WHERE status = 'active' ORDER BY name
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE status = 'active' ORDER BY name
 `
 
 func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
@@ -363,6 +410,7 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 			&i.Capabilities,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.RespondWithoutMention,
 		); err != nil {
 			return nil, err
 		}
@@ -372,6 +420,151 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const listAgentsRespondWithoutMention = `-- name: ListAgentsRespondWithoutMention :many
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE status = 'active' AND respond_without_mention = true ORDER BY name
+`
+
+func (q *Queries) ListAgentsRespondWithoutMention(ctx context.Context) ([]Agent, error) {
+	rows, err := q.db.Query(ctx, listAgentsRespondWithoutMention)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Agent{}
+	for rows.Next() {
+		var i Agent
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Slug,
+			&i.Name,
+			&i.Emoji,
+			&i.AvatarUrl,
+			&i.Description,
+			&i.Scope,
+			&i.Status,
+			&i.GatewayUrl,
+			&i.GatewayToken,
+			&i.Model,
+			&i.SystemPrompt,
+			&i.MaxTokens,
+			&i.Temperature,
+			&i.BridgeUrl,
+			&i.UseBridge,
+			&i.MaxContextMessages,
+			&i.AutoJoinChannels,
+			&i.Capabilities,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.RespondWithoutMention,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateAgent = `-- name: UpdateAgent :one
+UPDATE agents SET
+    name = $2,
+    emoji = $3,
+    description = $4,
+    scope = $5,
+    status = $6,
+    gateway_url = $7,
+    gateway_token = $8,
+    model = $9,
+    system_prompt = $10,
+    max_tokens = $11,
+    temperature = $12,
+    max_context_messages = $13,
+    respond_without_mention = $14,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention
+`
+
+type UpdateAgentParams struct {
+	ID                    pgtype.UUID `json:"id"`
+	Name                  string      `json:"name"`
+	Emoji                 pgtype.Text `json:"emoji"`
+	Description           pgtype.Text `json:"description"`
+	Scope                 pgtype.Text `json:"scope"`
+	Status                string      `json:"status"`
+	GatewayUrl            string      `json:"gateway_url"`
+	GatewayToken          pgtype.Text `json:"gateway_token"`
+	Model                 string      `json:"model"`
+	SystemPrompt          pgtype.Text `json:"system_prompt"`
+	MaxTokens             int32       `json:"max_tokens"`
+	Temperature           float32     `json:"temperature"`
+	MaxContextMessages    int32       `json:"max_context_messages"`
+	RespondWithoutMention bool        `json:"respond_without_mention"`
+}
+
+func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent, error) {
+	row := q.db.QueryRow(ctx, updateAgent,
+		arg.ID,
+		arg.Name,
+		arg.Emoji,
+		arg.Description,
+		arg.Scope,
+		arg.Status,
+		arg.GatewayUrl,
+		arg.GatewayToken,
+		arg.Model,
+		arg.SystemPrompt,
+		arg.MaxTokens,
+		arg.Temperature,
+		arg.MaxContextMessages,
+		arg.RespondWithoutMention,
+	)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Slug,
+		&i.Name,
+		&i.Emoji,
+		&i.AvatarUrl,
+		&i.Description,
+		&i.Scope,
+		&i.Status,
+		&i.GatewayUrl,
+		&i.GatewayToken,
+		&i.Model,
+		&i.SystemPrompt,
+		&i.MaxTokens,
+		&i.Temperature,
+		&i.BridgeUrl,
+		&i.UseBridge,
+		&i.MaxContextMessages,
+		&i.AutoJoinChannels,
+		&i.Capabilities,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.RespondWithoutMention,
+	)
+	return i, err
+}
+
+const updateAgentRespondWithoutMention = `-- name: UpdateAgentRespondWithoutMention :exec
+UPDATE agents SET respond_without_mention = $2 WHERE id = $1
+`
+
+type UpdateAgentRespondWithoutMentionParams struct {
+	ID                    pgtype.UUID `json:"id"`
+	RespondWithoutMention bool        `json:"respond_without_mention"`
+}
+
+func (q *Queries) UpdateAgentRespondWithoutMention(ctx context.Context, arg UpdateAgentRespondWithoutMentionParams) error {
+	_, err := q.db.Exec(ctx, updateAgentRespondWithoutMention, arg.ID, arg.RespondWithoutMention)
+	return err
 }
 
 const updateAgentSessionTitle = `-- name: UpdateAgentSessionTitle :exec
