@@ -7,6 +7,37 @@ SELECT * FROM agents WHERE user_id = $1;
 -- name: ListAgents :many
 SELECT * FROM agents WHERE status = 'active' ORDER BY name;
 
+-- name: ListAgentsRespondWithoutMention :many
+SELECT * FROM agents WHERE status = 'active' AND respond_without_mention = true ORDER BY name;
+
+-- name: UpdateAgentRespondWithoutMention :exec
+UPDATE agents SET respond_without_mention = $2 WHERE id = $1;
+
+-- name: UpdateAgent :one
+UPDATE agents SET
+    name = $2,
+    emoji = $3,
+    description = $4,
+    scope = $5,
+    status = $6,
+    gateway_url = $7,
+    gateway_token = $8,
+    model = $9,
+    system_prompt = $10,
+    max_tokens = $11,
+    temperature = $12,
+    max_context_messages = $13,
+    respond_without_mention = $14,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: DeleteAgent :exec
+DELETE FROM agents WHERE id = $1;
+
+-- name: GetAgentByID :one
+SELECT * FROM agents WHERE id = $1;
+
 -- name: CreateAgent :one
 INSERT INTO agents (user_id, slug, name, emoji, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, max_context_messages)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *;

@@ -11,28 +11,29 @@ import (
 )
 
 type Agent struct {
-	ID                 pgtype.UUID        `json:"id"`
-	UserID             pgtype.UUID        `json:"user_id"`
-	Slug               string             `json:"slug"`
-	Name               string             `json:"name"`
-	Emoji              pgtype.Text        `json:"emoji"`
-	AvatarUrl          pgtype.Text        `json:"avatar_url"`
-	Description        pgtype.Text        `json:"description"`
-	Scope              pgtype.Text        `json:"scope"`
-	Status             string             `json:"status"`
-	GatewayUrl         string             `json:"gateway_url"`
-	GatewayToken       pgtype.Text        `json:"gateway_token"`
-	Model              string             `json:"model"`
-	SystemPrompt       pgtype.Text        `json:"system_prompt"`
-	MaxTokens          int32              `json:"max_tokens"`
-	Temperature        float32            `json:"temperature"`
-	BridgeUrl          pgtype.Text        `json:"bridge_url"`
-	UseBridge          bool               `json:"use_bridge"`
-	MaxContextMessages int32              `json:"max_context_messages"`
-	AutoJoinChannels   []string           `json:"auto_join_channels"`
-	Capabilities       json.RawMessage    `json:"capabilities"`
-	CreatedAt          pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	ID                    pgtype.UUID        `json:"id"`
+	UserID                pgtype.UUID        `json:"user_id"`
+	Slug                  string             `json:"slug"`
+	Name                  string             `json:"name"`
+	Emoji                 pgtype.Text        `json:"emoji"`
+	AvatarUrl             pgtype.Text        `json:"avatar_url"`
+	Description           pgtype.Text        `json:"description"`
+	Scope                 pgtype.Text        `json:"scope"`
+	Status                string             `json:"status"`
+	GatewayUrl            string             `json:"gateway_url"`
+	GatewayToken          pgtype.Text        `json:"gateway_token"`
+	Model                 string             `json:"model"`
+	SystemPrompt          pgtype.Text        `json:"system_prompt"`
+	MaxTokens             int32              `json:"max_tokens"`
+	Temperature           float32            `json:"temperature"`
+	BridgeUrl             pgtype.Text        `json:"bridge_url"`
+	UseBridge             bool               `json:"use_bridge"`
+	MaxContextMessages    int32              `json:"max_context_messages"`
+	AutoJoinChannels      []string           `json:"auto_join_channels"`
+	Capabilities          json.RawMessage    `json:"capabilities"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+	RespondWithoutMention bool               `json:"respond_without_mention"`
 }
 
 type AgentSession struct {
@@ -107,6 +108,16 @@ type ChannelMember struct {
 	Notifications string             `json:"notifications"`
 	Hidden        bool               `json:"hidden"`
 	SectionID     pgtype.UUID        `json:"section_id"`
+}
+
+type ChannelWebhook struct {
+	ID        pgtype.UUID        `json:"id"`
+	ChannelID pgtype.UUID        `json:"channel_id"`
+	AgentID   pgtype.UUID        `json:"agent_id"`
+	Name      string             `json:"name"`
+	Token     string             `json:"token"`
+	CreatedBy pgtype.UUID        `json:"created_by"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type CustomEmoji struct {
@@ -240,4 +251,5 @@ type User struct {
 	IsDeactivated bool               `json:"is_deactivated"`
 	AutoHideDays  int32              `json:"auto_hide_days"`
 	ChannelSort   string             `json:"channel_sort"`
+	RcUserID      pgtype.Text        `json:"rc_user_id"`
 }

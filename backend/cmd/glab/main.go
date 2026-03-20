@@ -156,6 +156,12 @@ func main() {
 	// Retention admin handler
 	retentionAdminHandler := handler.NewRetentionAdminHandler(queries)
 
+	// Webhook handler
+	webhookHandler := handler.NewWebhookHandler(queries, hub)
+
+	// Admin agent handler
+	adminAgentHandler := handler.NewAdminAgentHandler(queries)
+
 	// Setup router
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -301,7 +307,21 @@ func main() {
 		r.Get("/api/v1/admin/migration/logs", migrationHandler.Logs)
 		r.Get("/api/v1/admin/migration/jobs", migrationHandler.ListJobs)
 		r.Get("/api/v1/admin/migration/rooms", migrationHandler.RoomStates)
+
+		// Admin — agents CRUD
+		r.Get("/api/v1/admin/agents", adminAgentHandler.ListAgents)
+		r.Post("/api/v1/admin/agents", adminAgentHandler.CreateAgent)
+		r.Put("/api/v1/admin/agents/{id}", adminAgentHandler.UpdateAgent)
+		r.Delete("/api/v1/admin/agents/{id}", adminAgentHandler.DeleteAgent)
+
+		// Admin — webhooks
+		r.Get("/api/v1/admin/channels/{id}/webhooks", webhookHandler.ListChannelWebhooks)
+		r.Post("/api/v1/admin/channels/{id}/webhooks", webhookHandler.CreateChannelWebhook)
+		r.Delete("/api/v1/admin/channels/{id}/webhooks/{webhookId}", webhookHandler.DeleteChannelWebhook)
 	})
+
+	// Inbound webhooks — public, authenticated by token only (no JWT)
+	r.Post("/webhooks/{token}", webhookHandler.Trigger)
 
 	// Start server
 	addr := net.JoinHostPort("", strconv.Itoa(cfg.Port))
