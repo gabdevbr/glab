@@ -32,6 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 } from '@/components/ui/alert-dialog';
 import { Bot, Plus, Pencil, Trash2, Loader2, Copy, Check } from 'lucide-react';
 
@@ -205,8 +206,8 @@ export default function AdminAgentsPage() {
                   )}
                   <Button variant="ghost" size="icon" onClick={() => openEdit(agent)}><Pencil className="size-4" /></Button>
                   <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="size-4" /></Button>
+                    <AlertDialogTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 w-9 text-destructive hover:text-destructive hover:bg-accent">
+                      <Trash2 className="size-4" />
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
