@@ -45,6 +45,8 @@ export function MessageList({ channelId, onThreadOpen, onUserInfoOpen }: Message
   const messages = useMessageStore((s) => s.messages[channelId] ?? EMPTY_MESSAGES);
   const newMessageIds = useMessageStore((s) => s.newMessageIds);
   const isLoading = useMessageStore((s) => s.isLoading);
+  const error = useMessageStore((s) => s.error);
+  const fetchMessages = useMessageStore((s) => s.fetchMessages);
   const activeStream = useAIStreamStore((s) => s.channelStreams[channelId]);
 
   const parentRef = useRef<HTMLDivElement>(null);
@@ -151,8 +153,20 @@ export function MessageList({ channelId, onThreadOpen, onUserInfoOpen }: Message
 
   if (messages.length === 0 && !isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">No messages yet. Start the conversation!</p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-2">
+        {error ? (
+          <>
+            <p className="text-sm text-destructive">Failed to load messages</p>
+            <button
+              onClick={() => fetchMessages(channelId)}
+              className="text-xs text-muted-foreground hover:text-foreground underline"
+            >
+              Retry
+            </button>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">No messages yet. Start the conversation!</p>
+        )}
       </div>
     );
   }

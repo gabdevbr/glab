@@ -6,6 +6,7 @@ interface MessageState {
   messages: Record<string, Message[]>;
   newMessageIds: Set<string>;
   isLoading: boolean;
+  error: string | null;
   fetchMessages: (
     channelId: string,
     limit?: number,
@@ -44,8 +45,9 @@ export const useMessageStore = create<MessageState>((set) => ({
   messages: {},
   newMessageIds: new Set(),
   isLoading: false,
+  error: null,
   fetchMessages: async (channelId, limit = 50, offset = 0) => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const msgs = await api.get<Message[]>(
         `/api/v1/channels/${channelId}/messages?limit=${limit}&offset=${offset}`,
@@ -64,8 +66,9 @@ export const useMessageStore = create<MessageState>((set) => ({
           isLoading: false,
         };
       });
-    } catch {
-      set({ isLoading: false });
+    } catch (err) {
+      console.error('[fetchMessages] failed:', err);
+      set({ isLoading: false, error: err instanceof Error ? err.message : 'Failed to load messages' });
     }
   },
   addMessage: (channelId, message) => {

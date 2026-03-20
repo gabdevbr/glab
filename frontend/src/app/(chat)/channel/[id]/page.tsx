@@ -46,7 +46,16 @@ export default function ChannelPage() {
 
   const [rightPanel, setRightPanel] = useState<RightPanel>({ type: 'none' });
 
+  const isLoadingChannels = useChannelStore((s) => s.isLoading);
+  const fetchChannels = useChannelStore((s) => s.fetchChannels);
   const channel = channels.find((c) => c.id === channelId);
+
+  // If channels are loaded but this channel isn't found, refetch once
+  useEffect(() => {
+    if (!isLoadingChannels && channels.length > 0 && !channel) {
+      fetchChannels();
+    }
+  }, [isLoadingChannels, channels.length, channel, fetchChannels]);
 
   // Set active channel and fetch messages on mount
   useEffect(() => {
@@ -194,7 +203,16 @@ export default function ChannelPage() {
   }, [channelId]);
 
   const isDM = channel?.type === 'dm';
-  const channelName = channel?.name || 'loading';
+  const channelName = channel?.name || '';
+
+  // Show loading state while channels are being fetched
+  if (!channel && (isLoadingChannels || channels.length === 0)) {
+    return (
+      <div className="flex h-full flex-1 items-center justify-center bg-chat-bg">
+        <p className="text-sm text-muted-foreground">Loading channel...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-1 min-w-0">
