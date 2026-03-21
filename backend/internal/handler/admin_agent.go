@@ -42,6 +42,7 @@ type AdminAgentResponse struct {
 	Temperature           float32 `json:"temperature"`
 	MaxContextMessages    int32   `json:"max_context_messages"`
 	RespondWithoutMention bool    `json:"respond_without_mention"`
+	Category              string  `json:"category"`
 	CreatedAt             string  `json:"created_at"`
 	UpdatedAt             string  `json:"updated_at"`
 }
@@ -64,6 +65,7 @@ func agentToAdminResponse(a repository.Agent) AdminAgentResponse {
 		Temperature:           a.Temperature,
 		MaxContextMessages:    a.MaxContextMessages,
 		RespondWithoutMention: a.RespondWithoutMention,
+		Category:              a.Category,
 		CreatedAt:             timestampToString(a.CreatedAt),
 		UpdatedAt:             timestampToString(a.UpdatedAt),
 	}

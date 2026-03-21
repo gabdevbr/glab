@@ -14,7 +14,7 @@ import (
 
 const createAgent = `-- name: CreateAgent :one
 INSERT INTO agents (user_id, slug, name, emoji, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, max_context_messages)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention, category
 `
 
 type CreateAgentParams struct {
@@ -76,6 +76,7 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RespondWithoutMention,
+		&i.Category,
 	)
 	return i, err
 }
@@ -151,7 +152,7 @@ func (q *Queries) DeleteAgent(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getAgentByID = `-- name: GetAgentByID :one
-SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE id = $1
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention, category FROM agents WHERE id = $1
 `
 
 func (q *Queries) GetAgentByID(ctx context.Context, id pgtype.UUID) (Agent, error) {
@@ -181,12 +182,13 @@ func (q *Queries) GetAgentByID(ctx context.Context, id pgtype.UUID) (Agent, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RespondWithoutMention,
+		&i.Category,
 	)
 	return i, err
 }
 
 const getAgentBySlug = `-- name: GetAgentBySlug :one
-SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE slug = $1
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention, category FROM agents WHERE slug = $1
 `
 
 func (q *Queries) GetAgentBySlug(ctx context.Context, slug string) (Agent, error) {
@@ -216,12 +218,13 @@ func (q *Queries) GetAgentBySlug(ctx context.Context, slug string) (Agent, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RespondWithoutMention,
+		&i.Category,
 	)
 	return i, err
 }
 
 const getAgentByUserID = `-- name: GetAgentByUserID :one
-SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE user_id = $1
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention, category FROM agents WHERE user_id = $1
 `
 
 func (q *Queries) GetAgentByUserID(ctx context.Context, userID pgtype.UUID) (Agent, error) {
@@ -251,6 +254,7 @@ func (q *Queries) GetAgentByUserID(ctx context.Context, userID pgtype.UUID) (Age
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RespondWithoutMention,
+		&i.Category,
 	)
 	return i, err
 }
@@ -375,7 +379,7 @@ func (q *Queries) ListAgentSessions(ctx context.Context, arg ListAgentSessionsPa
 }
 
 const listAgents = `-- name: ListAgents :many
-SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE status = 'active' ORDER BY name
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention, category FROM agents WHERE status = 'active' ORDER BY name
 `
 
 func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
@@ -411,6 +415,7 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.RespondWithoutMention,
+		&i.Category,
 		); err != nil {
 			return nil, err
 		}
@@ -423,7 +428,7 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 }
 
 const listAgentsRespondWithoutMention = `-- name: ListAgentsRespondWithoutMention :many
-SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention FROM agents WHERE status = 'active' AND respond_without_mention = true ORDER BY name
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention, category FROM agents WHERE status = 'active' AND respond_without_mention = true ORDER BY name
 `
 
 func (q *Queries) ListAgentsRespondWithoutMention(ctx context.Context) ([]Agent, error) {
@@ -459,6 +464,7 @@ func (q *Queries) ListAgentsRespondWithoutMention(ctx context.Context) ([]Agent,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.RespondWithoutMention,
+		&i.Category,
 		); err != nil {
 			return nil, err
 		}
@@ -487,7 +493,7 @@ UPDATE agents SET
     respond_without_mention = $14,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention
+RETURNING id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention, category
 `
 
 type UpdateAgentParams struct {
@@ -549,6 +555,7 @@ func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RespondWithoutMention,
+		&i.Category,
 	)
 	return i, err
 }

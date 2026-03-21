@@ -34,6 +34,7 @@ type Agent struct {
 	CreatedAt             pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
 	RespondWithoutMention bool               `json:"respond_without_mention"`
+	Category              string             `json:"category"`
 }
 
 type AgentSession struct {
