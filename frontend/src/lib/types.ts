@@ -109,6 +109,7 @@ export interface Agent {
   description?: string;
   scope?: string;
   status: string;
+  category: string;
   created_at: string;
 }
 

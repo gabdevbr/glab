@@ -29,6 +29,7 @@ type AgentResponse struct {
 	Description string `json:"description,omitempty"`
 	Scope       string `json:"scope,omitempty"`
 	Status      string `json:"status"`
+	Category    string `json:"category"`
 	CreatedAt   string `json:"created_at"`
 }
 
@@ -42,6 +43,7 @@ func agentToResponse(a repository.Agent) AgentResponse {
 		Description: a.Description.String,
 		Scope:       a.Scope.String,
 		Status:      a.Status,
+		Category:    a.Category,
 		CreatedAt:   timestampToString(a.CreatedAt),
 	}
 }

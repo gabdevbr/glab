@@ -5,7 +5,7 @@ SELECT * FROM agents WHERE slug = $1;
 SELECT * FROM agents WHERE user_id = $1;
 
 -- name: ListAgents :many
-SELECT * FROM agents WHERE status = 'active' ORDER BY name;
+SELECT * FROM agents WHERE status = 'active' ORDER BY category, name;
 
 -- name: ListAgentsRespondWithoutMention :many
 SELECT * FROM agents WHERE status = 'active' AND respond_without_mention = true ORDER BY name;
@@ -28,6 +28,7 @@ UPDATE agents SET
     temperature = $12,
     max_context_messages = $13,
     respond_without_mention = $14,
+    category = $15,
     updated_at = NOW()
 WHERE id = $1
 RETURNING *;
@@ -39,8 +40,8 @@ DELETE FROM agents WHERE id = $1;
 SELECT * FROM agents WHERE id = $1;
 
 -- name: CreateAgent :one
-INSERT INTO agents (user_id, slug, name, emoji, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, max_context_messages)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *;
+INSERT INTO agents (user_id, slug, name, emoji, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, max_context_messages, category)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *;
 
 -- name: GetAgentSession :one
 SELECT * FROM agent_sessions WHERE id = $1;

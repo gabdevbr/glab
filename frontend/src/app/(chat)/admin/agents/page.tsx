@@ -52,6 +52,7 @@ interface Agent {
   temperature: number;
   max_context_messages: number;
   respond_without_mention: boolean;
+  category: string;
   created_at: string;
 }
 
@@ -70,6 +71,7 @@ const emptyForm = (): Omit<Agent, 'id' | 'user_id' | 'created_at'> => ({
   temperature: 0.7,
   max_context_messages: 8,
   respond_without_mention: false,
+  category: '',
 });
 
 function CopyButton({ text }: { text: string }) {
@@ -131,6 +133,7 @@ export default function AdminAgentsPage() {
       temperature: agent.temperature,
       max_context_messages: agent.max_context_messages,
       respond_without_mention: agent.respond_without_mention,
+      category: agent.category || '',
     });
     setError('');
     setDialogOpen(true);
@@ -199,6 +202,9 @@ export default function AdminAgentsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {agent.category && (
+                    <Badge variant="outline" className="text-xs">{agent.category}</Badge>
+                  )}
                   <Badge variant={agent.status === 'active' ? 'default' : 'secondary'}>{agent.status}</Badge>
                   {agent.respond_without_mention && (
                     <Badge variant="outline" className="text-xs">responde sempre</Badge>
@@ -254,10 +260,14 @@ export default function AdminAgentsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <div className="space-y-1.5">
                 <Label>Emoji</Label>
                 <Input placeholder="🤖" {...F('emoji')} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Category</Label>
+                <Input placeholder="Ex: Assistentes" {...F('category')} />
               </div>
               <div className="space-y-1.5 col-span-2">
                 <Label>Description</Label>

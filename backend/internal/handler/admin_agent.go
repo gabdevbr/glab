@@ -42,6 +42,7 @@ type AdminAgentResponse struct {
 	Temperature           float32 `json:"temperature"`
 	MaxContextMessages    int32   `json:"max_context_messages"`
 	RespondWithoutMention bool    `json:"respond_without_mention"`
+	Category              string  `json:"category"`
 	CreatedAt             string  `json:"created_at"`
 	UpdatedAt             string  `json:"updated_at"`
 }
@@ -64,6 +65,7 @@ func agentToAdminResponse(a repository.Agent) AdminAgentResponse {
 		Temperature:           a.Temperature,
 		MaxContextMessages:    a.MaxContextMessages,
 		RespondWithoutMention: a.RespondWithoutMention,
+		Category:              a.Category,
 		CreatedAt:             timestampToString(a.CreatedAt),
 		UpdatedAt:             timestampToString(a.UpdatedAt),
 	}
@@ -98,6 +100,7 @@ type AgentCreateRequest struct {
 	Temperature           float32 `json:"temperature"`
 	MaxContextMessages    int32   `json:"max_context_messages"`
 	RespondWithoutMention bool    `json:"respond_without_mention"`
+	Category              string  `json:"category"`
 }
 
 // CreateAgent handles POST /api/v1/admin/agents
@@ -157,6 +160,7 @@ func (h *AdminAgentHandler) CreateAgent(w http.ResponseWriter, r *http.Request) 
 		MaxTokens:          req.MaxTokens,
 		Temperature:        req.Temperature,
 		MaxContextMessages: req.MaxContextMessages,
+		Category:           req.Category,
 	})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to create agent: "+err.Error())
@@ -190,6 +194,7 @@ type AgentUpdateRequest struct {
 	Temperature           float32 `json:"temperature"`
 	MaxContextMessages    int32   `json:"max_context_messages"`
 	RespondWithoutMention bool    `json:"respond_without_mention"`
+	Category              string  `json:"category"`
 }
 
 // UpdateAgent handles PUT /api/v1/admin/agents/{id}
@@ -231,6 +236,7 @@ func (h *AdminAgentHandler) UpdateAgent(w http.ResponseWriter, r *http.Request) 
 		Temperature:           req.Temperature,
 		MaxContextMessages:    req.MaxContextMessages,
 		RespondWithoutMention: req.RespondWithoutMention,
+		Category:              req.Category,
 	})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to update agent: "+err.Error())
