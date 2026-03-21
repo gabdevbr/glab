@@ -15,6 +15,7 @@ SELECT c.*,
 FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
+  AND c.slug NOT LIKE 'agent-session-%'
   AND (
     $2::int = 0
     OR c.last_message_at >= NOW() - INTERVAL '1 day' * $2::int
@@ -85,6 +86,7 @@ UPDATE channels SET last_message_at = NOW() WHERE id = $1;
 SELECT c.* FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND cm.hidden = TRUE AND c.is_archived = FALSE
+  AND c.slug NOT LIKE 'agent-session-%'
 ORDER BY c.name;
 
 -- name: GetChannelReadOnly :one

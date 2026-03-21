@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useWSStore } from '@/stores/wsStore';
 import { useAIStreamStore } from '@/stores/aiStreamStore';
 import { wsClient } from '@/lib/ws';
+import { Message } from '@/lib/types';
 import { MessageList } from '@/components/chat/MessageList';
 import { SessionPanel } from '@/components/ai/SessionPanel';
 import { StreamingMessage } from '@/components/chat/StreamingMessage';
@@ -33,6 +34,7 @@ export default function AgentPage() {
   const [channelId, setChannelId] = useState<string | null>(null);
   const [content, setContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [pendingMessages, setPendingMessages] = useState<Message[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Track the stream key for new sessions that don't have a channelId yet
   const streamKeyRef = useRef<string>('pending-new');
@@ -89,6 +91,7 @@ export default function AgentPage() {
             if (session?.channel_id) {
               setChannelId(session.channel_id);
               setActiveSessionId(data.session_id);
+              setPendingMessages([]);
               fetchMessages(session.channel_id);
             }
           });
@@ -112,6 +115,7 @@ export default function AgentPage() {
     setActiveSessionId(sessionId);
     setIsStreaming(false);
     setContent('');
+    setPendingMessages([]);
     const session = sessions.find((s) => s.id === sessionId);
     if (session?.channel_id) {
       setChannelId(session.channel_id);
@@ -125,6 +129,7 @@ export default function AgentPage() {
     setChannelId(null);
     setIsStreaming(false);
     setContent('');
+    setPendingMessages([]);
     streamKeyRef.current = `pending-${Date.now()}`;
   }, []);
 
@@ -132,20 +137,24 @@ export default function AgentPage() {
     const trimmed = content.trim();
     if (!trimmed || isStreaming || !agent) return;
 
-    // Add user message optimistically if we have a channel
+    const tempMsg: Message = {
+      id: 'temp-' + Date.now(),
+      channel_id: channelId || '',
+      user_id: user?.id || '',
+      username: user?.username || '',
+      display_name: user?.display_name || '',
+      is_bot: false,
+      content: trimmed,
+      content_type: 'text',
+      is_pinned: false,
+      created_at: new Date().toISOString(),
+    };
+
     if (channelId) {
-      addMessage(channelId, {
-        id: 'temp-' + Date.now(),
-        channel_id: channelId,
-        user_id: user?.id || '',
-        username: user?.username || '',
-        display_name: user?.display_name || '',
-        is_bot: false,
-        content: trimmed,
-        content_type: 'text',
-        is_pinned: false,
-        created_at: new Date().toISOString(),
-      });
+      addMessage(channelId, tempMsg);
+    } else {
+      // No channel yet (new session) — show in pending messages
+      setPendingMessages((prev) => [...prev, tempMsg]);
     }
 
     wsClient.send('ai.prompt', {
@@ -207,14 +216,32 @@ export default function AgentPage() {
         {/* Messages */}
         {channelId ? (
           <MessageList channelId={channelId} />
-        ) : activeStream ? (
-          /* New session: no channelId yet, but streaming has started */
+        ) : pendingMessages.length > 0 || activeStream ? (
+          /* New session: show pending user messages + streaming response */
           <div className="flex-1 overflow-y-auto">
-            <StreamingMessage
-              agentName={activeStream.agentName}
-              agentEmoji={activeStream.agentEmoji}
-              content={activeStream.content}
-            />
+            {pendingMessages.map((msg) => (
+              <div key={msg.id} className="group flex items-start gap-3 px-5 pt-5 pb-1">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-primary text-xs font-bold text-accent-primary-text">
+                  {msg.display_name?.charAt(0).toUpperCase() || '?'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-semibold text-foreground">{msg.display_name}</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+            {activeStream && (
+              <StreamingMessage
+                agentName={activeStream.agentName}
+                agentEmoji={activeStream.agentEmoji}
+                content={activeStream.content}
+              />
+            )}
           </div>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center text-center">

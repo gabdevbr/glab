@@ -218,6 +218,7 @@ SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_
 FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
+  AND c.slug NOT LIKE 'agent-session-%'
   AND (
     $2::int = 0
     OR c.last_message_at >= NOW() - INTERVAL '1 day' * $2::int
@@ -295,6 +296,7 @@ const listHiddenChannelsForUser = `-- name: ListHiddenChannelsForUser :many
 SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND cm.hidden = TRUE AND c.is_archived = FALSE
+  AND c.slug NOT LIKE 'agent-session-%'
 ORDER BY c.name
 `
 
