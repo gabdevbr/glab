@@ -1,0 +1,110 @@
+<h2>Como deve funcionar a navegacao entre conversas com o bot?</h2>
+<p class="subtitle">Hoje o AgentPanel abre na lateral direita. Queremos mostrar historico + conversa atual.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Pagina dedicada (como um canal)</h3>
+      <p>Clicar no agente na sidebar abre uma pagina de conversa no centro (igual a um canal). O painel direito mostra a lista de sessoes anteriores. Clicar numa sessao carrega ela no centro.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-body" style="display:flex;gap:0;height:200px">
+          <div style="width:180px;background:#1a1d23;padding:12px;border-right:1px solid #333;font-size:11px;color:#999">
+            <div style="color:#4ade80;font-weight:bold;margin-bottom:8px">SIDEBAR</div>
+            <div style="padding:4px 0;color:#fff;background:#2a2d35;border-radius:4px;padding-left:8px;margin-bottom:2px">🤖 Max (agente)</div>
+            <div style="padding:4px 0;padding-left:8px"># general</div>
+            <div style="padding:4px 0;padding-left:8px"># random</div>
+          </div>
+          <div style="flex:1;background:#0d1117;padding:12px;display:flex;flex-direction:column">
+            <div style="border-bottom:1px solid #333;padding-bottom:8px;margin-bottom:8px;font-size:13px;color:#fff">🤖 <strong>Max</strong></div>
+            <div style="flex:1;font-size:11px;color:#ccc">
+              <div style="margin-bottom:6px"><span style="color:#888">Voce:</span> Como funciona o modulo X?</div>
+              <div><span style="color:#4ade80">Max:</span> O modulo X e responsavel por...</div>
+            </div>
+            <div style="background:#1a1d23;border-radius:6px;padding:8px;font-size:11px;color:#666">Mensagem para Max...</div>
+          </div>
+          <div style="width:180px;background:#1a1d23;padding:12px;border-left:1px solid #333;font-size:11px;color:#999">
+            <div style="font-weight:bold;margin-bottom:8px;color:#ccc">SESSOES</div>
+            <div style="padding:4px 0;color:#fff;background:#2a2d35;border-radius:4px;padding-left:8px;margin-bottom:2px">Modulo X (atual)</div>
+            <div style="padding:4px 0;padding-left:8px">Bug no login</div>
+            <div style="padding:4px 0;padding-left:8px">Deploy pipeline</div>
+            <div style="padding:4px 0;padding-left:8px;color:#666">17 mar - Config DB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Painel lateral expandido (sem pagina central)</h3>
+      <p>O agente continua abrindo como painel lateral, mas agora com abas: "Chat" (conversa atual) e "Historico" (lista de sessoes). Clicar numa sessao troca o conteudo do painel.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-body" style="display:flex;gap:0;height:200px">
+          <div style="width:180px;background:#1a1d23;padding:12px;border-right:1px solid #333;font-size:11px;color:#999">
+            <div style="color:#4ade80;font-weight:bold;margin-bottom:8px">SIDEBAR</div>
+            <div style="padding:4px 0;padding-left:8px"># general</div>
+            <div style="padding:4px 0;padding-left:8px"># random</div>
+          </div>
+          <div style="flex:1;background:#0d1117;padding:12px;font-size:11px;color:#ccc">
+            <div style="border-bottom:1px solid #333;padding-bottom:8px;margin-bottom:8px;font-size:13px;color:#fff"># <strong>general</strong></div>
+            <div>Canal normal aberto...</div>
+          </div>
+          <div style="width:260px;background:#1a1d23;padding:12px;border-left:1px solid #333;font-size:11px">
+            <div style="display:flex;gap:12px;margin-bottom:12px;border-bottom:1px solid #333;padding-bottom:8px">
+              <span style="color:#fff;border-bottom:2px solid #4ade80">Chat</span>
+              <span style="color:#666">Historico</span>
+            </div>
+            <div style="color:#ccc">
+              <div style="margin-bottom:6px"><span style="color:#888">Voce:</span> Explica o bug</div>
+              <div><span style="color:#4ade80">Max:</span> O bug acontece quando...</div>
+            </div>
+            <div style="margin-top:auto;background:#0d1117;border-radius:6px;padding:8px;color:#666;margin-top:12px">Mensagem...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Hibrido: pagina central + painel historico</h3>
+      <p>Clicar no agente abre a conversa no centro usando MessageList/MessageItem (mesmo componente dos canais). O painel direito mostra sessoes anteriores como lista clicavel. O canal normal some do centro enquanto conversa com o bot.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-body" style="display:flex;gap:0;height:200px">
+          <div style="width:180px;background:#1a1d23;padding:12px;border-right:1px solid #333;font-size:11px;color:#999">
+            <div style="color:#4ade80;font-weight:bold;margin-bottom:8px">SIDEBAR</div>
+            <div style="padding:4px 0;color:#fff;background:#2a2d35;border-radius:4px;padding-left:8px;margin-bottom:2px">🤖 Max</div>
+            <div style="padding:4px 0;padding-left:8px"># general</div>
+          </div>
+          <div style="flex:1;background:#0d1117;padding:12px;display:flex;flex-direction:column">
+            <div style="border-bottom:1px solid #333;padding-bottom:8px;margin-bottom:8px;font-size:13px;color:#fff">🤖 <strong>Max</strong> <span style="font-size:10px;color:#666">sessao: Modulo X</span></div>
+            <div style="flex:1;font-size:11px;color:#ccc">
+              <div style="display:flex;gap:8px;margin-bottom:8px"><div style="width:24px;height:24px;border-radius:50%;background:#333;flex-shrink:0"></div><div><strong style="color:#fff">Gabriel</strong> <span style="color:#666">14:32</span><br>Como funciona o modulo X?</div></div>
+              <div style="display:flex;gap:8px"><div style="width:24px;height:24px;border-radius:50%;background:#4ade80;flex-shrink:0;font-size:10px;display:flex;align-items:center;justify-content:center">🤖</div><div><strong style="color:#4ade80">Max</strong> <span style="background:#1a3a2a;color:#4ade80;font-size:9px;padding:1px 4px;border-radius:3px">BOT</span> <span style="color:#666">14:32</span><br>O modulo X e responsavel por...</div></div>
+            </div>
+            <div style="background:#1a1d23;border-radius:6px;padding:8px;font-size:11px;color:#666">Mensagem para Max...</div>
+          </div>
+          <div style="width:180px;background:#1a1d23;padding:12px;border-left:1px solid #333;font-size:11px;color:#999">
+            <div style="font-weight:bold;margin-bottom:8px;color:#ccc">SESSOES</div>
+            <div style="padding:6px 8px;color:#fff;background:#2a2d35;border-radius:4px;margin-bottom:2px">
+              <div>Modulo X</div>
+              <div style="font-size:9px;color:#666">agora</div>
+            </div>
+            <div style="padding:6px 8px;margin-bottom:2px">
+              <div>Bug no login</div>
+              <div style="font-size:9px;color:#666">ontem</div>
+            </div>
+            <div style="padding:6px 8px">
+              <div>Deploy pipeline</div>
+              <div style="font-size:9px;color:#666">17 mar</div>
+            </div>
+            <div style="margin-top:12px;padding:6px 8px;background:#4ade80;color:#000;border-radius:4px;text-align:center;font-weight:bold;cursor:pointer">+ Nova sessao</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
