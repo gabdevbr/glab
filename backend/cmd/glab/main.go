@@ -35,6 +35,8 @@ import (
 	"github.com/gabdevbr/glab/backend/internal/ws"
 )
 
+var version = "dev"
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
@@ -134,7 +136,7 @@ func main() {
 	emojiHandler := handler.NewEmojiHandler(queries, storageSvc)
 	sectionHandler := handler.NewSectionHandler(queries)
 	presenceService := ws.NewPresenceService(rdb, hub)
-	wsHandler := ws.NewMessageHandler(hub, queries, presenceService, cfg.JWTSecret)
+	wsHandler := ws.NewMessageHandler(hub, queries, presenceService, cfg.JWTSecret, version)
 
 	// AI dispatcher
 	bridge := ai.NewBridgeClient()
@@ -181,7 +183,7 @@ func main() {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok","version":"` + version + `"}`))
 	})
 
 	// WebSocket route (auth via query param, not middleware)

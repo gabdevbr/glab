@@ -14,6 +14,7 @@ import { wsClient } from '@/lib/ws';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { QuickSwitcher } from '@/components/chat/QuickSwitcher';
 import { Message } from '@/lib/types';
+import { UpdateBanner } from '@/components/UpdateBanner';
 
 export default function ChatLayout({
   children,
@@ -237,9 +238,12 @@ export default function ChatLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar onOpenSearch={openQuickSwitcher} />
-      <main className="flex flex-1 overflow-hidden">{children}</main>
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <UpdateBanner />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar onOpenSearch={openQuickSwitcher} />
+        <main className="flex flex-1 overflow-hidden">{children}</main>
+      </div>
       <QuickSwitcher open={quickSwitcherOpen} onClose={() => setQuickSwitcherOpen(false)} />
     </div>
   );

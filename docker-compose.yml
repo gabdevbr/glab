@@ -3,6 +3,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
     container_name: glab-api
     restart: unless-stopped
     env_file: .env
@@ -32,6 +34,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8081}
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8081}
+        GIT_SHA: ${GIT_SHA:-dev}
     container_name: glab-web
     restart: unless-stopped
     environment:

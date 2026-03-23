@@ -113,7 +113,8 @@ BACKUPSCRIPT
 
 # Build and start containers
 echo "[7/7] Building and starting containers..."
-ssh ${SSH_OPTS} "$REMOTE" "cd $DEPLOY_DIR && docker compose build && docker compose up -d"
+GIT_SHA=$(git rev-parse --short HEAD)
+ssh ${SSH_OPTS} "$REMOTE" "cd $DEPLOY_DIR && GIT_SHA=${GIT_SHA} docker compose build && docker compose up -d"
 
 echo ""
 echo "=== Deploy complete ==="

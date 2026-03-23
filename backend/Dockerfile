@@ -9,7 +9,8 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /glab ./cmd/glab/
+ARG GIT_SHA=dev
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.version=${GIT_SHA}" -o /glab ./cmd/glab/
 
 FROM alpine:3.19
 

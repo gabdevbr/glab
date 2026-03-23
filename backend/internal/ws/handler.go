@@ -38,17 +38,19 @@ type MessageHandler struct {
 	queries      *repository.Queries
 	presence     *PresenceService
 	jwtSecret    string
+	version      string
 	aiDispatcher AIDispatcher
 	agentSlugs   map[string]bool // cached set of known agent slugs
 }
 
 // NewMessageHandler creates a new MessageHandler.
-func NewMessageHandler(hub *Hub, queries *repository.Queries, presence *PresenceService, jwtSecret string) *MessageHandler {
+func NewMessageHandler(hub *Hub, queries *repository.Queries, presence *PresenceService, jwtSecret string, version string) *MessageHandler {
 	return &MessageHandler{
 		hub:        hub,
 		queries:    queries,
 		presence:   presence,
 		jwtSecret:  jwtSecret,
+		version:    version,
 		agentSlugs: make(map[string]bool),
 	}
 }
@@ -135,6 +137,7 @@ func (h *MessageHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	helloEnv, err := MakeEnvelope(EventHello, HelloPayload{
 		UserID:   claims.UserID,
 		Username: claims.Username,
+		Version:  h.version,
 	})
 	if err == nil {
 		client.sendEnvelope(helloEnv)

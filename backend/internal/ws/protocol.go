@@ -119,6 +119,7 @@ type PresenceUpdatePayload struct {
 type HelloPayload struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
+	Version  string `json:"version"`
 }
 
 // AckPayload is sent to the client to acknowledge a request.
