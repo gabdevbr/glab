@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import ReactMarkdown, { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check } from 'lucide-react';
@@ -83,7 +84,7 @@ export function StreamingMessage({
           </span>
         </div>
         <div className="prose-chat max-w-none text-sm text-foreground">
-          <ReactMarkdown components={streamingComponents}>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={streamingComponents}>{content}</ReactMarkdown>
           <span className="inline-block h-4 w-0.5 animate-pulse bg-muted-foreground align-text-bottom" />
         </div>
       </div>

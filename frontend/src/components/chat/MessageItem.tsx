@@ -9,6 +9,7 @@ import { wsClient } from '@/lib/ws';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import ReactMarkdown, { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import {
@@ -595,7 +596,7 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
           </div>
         )}
         <div className="prose-chat max-w-none text-sm text-foreground">
-          <ReactMarkdown components={mdComponents}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
             {message.is_bot ? message.content : cleanContent}
           </ReactMarkdown>
           {message.edited_at && (
