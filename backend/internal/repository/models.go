@@ -109,6 +109,7 @@ type ChannelMember struct {
 	Notifications string             `json:"notifications"`
 	Hidden        bool               `json:"hidden"`
 	SectionID     pgtype.UUID        `json:"section_id"`
+	IsPinned      bool               `json:"is_pinned"`
 }
 
 type ChannelWebhook struct {

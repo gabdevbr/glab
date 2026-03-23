@@ -659,6 +659,53 @@ func (h *ChannelHandler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+// PinChannel handles PATCH /api/v1/channels/{id}/pin.
+func (h *ChannelHandler) PinChannel(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	channelID, err := parseUUID(chi.URLParam(r, "id"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid channel id")
+		return
+	}
+
+	userUUID, err := parseUUID(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	var body struct {
+		Pinned bool `json:"pinned"`
+	}
+	if err := parseBody(r, &body); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if body.Pinned {
+		err = h.queries.PinChannel(r.Context(), repository.PinChannelParams{
+			ChannelID: channelID,
+			UserID:    userUUID,
+		})
+	} else {
+		err = h.queries.UnpinChannel(r.Context(), repository.UnpinChannelParams{
+			ChannelID: channelID,
+			UserID:    userUUID,
+		})
+	}
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to update pin state")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 // sentinel error for permission checks
 type forbiddenError struct{}
 

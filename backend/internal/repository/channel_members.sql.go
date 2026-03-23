@@ -42,7 +42,7 @@ func (q *Queries) ClearChannelSection(ctx context.Context, arg ClearChannelSecti
 }
 
 const getChannelMember = `-- name: GetChannelMember :one
-SELECT channel_id, user_id, role, joined_at, last_read_msg_id, muted, notifications, hidden, section_id FROM channel_members WHERE channel_id = $1 AND user_id = $2
+SELECT channel_id, user_id, role, joined_at, last_read_msg_id, muted, notifications, hidden, section_id, is_pinned FROM channel_members WHERE channel_id = $1 AND user_id = $2
 `
 
 type GetChannelMemberParams struct {
@@ -63,6 +63,7 @@ func (q *Queries) GetChannelMember(ctx context.Context, arg GetChannelMemberPara
 		&i.Notifications,
 		&i.Hidden,
 		&i.SectionID,
+		&i.IsPinned,
 	)
 	return i, err
 }

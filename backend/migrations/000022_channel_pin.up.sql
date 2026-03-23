@@ -1,0 +1,1 @@
+ALTER TABLE channel_members ADD COLUMN is_pinned BOOLEAN NOT NULL DEFAULT FALSE;

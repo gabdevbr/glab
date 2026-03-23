@@ -214,7 +214,8 @@ SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_
      AND m.thread_id IS NULL
      AND (cm.last_read_msg_id IS NULL
        OR m.created_at > (SELECT created_at FROM messages WHERE id = cm.last_read_msg_id))
-  )::int AS unread_count
+  )::int AS unread_count,
+  cm.is_pinned
 FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
@@ -255,6 +256,7 @@ type ListChannelsForUserRow struct {
 	RetentionDays pgtype.Int4        `json:"retention_days"`
 	LastMessageAt pgtype.Timestamptz `json:"last_message_at"`
 	UnreadCount   int32              `json:"unread_count"`
+	IsPinned      bool               `json:"is_pinned"`
 }
 
 func (q *Queries) ListChannelsForUser(ctx context.Context, arg ListChannelsForUserParams) ([]ListChannelsForUserRow, error) {
@@ -281,6 +283,7 @@ func (q *Queries) ListChannelsForUser(ctx context.Context, arg ListChannelsForUs
 			&i.RetentionDays,
 			&i.LastMessageAt,
 			&i.UnreadCount,
+			&i.IsPinned,
 		); err != nil {
 			return nil, err
 		}
@@ -370,6 +373,34 @@ func (q *Queries) ListPublicChannels(ctx context.Context) ([]Channel, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const pinChannel = `-- name: PinChannel :exec
+UPDATE channel_members SET is_pinned = TRUE WHERE channel_id = $1 AND user_id = $2
+`
+
+type PinChannelParams struct {
+	ChannelID pgtype.UUID `json:"channel_id"`
+	UserID    pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) PinChannel(ctx context.Context, arg PinChannelParams) error {
+	_, err := q.db.Exec(ctx, pinChannel, arg.ChannelID, arg.UserID)
+	return err
+}
+
+const unpinChannel = `-- name: UnpinChannel :exec
+UPDATE channel_members SET is_pinned = FALSE WHERE channel_id = $1 AND user_id = $2
+`
+
+type UnpinChannelParams struct {
+	ChannelID pgtype.UUID `json:"channel_id"`
+	UserID    pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) UnpinChannel(ctx context.Context, arg UnpinChannelParams) error {
+	_, err := q.db.Exec(ctx, unpinChannel, arg.ChannelID, arg.UserID)
+	return err
 }
 
 const updateChannel = `-- name: UpdateChannel :one

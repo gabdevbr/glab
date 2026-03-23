@@ -225,6 +225,7 @@ func main() {
 		r.Post("/api/v1/channels/{id}/join", channelHandler.Join)
 		r.Post("/api/v1/channels/{id}/leave", channelHandler.Leave)
 		r.Patch("/api/v1/channels/{id}/hide", channelHandler.HideChannel)
+		r.Patch("/api/v1/channels/{id}/pin", channelHandler.PinChannel)
 		r.Post("/api/v1/channels/{id}/members", channelHandler.AddMember)
 		r.Delete("/api/v1/channels/{id}/members/{uid}", channelHandler.RemoveMember)
 

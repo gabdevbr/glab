@@ -75,6 +75,11 @@ class ApiClient {
     return this.patch(`/api/v1/channels/${channelId}/hide`, { hidden });
   }
 
+  // Channel pin/unpin
+  pinChannel(channelId: string, pinned: boolean) {
+    return this.patch(`/api/v1/channels/${channelId}/pin`, { pinned });
+  }
+
   markAllRead() {
     return this.post('/api/v1/channels/mark-all-read');
   }

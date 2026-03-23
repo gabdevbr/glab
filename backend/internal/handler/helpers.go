@@ -215,6 +215,7 @@ type ChannelResponse struct {
 	UpdatedAt     string `json:"updated_at"`
 	MemberCount   int    `json:"member_count,omitempty"`
 	UnreadCount   int32  `json:"unread_count"`
+	IsPinned      bool   `json:"is_pinned"`
 	DMUserID      string `json:"dm_user_id,omitempty"`
 }
 
@@ -257,6 +258,7 @@ func channelRowToResponse(c repository.ListChannelsForUserRow) ChannelResponse {
 		CreatedAt:     timestampToString(c.CreatedAt),
 		UpdatedAt:     timestampToString(c.UpdatedAt),
 		UnreadCount:   c.UnreadCount,
+		IsPinned:      c.IsPinned,
 	}
 	if c.RetentionDays.Valid {
 		v := c.RetentionDays.Int32

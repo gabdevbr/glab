@@ -18,6 +18,7 @@ interface ChannelState {
   incrementUnread: (channelId: string) => void;
   clearUnread: (channelId: string) => void;
   markAllRead: () => Promise<void>;
+  pinChannel: (channelId: string, pinned: boolean) => Promise<void>;
 }
 
 export const useChannelStore = create<ChannelState>((set, get) => ({
@@ -95,6 +96,18 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
     try {
       await api.markAllRead();
       set({ unreadCounts: {} });
+    } catch {
+      // ignore
+    }
+  },
+  pinChannel: async (channelId, pinned) => {
+    try {
+      await api.pinChannel(channelId, pinned);
+      set((s) => ({
+        channels: s.channels.map((c) =>
+          c.id === channelId ? { ...c, is_pinned: pinned } : c,
+        ),
+      }));
     } catch {
       // ignore
     }

@@ -11,7 +11,8 @@ SELECT c.*,
      AND m.thread_id IS NULL
      AND (cm.last_read_msg_id IS NULL
        OR m.created_at > (SELECT created_at FROM messages WHERE id = cm.last_read_msg_id))
-  )::int AS unread_count
+  )::int AS unread_count,
+  cm.is_pinned
 FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
@@ -88,6 +89,12 @@ JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND cm.hidden = TRUE AND c.is_archived = FALSE
   AND c.slug NOT LIKE 'agent-session-%'
 ORDER BY c.name;
+
+-- name: PinChannel :exec
+UPDATE channel_members SET is_pinned = TRUE WHERE channel_id = $1 AND user_id = $2;
+
+-- name: UnpinChannel :exec
+UPDATE channel_members SET is_pinned = FALSE WHERE channel_id = $1 AND user_id = $2;
 
 -- name: GetChannelReadOnly :one
 SELECT read_only FROM channels WHERE id = $1;

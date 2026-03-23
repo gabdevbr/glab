@@ -27,6 +27,7 @@ export interface Channel {
   created_at: string;
   member_count?: number;
   unread_count?: number;
+  is_pinned?: boolean;
   dm_user_id?: string;
 }
 

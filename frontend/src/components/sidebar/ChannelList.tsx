@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Channel } from '@/lib/types';
-import { Hash, EyeOff, Archive, Trash2, ArrowUpDown, FolderInput, ChevronRight } from 'lucide-react';
+import { Hash, EyeOff, Archive, Trash2, ArrowUpDown, FolderInput, ChevronRight, Pin, PinOff } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -49,10 +49,15 @@ function sortChannels(
   unreadCounts: Record<string, number>,
 ): Channel[] {
   return [...channels].sort((a, b) => {
+    // Pinned channels always float to top
+    const pa = a.is_pinned ? 1 : 0;
+    const pb = b.is_pinned ? 1 : 0;
+    if (pa !== pb) return pb - pa;
+
     const ua = unreadCounts[a.id] || 0;
     const ub = unreadCounts[b.id] || 0;
 
-    // Unread channels always float to top
+    // Unread channels always float to top (after pinned)
     if (ua > 0 && ub === 0) return -1;
     if (ub > 0 && ua === 0) return 1;
 
@@ -83,6 +88,7 @@ export function ChannelList() {
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
   const unreadCounts = useChannelStore((s) => s.unreadCounts);
   const hideChannel = useChannelStore((s) => s.hideChannel);
+  const pinChannel = useChannelStore((s) => s.pinChannel);
   const fetchChannels = useChannelStore((s) => s.fetchChannels);
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
@@ -180,6 +186,9 @@ export function ChannelList() {
                   >
                     <Hash className="size-4 shrink-0 text-sidebar-section-text" />
                     <span className="flex-1 truncate text-left">{channel.name}</span>
+                    {channel.is_pinned && (
+                      <Pin className="size-3 shrink-0 text-muted-foreground" />
+                    )}
                     {unread > 0 && (
                       <span key={unread} className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text animate-badge-pulse">
                         {unread > 99 ? '99+' : unread}
@@ -187,6 +196,13 @@ export function ChannelList() {
                     )}
                   </ContextMenuTrigger>
                   <ContextMenuContent>
+                    <ContextMenuItem onClick={() => pinChannel(channel.id, !channel.is_pinned)}>
+                      {channel.is_pinned ? (
+                        <><PinOff className="mr-2 h-4 w-4" /> Unpin Channel</>
+                      ) : (
+                        <><Pin className="mr-2 h-4 w-4" /> Pin to Top</>
+                      )}
+                    </ContextMenuItem>
                     <ContextMenuItem onClick={() => hideChannel(channel.id)}>
                       <EyeOff className="mr-2 h-4 w-4" /> Hide Channel
                     </ContextMenuItem>
