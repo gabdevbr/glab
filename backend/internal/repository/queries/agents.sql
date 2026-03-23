@@ -71,6 +71,38 @@ FROM messages m JOIN users u ON u.id = m.user_id
 WHERE m.channel_id = $1
 ORDER BY m.created_at ASC;
 
+-- name: GetAgentUnreadCounts :many
+SELECT a.id AS agent_id,
+  COALESCE(SUM(
+    (SELECT COUNT(*) FROM messages m
+     WHERE m.channel_id = c.id
+       AND m.thread_id IS NULL
+       AND (cm.last_read_msg_id IS NULL
+         OR m.created_at > (SELECT created_at FROM messages WHERE id = cm.last_read_msg_id))
+    )
+  ), 0)::int AS unread_count
+FROM agents a
+JOIN agent_sessions s ON s.agent_id = a.id AND s.user_id = $1
+JOIN channels c ON c.slug = 'agent-session-' || s.id::text
+JOIN channel_members cm ON cm.channel_id = c.id AND cm.user_id = $1
+WHERE a.status = 'active'
+GROUP BY a.id
+HAVING SUM(
+  (SELECT COUNT(*) FROM messages m
+   WHERE m.channel_id = c.id
+     AND m.thread_id IS NULL
+     AND (cm.last_read_msg_id IS NULL
+       OR m.created_at > (SELECT created_at FROM messages WHERE id = cm.last_read_msg_id))
+  )
+) > 0;
+
+-- name: GetAgentSessionChannelMap :many
+SELECT a.slug AS agent_slug, c.id AS channel_id
+FROM agents a
+JOIN agent_sessions s ON s.agent_id = a.id AND s.user_id = $1
+JOIN channels c ON c.slug = 'agent-session-' || s.id::text
+WHERE a.status = 'active';
+
 -- name: CreateAgentUsage :exec
 INSERT INTO agent_usage (agent_id, user_id, channel_id, session_id, message_id, input_tokens, output_tokens, cost_usd, response_time_ms, model_used, source)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);

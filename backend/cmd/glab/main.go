@@ -257,6 +257,8 @@ func main() {
 
 		// Agents
 		r.Get("/api/v1/agents", agentHandler.List)
+		r.Get("/api/v1/agents/unread", agentHandler.UnreadCounts)
+		r.Get("/api/v1/agents/channel-map", agentHandler.ChannelMap)
 		r.Get("/api/v1/agents/{slug}", agentHandler.GetBySlug)
 		r.Get("/api/v1/agents/{slug}/sessions", agentHandler.ListSessions)
 		r.Get("/api/v1/agents/{slug}/sessions/{id}/messages", agentHandler.GetSessionMessages)

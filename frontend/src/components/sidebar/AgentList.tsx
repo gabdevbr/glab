@@ -11,6 +11,7 @@ export function AgentList() {
   const params = useParams();
   const agents = useAgentStore((s) => s.agents);
   const fetchAgents = useAgentStore((s) => s.fetchAgents);
+  const agentUnreadCounts = useAgentStore((s) => s.agentUnreadCounts);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
 
   const activeSlug = params.slug as string | undefined;
@@ -59,21 +60,31 @@ export function AgentList() {
             </button>
           )}
           {!(hasCategories && collapsedCategories[category]) &&
-            categoryAgents.map((agent) => (
-              <button
-                key={agent.id}
-                onClick={() => router.push(`/agent/${agent.slug}`)}
-                className={cn(
-                  'flex w-full items-center gap-2 rounded-md mx-1 px-2 py-1.5 text-left text-sm transition-all duration-150 hover:bg-sidebar-hover hover:text-foreground hover:translate-x-0.5',
-                  activeSlug === agent.slug
-                    ? 'bg-accent-primary-subtle text-foreground font-semibold border-l-2 border-accent-primary'
-                    : 'text-muted-foreground',
-                )}
-              >
-                <span className="text-base leading-none">{agent.emoji}</span>
-                <span className="truncate">{agent.name}</span>
-              </button>
-            ))}
+            categoryAgents.map((agent) => {
+              const unread = agentUnreadCounts[agent.id] || 0;
+              return (
+                <button
+                  key={agent.id}
+                  onClick={() => router.push(`/agent/${agent.slug}`)}
+                  className={cn(
+                    'flex w-full items-center gap-2 rounded-md mx-1 px-2 py-1.5 text-left text-sm transition-all duration-150 hover:bg-sidebar-hover hover:text-foreground hover:translate-x-0.5',
+                    activeSlug === agent.slug
+                      ? 'bg-accent-primary-subtle text-foreground font-semibold border-l-2 border-accent-primary'
+                      : unread > 0
+                        ? 'text-foreground font-semibold'
+                        : 'text-muted-foreground',
+                  )}
+                >
+                  <span className="text-base leading-none">{agent.emoji}</span>
+                  <span className="flex-1 truncate">{agent.name}</span>
+                  {unread > 0 && (
+                    <span key={unread} className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text animate-badge-pulse">
+                      {unread > 99 ? '99+' : unread}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
         </div>
       ))}
     </nav>

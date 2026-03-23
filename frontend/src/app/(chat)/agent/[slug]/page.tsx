@@ -39,7 +39,13 @@ export default function AgentPage() {
   // Track the stream key for new sessions that don't have a channelId yet
   const streamKeyRef = useRef<string>('pending-new');
 
+  const clearAgentUnread = useAgentStore((s) => s.clearAgentUnread);
   const agent = agents.find((a) => a.slug === slug);
+
+  // Clear agent unread badge when navigating to this agent
+  useEffect(() => {
+    if (slug) clearAgentUnread(slug);
+  }, [slug, clearAgentUnread]);
 
   // Fetch agent data on mount
   useEffect(() => {

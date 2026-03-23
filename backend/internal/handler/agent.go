@@ -91,6 +91,62 @@ func (h *AgentHandler) List(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, items)
 }
 
+// UnreadCounts handles GET /api/v1/agents/unread — returns unread message counts per agent.
+func (h *AgentHandler) UnreadCounts(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	userUUID, err := parseUUID(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "invalid user id")
+		return
+	}
+
+	rows, err := h.queries.GetAgentUnreadCounts(r.Context(), userUUID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get unread counts")
+		return
+	}
+
+	counts := make(map[string]int32, len(rows))
+	for _, row := range rows {
+		counts[uuidToString(row.AgentID)] = row.UnreadCount
+	}
+
+	respondJSON(w, http.StatusOK, counts)
+}
+
+// ChannelMap handles GET /api/v1/agents/channel-map — returns channel_id -> agent_slug mapping.
+func (h *AgentHandler) ChannelMap(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	userUUID, err := parseUUID(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "invalid user id")
+		return
+	}
+
+	rows, err := h.queries.GetAgentSessionChannelMap(r.Context(), userUUID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get channel map")
+		return
+	}
+
+	m := make(map[string]string, len(rows))
+	for _, row := range rows {
+		m[uuidToString(row.ChannelID)] = row.AgentSlug
+	}
+
+	respondJSON(w, http.StatusOK, m)
+}
+
 // GetBySlug handles GET /api/v1/agents/{slug} — get agent by slug.
 func (h *AgentHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")

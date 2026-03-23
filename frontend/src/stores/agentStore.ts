@@ -13,6 +13,10 @@ interface AgentState {
   isLoadingAgents: boolean;
   isLoadingSessions: boolean;
   isLoadingMessages: boolean;
+  // Unread tracking for agent sessions
+  agentUnreadCounts: Record<string, number>;
+  // Maps channel_id -> agent_slug for WS-based unread increment
+  channelToAgentSlug: Record<string, string>;
 
   fetchAgents: () => Promise<void>;
   setActiveAgent: (agent: Agent | null) => void;
@@ -25,6 +29,9 @@ interface AgentState {
   appendStreamingContent: (content: string) => void;
   clearStreaming: () => void;
   finalizeStreaming: (messageId: string, agentUserId: string) => void;
+  fetchAgentUnreads: () => Promise<void>;
+  incrementAgentUnread: (channelId: string) => void;
+  clearAgentUnread: (agentSlug: string) => void;
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
@@ -38,6 +45,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   isLoadingAgents: false,
   isLoadingSessions: false,
   isLoadingMessages: false,
+  agentUnreadCounts: {},
+  channelToAgentSlug: {},
 
   fetchAgents: async () => {
     set({ isLoadingAgents: true });
@@ -130,5 +139,39 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         streamingContent: '',
       }));
     }
+  },
+
+  fetchAgentUnreads: async () => {
+    try {
+      const [counts, channelMap] = await Promise.all([
+        api.get<Record<string, number>>('/api/v1/agents/unread'),
+        api.get<Record<string, string>>('/api/v1/agents/channel-map'),
+      ]);
+      set({ agentUnreadCounts: counts, channelToAgentSlug: channelMap });
+    } catch {
+      // ignore
+    }
+  },
+
+  incrementAgentUnread: (channelId) => {
+    const { channelToAgentSlug, agents } = get();
+    const agentSlug = channelToAgentSlug[channelId];
+    if (!agentSlug) return;
+    const agent = agents.find((a) => a.slug === agentSlug);
+    if (!agent) return;
+    set((s) => ({
+      agentUnreadCounts: {
+        ...s.agentUnreadCounts,
+        [agent.id]: (s.agentUnreadCounts[agent.id] || 0) + 1,
+      },
+    }));
+  },
+
+  clearAgentUnread: (agentSlug) => {
+    const agent = get().agents.find((a) => a.slug === agentSlug);
+    if (!agent) return;
+    set((s) => ({
+      agentUnreadCounts: { ...s.agentUnreadCounts, [agent.id]: 0 },
+    }));
   },
 }));

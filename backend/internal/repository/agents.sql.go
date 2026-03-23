@@ -280,6 +280,90 @@ func (q *Queries) GetAgentSession(ctx context.Context, id pgtype.UUID) (AgentSes
 	return i, err
 }
 
+const getAgentSessionChannelMap = `-- name: GetAgentSessionChannelMap :many
+SELECT a.slug AS agent_slug, c.id AS channel_id
+FROM agents a
+JOIN agent_sessions s ON s.agent_id = a.id AND s.user_id = $1
+JOIN channels c ON c.slug = 'agent-session-' || s.id::text
+WHERE a.status = 'active'
+`
+
+type GetAgentSessionChannelMapRow struct {
+	AgentSlug string      `json:"agent_slug"`
+	ChannelID pgtype.UUID `json:"channel_id"`
+}
+
+func (q *Queries) GetAgentSessionChannelMap(ctx context.Context, userID pgtype.UUID) ([]GetAgentSessionChannelMapRow, error) {
+	rows, err := q.db.Query(ctx, getAgentSessionChannelMap, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAgentSessionChannelMapRow{}
+	for rows.Next() {
+		var i GetAgentSessionChannelMapRow
+		if err := rows.Scan(&i.AgentSlug, &i.ChannelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAgentUnreadCounts = `-- name: GetAgentUnreadCounts :many
+SELECT a.id AS agent_id,
+  COALESCE(SUM(
+    (SELECT COUNT(*) FROM messages m
+     WHERE m.channel_id = c.id
+       AND m.thread_id IS NULL
+       AND (cm.last_read_msg_id IS NULL
+         OR m.created_at > (SELECT created_at FROM messages WHERE id = cm.last_read_msg_id))
+    )
+  ), 0)::int AS unread_count
+FROM agents a
+JOIN agent_sessions s ON s.agent_id = a.id AND s.user_id = $1
+JOIN channels c ON c.slug = 'agent-session-' || s.id::text
+JOIN channel_members cm ON cm.channel_id = c.id AND cm.user_id = $1
+WHERE a.status = 'active'
+GROUP BY a.id
+HAVING SUM(
+  (SELECT COUNT(*) FROM messages m
+   WHERE m.channel_id = c.id
+     AND m.thread_id IS NULL
+     AND (cm.last_read_msg_id IS NULL
+       OR m.created_at > (SELECT created_at FROM messages WHERE id = cm.last_read_msg_id))
+  )
+) > 0
+`
+
+type GetAgentUnreadCountsRow struct {
+	AgentID     pgtype.UUID `json:"agent_id"`
+	UnreadCount int32       `json:"unread_count"`
+}
+
+func (q *Queries) GetAgentUnreadCounts(ctx context.Context, userID pgtype.UUID) ([]GetAgentUnreadCountsRow, error) {
+	rows, err := q.db.Query(ctx, getAgentUnreadCounts, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAgentUnreadCountsRow{}
+	for rows.Next() {
+		var i GetAgentUnreadCountsRow
+		if err := rows.Scan(&i.AgentID, &i.UnreadCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getSessionMessages = `-- name: GetSessionMessages :many
 SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, u.username, u.display_name, u.avatar_url, u.is_bot
 FROM messages m JOIN users u ON u.id = m.user_id

@@ -7,6 +7,7 @@ import { useChannelStore } from '@/stores/channelStore';
 import { useSectionStore } from '@/stores/sectionStore';
 import { usePresenceStore } from '@/stores/presenceStore';
 import { useAIStreamStore } from '@/stores/aiStreamStore';
+import { useAgentStore } from '@/stores/agentStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { wsClient } from '@/lib/ws';
@@ -28,6 +29,8 @@ export default function ChatLayout({
   const bulkSetStatus = usePresenceStore((s) => s.bulkSetStatus);
   const appendChunk = useAIStreamStore((s) => s.appendChunk);
   const clearStream = useAIStreamStore((s) => s.clearStream);
+  const fetchAgentUnreads = useAgentStore((s) => s.fetchAgentUnreads);
+  const incrementAgentUnread = useAgentStore((s) => s.incrementAgentUnread);
   // Quick Switcher state
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const openQuickSwitcher = useCallback(() => setQuickSwitcherOpen(true), []);
@@ -55,8 +58,9 @@ export default function ChatLayout({
     if (user) {
       fetchChannels();
       fetchSections();
+      fetchAgentUnreads();
     }
-  }, [user, fetchChannels, fetchSections]);
+  }, [user, fetchChannels, fetchSections, fetchAgentUnreads]);
 
   // Wire global WS event handlers for presence
   useEffect(() => {
@@ -127,6 +131,7 @@ export default function ChatLayout({
       if (msg.channel_id !== currentChannelId || document.hidden) {
         if (msg.channel_id !== currentChannelId) {
           incrementUnread(msg.channel_id);
+          incrementAgentUnread(msg.channel_id);
         }
 
         // Play sound + browser notification
@@ -146,7 +151,7 @@ export default function ChatLayout({
       }
     });
     return unsub;
-  }, [incrementUnread, playNotificationSound, showBrowserNotification]);
+  }, [incrementUnread, incrementAgentUnread, playNotificationSound, showBrowserNotification]);
 
   // Wire mention notification events (for @mentions specifically)
   useEffect(() => {
