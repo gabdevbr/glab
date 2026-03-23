@@ -59,12 +59,13 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
   const results: ResultItem[] = (() => {
     const q = query.toLowerCase();
 
-    // Merge user's channels with public channels and hidden channels (deduplicate by id)
-    const allChannels = [
-      ...channels,
-      ...publicChannels.filter((c) => !joinedIds.has(c.id)),
-      ...hiddenChannels.filter((c) => !joinedIds.has(c.id)),
-    ];
+    // Merge user's channels with public channels (deduplicate by id)
+    const seen = new Set(channels.map((c) => c.id));
+    const extraPublic = publicChannels.filter((c) => !seen.has(c.id));
+    extraPublic.forEach((c) => seen.add(c.id));
+    // Only include hidden channels when searching (avoid flooding empty query)
+    const extraHidden = q ? hiddenChannels.filter((c) => !seen.has(c.id)) : [];
+    const allChannels = [...channels, ...extraPublic, ...extraHidden];
 
     // Filter channels
     const filteredChannels = allChannels.filter((c) => {
