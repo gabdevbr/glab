@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Message } from '@/lib/types';
 import { useAuthStore } from '@/stores/authStore';
 import { useMessageStore } from '@/stores/messageStore';
@@ -403,6 +404,8 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [quotedMessage, setQuotedMessage] = useState<Message | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
@@ -666,7 +669,23 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
       menuOpen ? "opacity-100" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto",
     )}>
       <button
-        onClick={() => { setDropdownOpen(false); setShowEmojiPicker(!showEmojiPicker); }}
+        ref={emojiButtonRef}
+        onClick={() => {
+          setDropdownOpen(false);
+          if (!showEmojiPicker && emojiButtonRef.current) {
+            const rect = emojiButtonRef.current.getBoundingClientRect();
+            const pickerWidth = 320;
+            const pickerHeight = 352;
+            let top = rect.bottom + 4;
+            let left = rect.right - pickerWidth;
+            if (top + pickerHeight > window.innerHeight) {
+              top = rect.top - pickerHeight - 4;
+            }
+            if (left < 8) left = 8;
+            setEmojiPickerPos({ top, left });
+          }
+          setShowEmojiPicker(!showEmojiPicker);
+        }}
         className="p-1.5 text-muted-foreground hover:text-foreground"
         title="Add reaction"
       >
@@ -720,10 +739,11 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
           {renderThreadBadge()}
         </div>
         {actionBar}
-        {showEmojiPicker && (
-          <div className="absolute right-2 top-6 z-50">
+        {showEmojiPicker && emojiPickerPos && createPortal(
+          <div className="fixed z-[9999]" style={{ top: emojiPickerPos.top, left: emojiPickerPos.left }}>
             <EmojiPicker onSelect={handleReaction} onClose={() => setShowEmojiPicker(false)} />
-          </div>
+          </div>,
+          document.body,
         )}
         {lightboxImage && (
           <ImageLightbox src={lightboxImage.src} alt={lightboxImage.alt} onClose={() => setLightboxImage(null)} />
@@ -789,10 +809,11 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
       </div>
 
       {actionBar}
-      {showEmojiPicker && (
-        <div className="absolute right-2 top-10 z-50">
+      {showEmojiPicker && emojiPickerPos && createPortal(
+        <div className="fixed z-[9999]" style={{ top: emojiPickerPos.top, left: emojiPickerPos.left }}>
           <EmojiPicker onSelect={handleReaction} onClose={() => setShowEmojiPicker(false)} />
-        </div>
+        </div>,
+        document.body,
       )}
       {lightboxImage && (
         <ImageLightbox src={lightboxImage.src} alt={lightboxImage.alt} onClose={() => setLightboxImage(null)} />
