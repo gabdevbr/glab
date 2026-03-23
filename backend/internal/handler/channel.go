@@ -180,9 +180,12 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 			dmName = targetUser.Username
 		}
 
+		// Use both user IDs in the slug to guarantee uniqueness for DMs
+		dmSlug := "dm-" + uuidToString(creatorUID) + "-" + uuidToString(targetUID)
+
 		channel, err := h.queries.CreateChannel(r.Context(), repository.CreateChannelParams{
 			Name:      dmName,
-			Slug:      generateSlug(dmName),
+			Slug:      dmSlug,
 			Type:      "dm",
 			CreatedBy: creatorUID,
 		})
