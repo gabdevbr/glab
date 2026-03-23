@@ -36,10 +36,11 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [publicChannels, setPublicChannels] = useState<Channel[]>([]);
+  const [hiddenChannels, setHiddenChannels] = useState<Channel[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Load users and public channels when opened
+  // Load users, public channels, and hidden channels when opened
   useEffect(() => {
     if (open) {
       setQuery('');
@@ -47,17 +48,23 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
       setTimeout(() => inputRef.current?.focus(), 50);
       api.get<User[]>('/api/v1/users?limit=200').then(setAllUsers).catch(() => {});
       api.get<Channel[]>('/api/v1/channels/browse').then(setPublicChannels).catch(() => {});
+      api.get<Channel[]>('/api/v1/channels/hidden').then(setHiddenChannels).catch(() => {});
     }
   }, [open]);
 
   const joinedIds = new Set(channels.map((c) => c.id));
+  const hiddenIds = new Set(hiddenChannels.map((c) => c.id));
 
   // Build combined results list
   const results: ResultItem[] = (() => {
     const q = query.toLowerCase();
 
-    // Merge user's channels with public channels (deduplicate by id)
-    const allChannels = [...channels, ...publicChannels.filter((c) => !joinedIds.has(c.id))];
+    // Merge user's channels with public channels and hidden channels (deduplicate by id)
+    const allChannels = [
+      ...channels,
+      ...publicChannels.filter((c) => !joinedIds.has(c.id)),
+      ...hiddenChannels.filter((c) => !joinedIds.has(c.id)),
+    ];
 
     // Filter channels
     const filteredChannels = allChannels.filter((c) => {
@@ -118,16 +125,21 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
     el?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex]);
 
+  const fetchChannels = useChannelStore((s) => s.fetchChannels);
+
   const navigateChannel = useCallback(
     async (channelId: string) => {
-      if (!joinedIds.has(channelId)) {
+      if (hiddenIds.has(channelId)) {
+        await api.patch(`/api/v1/channels/${channelId}/hide`, { hidden: false }).catch(() => {});
+        fetchChannels();
+      } else if (!joinedIds.has(channelId)) {
         await api.post(`/api/v1/channels/${channelId}/join`, {}).catch(() => {});
       }
       setActiveChannel(channelId);
       router.push(`/channel/${channelId}`);
       onClose();
     },
-    [joinedIds, setActiveChannel, router, onClose],
+    [joinedIds, hiddenIds, setActiveChannel, fetchChannels, router, onClose],
   );
 
   const openDM = useCallback(
@@ -260,7 +272,7 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
                       {channel.name}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      {isDM ? 'DM' : channel.type === 'private' ? 'Private' : !joinedIds.has(channel.id) ? 'Join' : 'Channel'}
+                      {isDM ? 'DM' : hiddenIds.has(channel.id) ? 'Hidden' : channel.type === 'private' ? 'Private' : !joinedIds.has(channel.id) ? 'Join' : 'Channel'}
                     </span>
                     {unread > 0 && (
                       <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text">
