@@ -629,6 +629,33 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
         />
       )}
 
+      {/* Emoji picker (toolbar button) */}
+      {showEmojiPicker && (
+        <div className="absolute bottom-full left-5 mb-1 z-50">
+          <EmojiPicker
+            onSelect={(emoji) => {
+              const ta = textareaRef.current;
+              if (ta) {
+                const start = ta.selectionStart;
+                const before = content.slice(0, start);
+                const after = content.slice(start);
+                const isCustom = emoji.startsWith(':') && emoji.endsWith(':');
+                const insertion = `${emoji} `;
+                setContent(`${before}${insertion}${after}`);
+                recordEmojiUsage(emoji, isCustom);
+                setShowEmojiPicker(false);
+                requestAnimationFrame(() => {
+                  const newCursor = before.length + insertion.length;
+                  ta.focus();
+                  ta.setSelectionRange(newCursor, newCursor);
+                });
+              }
+            }}
+            onClose={() => setShowEmojiPicker(false)}
+          />
+        </div>
+      )}
+
       {/* Emoji autocomplete */}
       {emojiQuery !== null && (
         <EmojiAutocomplete
@@ -673,41 +700,14 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
           />
           {/* Bottom toolbar */}
           <div className="flex items-center gap-1 border-t border-border/50 px-3 py-1.5">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker((v) => !v)}
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                title="Emoji"
-              >
-                <Smile className="size-4" />
-              </button>
-              {showEmojiPicker && (
-                <div className="absolute bottom-full left-0 mb-1 z-50">
-                  <EmojiPicker
-                    onSelect={(emoji) => {
-                      const ta = textareaRef.current;
-                      if (ta) {
-                        const start = ta.selectionStart;
-                        const before = content.slice(0, start);
-                        const after = content.slice(start);
-                        const isCustom = emoji.startsWith(':') && emoji.endsWith(':');
-                        const insertion = `${emoji} `;
-                        setContent(`${before}${insertion}${after}`);
-                        recordEmojiUsage(emoji, isCustom);
-                        setShowEmojiPicker(false);
-                        requestAnimationFrame(() => {
-                          const newCursor = before.length + insertion.length;
-                          ta.focus();
-                          ta.setSelectionRange(newCursor, newCursor);
-                        });
-                      }
-                    }}
-                    onClose={() => setShowEmojiPicker(false)}
-                  />
-                </div>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker((v) => !v)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              title="Emoji"
+            >
+              <Smile className="size-4" />
+            </button>
             <input
               ref={fileInputRef}
               type="file"
