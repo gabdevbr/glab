@@ -324,14 +324,46 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
           // Determine which item is selected across special + user lists
           const idx = mentionIndex % itemCount;
           const specialMentions = ['all', 'here', 'channel'].filter((k) => k.startsWith(q));
+          let selectedUsername: string;
           if (idx < specialMentions.length) {
-            insertMention(specialMentions[idx]);
+            selectedUsername = specialMentions[idx];
           } else {
             const filtered = users.filter((u) =>
               u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q),
             ).slice(0, 8);
-            insertMention(filtered[idx - specialMentions.length].username);
+            selectedUsername = filtered[idx - specialMentions.length].username;
           }
+
+          // Enter: insert mention AND send the message in one step
+          // Tab: just insert the mention without sending
+          if (e.key === 'Enter' && !e.shiftKey) {
+            const ta = textareaRef.current;
+            if (ta) {
+              const cursor = ta.selectionStart;
+              let atPos = cursor - 1;
+              while (atPos >= 0 && content[atPos] !== '@') atPos--;
+              const before = content.slice(0, atPos);
+              const after = content.slice(cursor);
+              const finalContent = `${before}@${selectedUsername}${after}`.trim();
+              if (finalContent && isConnected) {
+                wsClient.send('message.send', {
+                  channel_id: channelId,
+                  content: finalContent,
+                  ...(threadId ? { thread_id: threadId } : {}),
+                });
+                wsClient.send('typing.stop', { channel_id: channelId });
+                setContent('');
+                setMentionQuery(null);
+                lastTypingSentRef.current = 0;
+                requestAnimationFrame(() => {
+                  if (ta) ta.style.height = 'auto';
+                });
+                return;
+              }
+            }
+          }
+
+          insertMention(selectedUsername);
           return;
         }
       }
