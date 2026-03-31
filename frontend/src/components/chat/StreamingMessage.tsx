@@ -80,7 +80,7 @@ export function StreamingMessage({
             BOT
           </span>
           <span className="text-[10px] text-link-text animate-pulse">
-            typing...
+            digitando...
           </span>
         </div>
         <div className="prose-chat max-w-none text-sm text-foreground">

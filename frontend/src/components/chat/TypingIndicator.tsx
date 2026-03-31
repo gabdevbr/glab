@@ -18,11 +18,11 @@ export function TypingIndicator({ channelId }: TypingIndicatorProps) {
 
   let text = '';
   if (others.length === 1) {
-    text = 'Someone is typing';
+    text = 'Alguém está digitando';
   } else if (others.length === 2) {
-    text = '2 people are typing';
+    text = '2 pessoas estão digitando';
   } else if (others.length > 2) {
-    text = `${others.length} people are typing`;
+    text = `${others.length} pessoas estão digitando`;
   }
 
   return (
