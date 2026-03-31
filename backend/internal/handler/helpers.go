@@ -91,6 +91,47 @@ func enrichMessagesWithFiles(ctx context.Context, queries *repository.Queries, m
 	}
 }
 
+// enrichMessagesWithReactions loads reactions for all messages and attaches them.
+func enrichMessagesWithReactions(ctx context.Context, queries *repository.Queries, msgs []MessageResponse) {
+	if len(msgs) == 0 {
+		return
+	}
+
+	ids := make([]pgtype.UUID, len(msgs))
+	idxMap := make(map[string]int, len(msgs))
+	for i, m := range msgs {
+		uid, err := parseUUID(m.ID)
+		if err != nil {
+			continue
+		}
+		ids[i] = uid
+		idxMap[m.ID] = i
+	}
+
+	reactions, err := queries.GetReactionsForMessages(ctx, ids)
+	if err != nil {
+		return
+	}
+
+	for _, r := range reactions {
+		msgIDStr := uuidToString(r.MessageID)
+		if idx, ok := idxMap[msgIDStr]; ok {
+			msgs[idx].Reactions = append(msgs[idx].Reactions, ReactionResponse{
+				Emoji:    r.Emoji,
+				UserID:   uuidToString(r.UserID),
+				Username: r.Username,
+			})
+		}
+	}
+
+	// Ensure all messages have a non-nil reactions slice (empty array in JSON)
+	for i := range msgs {
+		if msgs[i].Reactions == nil {
+			msgs[i].Reactions = []ReactionResponse{}
+		}
+	}
+}
+
 // respondJSON writes a JSON response with the given status code.
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -290,6 +331,14 @@ type MessageResponse struct {
 	Username    string        `json:"username"`
 	DisplayName string        `json:"display_name"`
 	AvatarURL   string        `json:"avatar_url,omitempty"`
-	IsBot       bool          `json:"is_bot"`
-	File        *FileResponse `json:"file,omitempty"`
+	IsBot       bool               `json:"is_bot"`
+	File        *FileResponse      `json:"file,omitempty"`
+	Reactions   []ReactionResponse `json:"reactions"`
+}
+
+// ReactionResponse is the JSON representation of a reaction.
+type ReactionResponse struct {
+	Emoji    string `json:"emoji"`
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
 }
