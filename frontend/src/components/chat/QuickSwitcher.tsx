@@ -55,9 +55,12 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
   const joinedIds = new Set(channels.map((c) => c.id));
   const hiddenIds = new Set(hiddenChannels.map((c) => c.id));
 
+  // Normalize text for accent-insensitive, case-insensitive search
+  const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
   // Build combined results list
   const results: ResultItem[] = (() => {
-    const q = query.toLowerCase();
+    const q = normalize(query);
 
     // Merge user's channels with public channels (deduplicate by id)
     const seen = new Set(channels.map((c) => c.id));
@@ -70,7 +73,7 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
     // Filter channels
     const filteredChannels = allChannels.filter((c) => {
       if (!q) return true;
-      return c.name.toLowerCase().includes(q) || c.slug?.toLowerCase().includes(q);
+      return normalize(c.name).includes(q) || (c.slug && normalize(c.slug).includes(q));
     });
 
     // Sort channels: unread first, then alphabetical
@@ -84,7 +87,7 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
 
     // Filter users (exclude current user and bots, only show when searching)
     const dmChannelNames = new Set(
-      channels.filter((c) => c.type === 'dm').map((c) => c.name.toLowerCase()),
+      channels.filter((c) => c.type === 'dm').map((c) => normalize(c.name)),
     );
 
     const filteredUsers = q
@@ -92,10 +95,10 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
           if (u.id === currentUser?.id) return false;
           if (u.is_bot) return false;
           // Skip users who already have a DM channel showing in results
-          if (dmChannelNames.has(u.display_name.toLowerCase())) return false;
+          if (dmChannelNames.has(normalize(u.display_name))) return false;
           return (
-            u.username.toLowerCase().includes(q) ||
-            u.display_name.toLowerCase().includes(q)
+            normalize(u.username).includes(q) ||
+            normalize(u.display_name).includes(q)
           );
         }).slice(0, 5)
       : [];
@@ -103,7 +106,7 @@ export function QuickSwitcher({ open, onClose }: QuickSwitcherProps) {
     // Filter agents
     const filteredAgents = q
       ? agents.filter((a) =>
-          a.name.toLowerCase().includes(q) || a.slug.toLowerCase().includes(q),
+          normalize(a.name).includes(q) || normalize(a.slug).includes(q),
         ).slice(0, 3)
       : [];
 
