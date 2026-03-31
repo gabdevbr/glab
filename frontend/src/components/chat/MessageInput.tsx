@@ -7,7 +7,20 @@ import { User, Channel } from '@/lib/types';
 import { useAuthStore } from '@/stores/authStore';
 import { MentionAutocomplete, getMentionItemCount } from './MentionAutocomplete';
 import { SlashCommandPopup, getSlashCommandCount, getMatchedCommand } from './SlashCommandPopup';
+import { EmojiAutocomplete, getEmojiItemCount, getEmojiAtIndex } from './EmojiAutocomplete';
 import { Paperclip, X, Lock, Bold, Italic, Strikethrough, Code, List, ListOrdered, Quote } from 'lucide-react';
+
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
+
+interface CustomEmoji {
+  id: string;
+  name: string;
+  aliases: string[];
+  url: string;
+}
+
+// Cache custom emojis across component mounts
+let cachedCustomEmojisForInput: CustomEmoji[] | null = null;
 
 interface MessageInputProps {
   channelId: string;
@@ -57,6 +70,9 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
   const [users, setUsers] = useState<User[]>([]);
   const [slashInput, setSlashInput] = useState<string | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
+  const [emojiQuery, setEmojiQuery] = useState<string | null>(null);
+  const [emojiIndex, setEmojiIndex] = useState(0);
+  const [customEmojis, setCustomEmojis] = useState<CustomEmoji[]>(cachedCustomEmojisForInput || []);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -65,6 +81,22 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
   // Load users for mention autocomplete
   useEffect(() => {
     api.get<User[]>('/api/v1/users').then(setUsers).catch(() => {});
+  }, []);
+
+  // Load custom emojis for autocomplete
+  useEffect(() => {
+    if (cachedCustomEmojisForInput) return;
+    const token = localStorage.getItem('glab_token');
+    if (!token) return;
+    fetch(`${API_URL}/api/v1/emojis/custom`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: CustomEmoji[]) => {
+        cachedCustomEmojisForInput = data;
+        setCustomEmojis(data);
+      })
+      .catch(() => {});
   }, []);
 
   // Auto-focus textarea when channel changes
@@ -97,6 +129,53 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     return null;
   }
 
+  function detectEmoji(value: string, cursorPos: number): string | null {
+    // Walk backwards from cursor to find : trigger
+    let i = cursorPos - 1;
+    while (i >= 0) {
+      const ch = value[i];
+      if (ch === ':') {
+        // Check preceded by space, newline, or start
+        if (i === 0 || /\s/.test(value[i - 1])) {
+          const query = value.slice(i + 1, cursorPos);
+          // Need at least 2 chars to trigger (avoid false positives)
+          return query.length >= 2 ? query : null;
+        }
+        return null;
+      }
+      if (/[\s:]/.test(ch)) return null;
+      i--;
+    }
+    return null;
+  }
+
+  function insertEmoji(emoji: string, isCustom: boolean) {
+    const ta = textareaRef.current;
+    if (!ta) return;
+
+    const cursor = ta.selectionStart;
+    const value = content;
+
+    // Find the : position
+    let colonPos = cursor - 1;
+    while (colonPos >= 0 && value[colonPos] !== ':') colonPos--;
+
+    const before = value.slice(0, colonPos);
+    const after = value.slice(cursor);
+    // For custom emojis, the value already includes :name:
+    // For unicode, just insert the emoji character
+    const insertion = isCustom ? `${emoji} ` : `${emoji} `;
+    const newValue = `${before}${insertion}${after}`;
+    setContent(newValue);
+    setEmojiQuery(null);
+
+    requestAnimationFrame(() => {
+      const newCursor = before.length + insertion.length;
+      ta.focus();
+      ta.setSelectionRange(newCursor, newCursor);
+    });
+  }
+
   function handleInput(value: string) {
     setContent(value);
 
@@ -108,12 +187,16 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     } else {
       setSlashInput(null);
 
-      // Detect @mention
+      // Detect @mention or :emoji
       const ta = textareaRef.current;
       if (ta) {
         const q = detectMention(value, ta.selectionStart);
         setMentionQuery(q);
         setMentionIndex(0);
+
+        const eq = detectEmoji(value, ta.selectionStart);
+        setEmojiQuery(eq);
+        setEmojiIndex(0);
       }
     }
 
@@ -183,6 +266,7 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     wsClient.send('typing.stop', { channel_id: channelId });
     setContent('');
     setMentionQuery(null);
+    setEmojiQuery(null);
     lastTypingSentRef.current = 0;
 
     requestAnimationFrame(() => {
@@ -373,6 +457,61 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
       }
     }
 
+    if (emojiQuery !== null) {
+      const emojiCount = getEmojiItemCount(customEmojis, emojiQuery);
+      if (emojiCount > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setEmojiIndex((i) => i + 1);
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setEmojiIndex((i) => Math.max(0, i - 1));
+          return;
+        }
+        if (e.key === 'Tab' || e.key === 'Enter') {
+          e.preventDefault();
+          const selected = getEmojiAtIndex(customEmojis, emojiQuery, emojiIndex);
+          if (selected) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              // Insert emoji and send the message
+              const ta = textareaRef.current;
+              if (ta) {
+                const cursor = ta.selectionStart;
+                let colonPos = cursor - 1;
+                while (colonPos >= 0 && content[colonPos] !== ':') colonPos--;
+                const before = content.slice(0, colonPos);
+                const after = content.slice(cursor);
+                const finalContent = `${before}${selected.value}${after}`.trim();
+                if (finalContent && isConnected) {
+                  wsClient.send('message.send', {
+                    channel_id: channelId,
+                    content: finalContent,
+                    ...(threadId ? { thread_id: threadId } : {}),
+                  });
+                  wsClient.send('typing.stop', { channel_id: channelId });
+                  setContent('');
+                  setEmojiQuery(null);
+                  lastTypingSentRef.current = 0;
+                  requestAnimationFrame(() => {
+                    if (ta) ta.style.height = 'auto';
+                  });
+                  return;
+                }
+              }
+            }
+            insertEmoji(selected.value, selected.isCustom);
+            return;
+          }
+        }
+      }
+      if (e.key === 'Escape') {
+        setEmojiQuery(null);
+        return;
+      }
+    }
+
     const isMod = e.metaKey || e.ctrlKey;
     const ta = textareaRef.current;
 
@@ -482,6 +621,17 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
           selectedIndex={mentionIndex}
           onSelect={insertMention}
           onClose={() => setMentionQuery(null)}
+        />
+      )}
+
+      {/* Emoji autocomplete */}
+      {emojiQuery !== null && (
+        <EmojiAutocomplete
+          query={emojiQuery}
+          selectedIndex={emojiIndex}
+          customEmojis={customEmojis}
+          onSelect={insertEmoji}
+          onClose={() => setEmojiQuery(null)}
         />
       )}
 
