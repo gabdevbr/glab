@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { EmojiPicker } from './EmojiPicker';
 import { ImageLightbox } from './ImageLightbox';
-import { MoreHorizontal, Pin, PinOff, Pencil, Trash2, MessageSquare, SmilePlus, Copy, Check } from 'lucide-react';
+import { MoreHorizontal, Pin, PinOff, Pencil, Trash2, MessageSquare, SmilePlus, Copy, Check, Reply } from 'lucide-react';
 import { has as hasEmoji, get as getEmoji } from 'node-emoji';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
@@ -704,6 +704,9 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
           <MoreHorizontal className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[140px]">
+          <DropdownMenuItem onClick={() => onThreadOpen?.(message.id)}>
+            <Reply className="mr-2 size-3.5" /> Reply in thread
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handlePin}>
             {message.is_pinned ? (
               <><PinOff className="mr-2 size-3.5" /> Unpin</>
