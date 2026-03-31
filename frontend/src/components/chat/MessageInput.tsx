@@ -8,7 +8,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { MentionAutocomplete, getMentionItemCount } from './MentionAutocomplete';
 import { SlashCommandPopup, getSlashCommandCount, getMatchedCommand } from './SlashCommandPopup';
 import { EmojiAutocomplete, getEmojiItemCount, getEmojiAtIndex, recordEmojiUsage } from './EmojiAutocomplete';
-import { Paperclip, X, Lock, Bold, Italic, Strikethrough, Code, List, ListOrdered, Quote } from 'lucide-react';
+import { EmojiPicker } from './EmojiPicker';
+import { Paperclip, X, Lock, Bold, Italic, Strikethrough, Code, Braces, List, ListOrdered, Quote, Smile } from 'lucide-react';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
 
@@ -73,6 +74,7 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
   const [emojiQuery, setEmojiQuery] = useState<string | null>(null);
   const [emojiIndex, setEmojiIndex] = useState(0);
   const [customEmojis, setCustomEmojis] = useState<CustomEmoji[]>(cachedCustomEmojisForInput || []);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -671,6 +673,41 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
           />
           {/* Bottom toolbar */}
           <div className="flex items-center gap-1 border-t border-border/50 px-3 py-1.5">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker((v) => !v)}
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                title="Emoji"
+              >
+                <Smile className="size-4" />
+              </button>
+              {showEmojiPicker && (
+                <div className="absolute bottom-full left-0 mb-1 z-50">
+                  <EmojiPicker
+                    onSelect={(emoji) => {
+                      const ta = textareaRef.current;
+                      if (ta) {
+                        const start = ta.selectionStart;
+                        const before = content.slice(0, start);
+                        const after = content.slice(start);
+                        const isCustom = emoji.startsWith(':') && emoji.endsWith(':');
+                        const insertion = `${emoji} `;
+                        setContent(`${before}${insertion}${after}`);
+                        recordEmojiUsage(emoji, isCustom);
+                        setShowEmojiPicker(false);
+                        requestAnimationFrame(() => {
+                          const newCursor = before.length + insertion.length;
+                          ta.focus();
+                          ta.setSelectionRange(newCursor, newCursor);
+                        });
+                      }
+                    }}
+                    onClose={() => setShowEmojiPicker(false)}
+                  />
+                </div>
+              )}
+            </div>
             <input
               ref={fileInputRef}
               type="file"
@@ -697,8 +734,11 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
             <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '~~', '~~')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Strikethrough (Ctrl+Shift+X)">
               <Strikethrough className="size-3.5" />
             </button>
-            <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '`', '`')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Code (Ctrl+Shift+C)">
+            <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '`', '`')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Inline code (Ctrl+Shift+C)">
               <Code className="size-3.5" />
+            </button>
+            <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '```\n', '\n```')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Code block (Ctrl+Alt+Shift+C)">
+              <Braces className="size-3.5" />
             </button>
             <button type="button" onClick={() => { const ta = textareaRef.current; if (ta) { setContent(wrapSelection(ta, '> ', '')); ta.focus(); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Quote (Ctrl+Shift+9)">
               <Quote className="size-3.5" />
