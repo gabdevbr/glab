@@ -134,6 +134,7 @@ func (h *MessageHandler) ListChannelMessages(w http.ResponseWriter, r *http.Requ
 
 	enrichMessagesWithFiles(r.Context(), h.queries, items)
 	enrichMessagesWithReactions(r.Context(), h.queries, items)
+	enrichMessagesWithThreadSummaries(r.Context(), h.queries, items)
 	respondJSON(w, http.StatusOK, items)
 }
 
@@ -170,6 +171,7 @@ func (h *MessageHandler) ListPinnedMessages(w http.ResponseWriter, r *http.Reque
 
 	enrichMessagesWithFiles(r.Context(), h.queries, items)
 	enrichMessagesWithReactions(r.Context(), h.queries, items)
+	enrichMessagesWithThreadSummaries(r.Context(), h.queries, items)
 	respondJSON(w, http.StatusOK, items)
 }
 
@@ -223,6 +225,7 @@ func (h *MessageHandler) ListThreadMessages(w http.ResponseWriter, r *http.Reque
 	all := append([]MessageResponse{parentResp}, replies...)
 	enrichMessagesWithFiles(r.Context(), h.queries, all)
 	enrichMessagesWithReactions(r.Context(), h.queries, all)
+	enrichMessagesWithThreadSummaries(r.Context(), h.queries, all)
 	parentResp = all[0]
 	copy(replies, all[1:])
 

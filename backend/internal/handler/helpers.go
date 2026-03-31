@@ -132,6 +132,39 @@ func enrichMessagesWithReactions(ctx context.Context, queries *repository.Querie
 	}
 }
 
+// enrichMessagesWithThreadSummaries loads thread summaries for all messages and attaches them.
+func enrichMessagesWithThreadSummaries(ctx context.Context, queries *repository.Queries, msgs []MessageResponse) {
+	if len(msgs) == 0 {
+		return
+	}
+
+	ids := make([]pgtype.UUID, 0, len(msgs))
+	idxMap := make(map[string]int, len(msgs))
+	for i, m := range msgs {
+		uid, err := parseUUID(m.ID)
+		if err != nil {
+			continue
+		}
+		ids = append(ids, uid)
+		idxMap[m.ID] = i
+	}
+
+	summaries, err := queries.GetThreadSummariesForMessages(ctx, ids)
+	if err != nil {
+		return
+	}
+
+	for _, s := range summaries {
+		msgIDStr := uuidToString(s.MessageID)
+		if idx, ok := idxMap[msgIDStr]; ok {
+			msgs[idx].ThreadSummary = &ThreadSummaryResponse{
+				ReplyCount:  s.ReplyCount,
+				LastReplyAt: timestampToString(s.LastReplyAt),
+			}
+		}
+	}
+}
+
 // respondJSON writes a JSON response with the given status code.
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -331,9 +364,16 @@ type MessageResponse struct {
 	Username    string        `json:"username"`
 	DisplayName string        `json:"display_name"`
 	AvatarURL   string        `json:"avatar_url,omitempty"`
-	IsBot       bool               `json:"is_bot"`
-	File        *FileResponse      `json:"file,omitempty"`
-	Reactions   []ReactionResponse `json:"reactions"`
+	IsBot         bool                 `json:"is_bot"`
+	File          *FileResponse        `json:"file,omitempty"`
+	Reactions     []ReactionResponse   `json:"reactions"`
+	ThreadSummary *ThreadSummaryResponse `json:"thread_summary,omitempty"`
+}
+
+// ThreadSummaryResponse is the JSON representation of a thread summary.
+type ThreadSummaryResponse struct {
+	ReplyCount  int32  `json:"reply_count"`
+	LastReplyAt string `json:"last_reply_at"`
 }
 
 // ReactionResponse is the JSON representation of a reaction.

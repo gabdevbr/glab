@@ -190,6 +190,7 @@ const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 480;
 const SIDEBAR_DEFAULT = 260;
 const SIDEBAR_STORAGE_KEY = 'glab-sidebar-width';
+const COLLAPSED_STORAGE_KEY = 'glab-sidebar-collapsed';
 
 export function Sidebar({ onOpenSearch }: SidebarProps) {
   const router = useRouter();
@@ -197,7 +198,22 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
   const logout = useAuthStore((s) => s.logout);
   const myStatus = usePresenceStore((s) => user ? (s.statuses[user.id] || user.status) : 'offline');
   const [profileOpen, setProfileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const saved = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const toggleCollapsed = (key: string) => {
+    setCollapsed((s) => {
+      const next = { ...s, [key]: !s[key] };
+      try { localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   const [creatingSection, setCreatingSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -374,12 +390,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
                     key={section.id}
                     section={section}
                     collapsed={!!collapsed[`section-${section.id}`]}
-                    onToggle={() =>
-                      setCollapsed((s) => ({
-                        ...s,
-                        [`section-${section.id}`]: !s[`section-${section.id}`],
-                      }))
-                    }
+                    onToggle={() => toggleCollapsed(`section-${section.id}`)}
                     onRename={handleStartRename}
                     onDelete={deleteSection}
                   />
@@ -418,7 +429,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
         {/* Default Channels section (unassigned non-DM) */}
         <div className="mb-1 flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors">
           <button
-            onClick={() => setCollapsed((s) => ({ ...s, channels: !s.channels }))}
+            onClick={() => toggleCollapsed('channels')}
             className="flex flex-1 items-center gap-1"
           >
             {collapsed.channels ? (
@@ -453,7 +464,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
         {/* Default DMs section (unassigned DMs) */}
         <div className="mt-5 mb-1 flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors">
           <button
-            onClick={() => setCollapsed((s) => ({ ...s, dms: !s.dms }))}
+            onClick={() => toggleCollapsed('dms')}
             className="flex flex-1 items-center gap-1"
           >
             {collapsed.dms ? (
@@ -487,7 +498,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
 
         {/* AI Agents section */}
         <button
-          onClick={() => setCollapsed((s) => ({ ...s, agents: !s.agents }))}
+          onClick={() => toggleCollapsed('agents')}
           className="mt-5 mb-1 flex w-full items-center gap-1 px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors"
         >
           {collapsed.agents ? (
@@ -504,7 +515,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
 
         {/* Settings section */}
         <button
-          onClick={() => setCollapsed((s) => ({ ...s, settings: !s.settings }))}
+          onClick={() => toggleCollapsed('settings')}
           className="mt-5 mb-1 flex w-full items-center gap-1 px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors"
         >
           {collapsed.settings ? (
@@ -531,7 +542,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
         {user?.role === 'admin' && (
           <>
             <button
-              onClick={() => setCollapsed((s) => ({ ...s, admin: !s.admin }))}
+              onClick={() => toggleCollapsed('admin')}
               className="mt-5 mb-1 flex w-full items-center gap-1 px-3 py-2 hover:bg-sidebar-hover rounded-md transition-colors"
             >
               {collapsed.admin ? (
