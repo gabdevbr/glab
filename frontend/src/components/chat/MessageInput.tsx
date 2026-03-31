@@ -7,7 +7,7 @@ import { User, Channel } from '@/lib/types';
 import { useAuthStore } from '@/stores/authStore';
 import { MentionAutocomplete, getMentionItemCount } from './MentionAutocomplete';
 import { SlashCommandPopup, getSlashCommandCount, getMatchedCommand } from './SlashCommandPopup';
-import { EmojiAutocomplete, getEmojiItemCount, getEmojiAtIndex } from './EmojiAutocomplete';
+import { EmojiAutocomplete, getEmojiItemCount, getEmojiAtIndex, recordEmojiUsage } from './EmojiAutocomplete';
 import { Paperclip, X, Lock, Bold, Italic, Strikethrough, Code, List, ListOrdered, Quote } from 'lucide-react';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
@@ -138,8 +138,7 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
         // Check preceded by space, newline, or start
         if (i === 0 || /\s/.test(value[i - 1])) {
           const query = value.slice(i + 1, cursorPos);
-          // Need at least 2 chars to trigger (avoid false positives)
-          return query.length >= 2 ? query : null;
+          return query;
         }
         return null;
       }
@@ -168,6 +167,9 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     const newValue = `${before}${insertion}${after}`;
     setContent(newValue);
     setEmojiQuery(null);
+
+    // Track usage for "most used" ordering
+    recordEmojiUsage(emoji, isCustom);
 
     requestAnimationFrame(() => {
       const newCursor = before.length + insertion.length;
@@ -485,6 +487,7 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
                 const after = content.slice(cursor);
                 const finalContent = `${before}${selected.value}${after}`.trim();
                 if (finalContent && isConnected) {
+                  recordEmojiUsage(selected.value, selected.isCustom);
                   wsClient.send('message.send', {
                     channel_id: channelId,
                     content: finalContent,
