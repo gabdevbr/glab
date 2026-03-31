@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useSectionStore } from '@/stores/sectionStore';
 import { useChannelStore } from '@/stores/channelStore';
@@ -186,6 +186,11 @@ interface SidebarProps {
   onOpenSearch?: () => void;
 }
 
+const SIDEBAR_MIN = 200;
+const SIDEBAR_MAX = 480;
+const SIDEBAR_DEFAULT = 260;
+const SIDEBAR_STORAGE_KEY = 'glab-sidebar-width';
+
 export function Sidebar({ onOpenSearch }: SidebarProps) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -197,6 +202,38 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
   const [newSectionName, setNewSectionName] = useState('');
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+
+  // Resizable sidebar
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window === 'undefined') return SIDEBAR_DEFAULT;
+    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return saved ? Math.min(Math.max(Number(saved), SIDEBAR_MIN), SIDEBAR_MAX) : SIDEBAR_DEFAULT;
+  });
+  const isResizing = useRef(false);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMove = (ev: MouseEvent) => {
+      const newWidth = Math.min(Math.max(startWidth + ev.clientX - startX, SIDEBAR_MIN), SIDEBAR_MAX);
+      setSidebarWidth(newWidth);
+    };
+    const onUp = () => {
+      isResizing.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setSidebarWidth((w) => { localStorage.setItem(SIDEBAR_STORAGE_KEY, String(w)); return w; });
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [sidebarWidth]);
 
   const markAllRead = useChannelStore((s) => s.markAllRead);
 
@@ -254,7 +291,12 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
   }
 
   return (
-    <aside className="flex h-full w-[260px] shrink-0 flex-col bg-sidebar">
+    <aside className="relative flex h-full shrink-0 flex-col bg-sidebar" style={{ width: sidebarWidth }}>
+      {/* Resize handle */}
+      <div
+        onMouseDown={handleResizeStart}
+        className="absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize hover:bg-accent-primary/40 active:bg-accent-primary/60 transition-colors"
+      />
       {/* Workspace header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-1">
