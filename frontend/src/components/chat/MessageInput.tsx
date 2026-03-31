@@ -481,6 +481,7 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
             placeholder={`Message #${channelName}`}
             disabled={!isConnected}
             rows={1}
+            data-chat-input
             className="block w-full resize-none bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
           {/* Bottom toolbar */}

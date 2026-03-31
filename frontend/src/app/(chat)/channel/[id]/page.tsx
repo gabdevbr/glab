@@ -17,6 +17,7 @@ import { PinnedMessages } from '@/components/chat/PinnedMessages';
 import { SearchResults } from '@/components/chat/SearchResults';
 import { UserInfoPanel } from '@/components/chat/UserInfoPanel';
 import { Hash, Users, Pin, Search } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type RightPanel =
   | { type: 'none' }
@@ -211,16 +212,30 @@ export default function ChannelPage() {
   const isDM = channel?.type === 'dm';
   const channelName = channel?.name || '';
 
+  const handleChatAreaClick = useCallback((e: { target: EventTarget | null }) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, a, textarea, input, [role="button"], [data-chat-input]')) return;
+    const input = document.querySelector<HTMLTextAreaElement>('[data-chat-input]');
+    input?.focus();
+  }, []);
+
   return (
     <div className="flex h-full flex-1 min-w-0">
       {/* Main chat area */}
-      <div key={channelId} className="flex flex-1 flex-col bg-chat-bg animate-in fade-in-0 duration-150">
+      <div key={channelId} className="flex flex-1 flex-col bg-chat-bg animate-in fade-in-0 duration-150" onClick={handleChatAreaClick}>
         {/* Channel header */}
         <header className="flex flex-col border-b border-border px-5 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {!isDM && <Hash className="size-5 text-muted-foreground" />}
-              <h2 className="text-[15px] font-bold text-foreground">{channelName}</h2>
+              <h2
+                className={cn('text-[15px] font-bold text-foreground', isDM && channel?.dm_user_id && 'cursor-pointer hover:underline')}
+                onClick={() => {
+                  if (isDM && channel?.dm_user_id) handleUserInfoOpen(channel.dm_user_id);
+                }}
+              >
+                {channelName}
+              </h2>
               {channel?.member_count != null && (
                 <span className="flex items-center gap-1 rounded-md bg-secondary/50 px-2 py-0.5 text-xs text-muted-foreground">
                   <Users className="size-3.5" />
