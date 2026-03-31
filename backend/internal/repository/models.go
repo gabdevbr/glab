@@ -131,6 +131,15 @@ type CustomEmoji struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
+type DeviceToken struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Token     string             `json:"token"`
+	Platform  string             `json:"platform"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type File struct {
 	ID             pgtype.UUID        `json:"id"`
 	MessageID      pgtype.UUID        `json:"message_id"`
