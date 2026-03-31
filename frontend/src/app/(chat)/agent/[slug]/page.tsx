@@ -208,14 +208,16 @@ export default function AgentPage() {
       {/* Main chat area */}
       <div className="flex flex-1 flex-col bg-chat-bg">
         {/* Header */}
-        <header className="flex items-center gap-2 border-b border-border px-5 py-3">
-          <span className="text-lg">{agent.emoji}</span>
-          <h2 className="text-[15px] font-bold text-foreground">{agent.name}</h2>
-          <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-medium leading-none bg-bot-badge-bg text-bot-badge-text">
-            BOT
-          </span>
+        <header className="flex flex-col border-b border-border px-5 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{agent.emoji}</span>
+            <h2 className="text-[15px] font-bold text-foreground">{agent.name}</h2>
+            <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-medium leading-none bg-bot-badge-bg text-bot-badge-text">
+              BOT
+            </span>
+          </div>
           {agent.description && (
-            <span className="ml-2 text-xs text-muted-foreground truncate">{agent.description}</span>
+            <p className="mt-1 truncate text-[13px] text-muted-foreground">{agent.description}</p>
           )}
         </header>
 
