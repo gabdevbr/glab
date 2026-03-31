@@ -9,6 +9,7 @@ import { usePresenceStore } from '@/stores/presenceStore';
 import { useAIStreamStore } from '@/stores/aiStreamStore';
 import { useAgentStore } from '@/stores/agentStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useFaviconBadge } from '@/hooks/useFaviconBadge';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { wsClient } from '@/lib/ws';
 import { Sidebar } from '@/components/sidebar/Sidebar';
@@ -187,12 +188,13 @@ export default function ChatLayout({
     return unsub;
   }, [playNotificationSound, showBrowserNotification]);
 
-  // Update document.title with total unread count
+  // Update document.title and favicon badge with total unread count
   const unreadCounts = useChannelStore((s) => s.unreadCounts);
+  const totalUnread = Object.values(unreadCounts).reduce((sum, n) => sum + n, 0);
   useEffect(() => {
-    const total = Object.values(unreadCounts).reduce((sum, n) => sum + n, 0);
-    document.title = total > 0 ? `(${total > 99 ? '99+' : total}) Glab` : 'Glab';
-  }, [unreadCounts]);
+    document.title = totalUnread > 0 ? `(${totalUnread > 99 ? '99+' : totalUnread}) Glab` : 'Glab';
+  }, [totalUnread]);
+  useFaviconBadge(totalUnread);
 
   // Wire AI channel stream events
   useEffect(() => {
