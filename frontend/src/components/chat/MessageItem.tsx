@@ -35,7 +35,7 @@ function ensureCustomEmojisLoaded(onLoaded: () => void) {
     customEmojiFetchPromise.then(onLoaded);
     return;
   }
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('glab_token');
   if (!token) return;
 
   customEmojiFetchPromise = fetch(`${API_URL}/api/v1/emojis/custom`, {

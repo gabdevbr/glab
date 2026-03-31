@@ -47,7 +47,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   // Fetch custom emojis
   useEffect(() => {
     if (cachedCustomEmojis) return;
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('glab_token');
     if (!token) return;
 
     fetch(`${API_URL}/api/v1/emojis/custom`, {
