@@ -26,7 +26,7 @@ export function useFaviconBadge(count: number) {
 
     // Store the original href on first run
     if (originalHref.current === null) {
-      originalHref.current = link.href || '/favicon.ico';
+      originalHref.current = link.href || '/favicon-32x32.png';
     }
 
     // Create canvas once

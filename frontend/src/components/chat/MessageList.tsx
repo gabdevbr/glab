@@ -13,6 +13,8 @@ interface MessageListProps {
   channelId: string;
   onThreadOpen?: (messageId: string) => void;
   onUserInfoOpen?: (userId: string) => void;
+  editingMessageId?: string | null;
+  onEditingDone?: () => void;
 }
 
 const COMPACT_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
@@ -41,7 +43,7 @@ function isNewDay(curr: Message, prev: Message | undefined): boolean {
   return currDate !== prevDate;
 }
 
-export function MessageList({ channelId, onThreadOpen, onUserInfoOpen }: MessageListProps) {
+export function MessageList({ channelId, onThreadOpen, onUserInfoOpen, editingMessageId, onEditingDone }: MessageListProps) {
   const messages = useMessageStore((s) => s.messages[channelId] ?? EMPTY_MESSAGES);
   const newMessageIds = useMessageStore((s) => s.newMessageIds);
   const isLoading = useMessageStore((s) => s.isLoading);
@@ -218,6 +220,8 @@ export function MessageList({ channelId, onThreadOpen, onUserInfoOpen }: Message
               isCompact={isCompact(virtualItem.index)}
               onThreadOpen={onThreadOpen}
               onUserInfoOpen={onUserInfoOpen}
+              editingMessageId={editingMessageId}
+              onEditingDone={onEditingDone}
             />
           </div>
         ))}

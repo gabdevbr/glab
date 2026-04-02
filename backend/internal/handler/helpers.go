@@ -364,10 +364,11 @@ type MessageResponse struct {
 	Username    string        `json:"username"`
 	DisplayName string        `json:"display_name"`
 	AvatarURL   string        `json:"avatar_url,omitempty"`
-	IsBot         bool                 `json:"is_bot"`
-	File          *FileResponse        `json:"file,omitempty"`
-	Reactions     []ReactionResponse   `json:"reactions"`
-	ThreadSummary *ThreadSummaryResponse `json:"thread_summary,omitempty"`
+	IsBot           bool                   `json:"is_bot"`
+	OriginalContent string                 `json:"original_content,omitempty"`
+	File            *FileResponse          `json:"file,omitempty"`
+	Reactions       []ReactionResponse     `json:"reactions"`
+	ThreadSummary   *ThreadSummaryResponse `json:"thread_summary,omitempty"`
 }
 
 // ThreadSummaryResponse is the JSON representation of a thread summary.

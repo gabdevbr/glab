@@ -161,10 +161,11 @@ type MessageNewPayload struct {
 
 // MessageEditedPayload is broadcast when a message is edited.
 type MessageEditedPayload struct {
-	ID        string `json:"id"`
-	ChannelID string `json:"channel_id"`
-	Content   string `json:"content"`
-	EditedAt  string `json:"edited_at"`
+	ID              string `json:"id"`
+	ChannelID       string `json:"channel_id"`
+	Content         string `json:"content"`
+	EditedAt        string `json:"edited_at"`
+	OriginalContent string `json:"original_content,omitempty"`
 }
 
 // MessageDeletedPayload is broadcast when a message is deleted.

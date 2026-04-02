@@ -68,6 +68,7 @@ export interface Message {
   content: string;
   content_type: 'text' | 'file' | 'system';
   edited_at?: string;
+  original_content?: string;
   is_pinned: boolean;
   metadata?: Record<string, unknown>;
   created_at: string;

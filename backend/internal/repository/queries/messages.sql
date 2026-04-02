@@ -21,7 +21,11 @@ WHERE m.thread_id = $1
 ORDER BY m.created_at ASC;
 
 -- name: UpdateMessageContent :one
-UPDATE messages SET content = $2, edited_at = NOW() WHERE id = $1 RETURNING *;
+UPDATE messages SET
+  original_content = CASE WHEN original_content IS NULL THEN content ELSE original_content END,
+  content = $2,
+  edited_at = NOW()
+WHERE id = $1 RETURNING *;
 
 -- name: DeleteMessage :exec
 DELETE FROM messages WHERE id = $1;

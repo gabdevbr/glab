@@ -1,0 +1,68 @@
+name: Glab
+options:
+  bundleIdPrefix: com.glab
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+  defaultConfig: Debug
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: false
+
+packages:
+  KeychainAccess:
+    url: https://github.com/kishikawakatsumi/KeychainAccess.git
+    from: "4.2.2"
+  Nuke:
+    url: https://github.com/kean/Nuke.git
+    from: "12.8.0"
+
+targets:
+  Glab:
+    type: application
+    platform: iOS
+    sources: [Glab]
+    dependencies:
+      - package: KeychainAccess
+      - package: Nuke
+        product: Nuke
+      - package: Nuke
+        product: NukeUI
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        PRODUCT_BUNDLE_IDENTIFIER: com.glab.ios
+        PRODUCT_NAME: Glab
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_STRICT_CONCURRENCY: complete
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: Glab/Glab.entitlements
+
+  GlabTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [GlabTests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+    dependencies:
+      - target: Glab
+
+  GlabUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [GlabUITests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+    dependencies:
+      - target: Glab

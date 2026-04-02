@@ -246,20 +246,21 @@ func (h *AgentHandler) GetSessionMessages(w http.ResponseWriter, r *http.Request
 	for i, m := range msgs {
 		uid := uuidToString(m.UserID)
 		items[i] = MessageResponse{
-			ID:          uuidToString(m.ID),
-			ChannelID:   uuidToString(m.ChannelID),
-			UserID:      uid,
-			ThreadID:    uuidToString(m.ThreadID),
-			Content:     m.Content,
-			ContentType: m.ContentType,
-			EditedAt:    timestampToString(m.EditedAt),
-			IsPinned:    m.IsPinned,
-			CreatedAt:   timestampToString(m.CreatedAt),
-			UpdatedAt:   timestampToString(m.UpdatedAt),
-			Username:    m.Username,
-			DisplayName: m.DisplayName,
-			AvatarURL:   resolveAvatarURL(m.AvatarUrl.String, uid),
-			IsBot:       m.IsBot,
+			ID:              uuidToString(m.ID),
+			ChannelID:       uuidToString(m.ChannelID),
+			UserID:          uid,
+			ThreadID:        uuidToString(m.ThreadID),
+			Content:         m.Content,
+			ContentType:     m.ContentType,
+			EditedAt:        timestampToString(m.EditedAt),
+			IsPinned:        m.IsPinned,
+			CreatedAt:       timestampToString(m.CreatedAt),
+			UpdatedAt:       timestampToString(m.UpdatedAt),
+			Username:        m.Username,
+			DisplayName:     m.DisplayName,
+			AvatarURL:       resolveAvatarURL(m.AvatarUrl.String, uid),
+			IsBot:           m.IsBot,
+			OriginalContent: m.OriginalContent.String,
 		}
 	}
 

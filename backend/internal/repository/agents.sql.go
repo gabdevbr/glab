@@ -365,29 +365,30 @@ func (q *Queries) GetAgentUnreadCounts(ctx context.Context, userID pgtype.UUID) 
 }
 
 const getSessionMessages = `-- name: GetSessionMessages :many
-SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, u.username, u.display_name, u.avatar_url, u.is_bot
+SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, m.original_content, u.username, u.display_name, u.avatar_url, u.is_bot
 FROM messages m JOIN users u ON u.id = m.user_id
 WHERE m.channel_id = $1
 ORDER BY m.created_at ASC
 `
 
 type GetSessionMessagesRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	ChannelID    pgtype.UUID        `json:"channel_id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	ThreadID     pgtype.UUID        `json:"thread_id"`
-	Content      string             `json:"content"`
-	ContentType  string             `json:"content_type"`
-	EditedAt     pgtype.Timestamptz `json:"edited_at"`
-	IsPinned     bool               `json:"is_pinned"`
-	Metadata     json.RawMessage    `json:"metadata"`
-	SearchVector interface{}        `json:"search_vector"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	Username     string             `json:"username"`
-	DisplayName  string             `json:"display_name"`
-	AvatarUrl    pgtype.Text        `json:"avatar_url"`
-	IsBot        bool               `json:"is_bot"`
+	ID              pgtype.UUID        `json:"id"`
+	ChannelID       pgtype.UUID        `json:"channel_id"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	ThreadID        pgtype.UUID        `json:"thread_id"`
+	Content         string             `json:"content"`
+	ContentType     string             `json:"content_type"`
+	EditedAt        pgtype.Timestamptz `json:"edited_at"`
+	IsPinned        bool               `json:"is_pinned"`
+	Metadata        json.RawMessage    `json:"metadata"`
+	SearchVector    interface{}        `json:"search_vector"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	OriginalContent pgtype.Text        `json:"original_content"`
+	Username        string             `json:"username"`
+	DisplayName     string             `json:"display_name"`
+	AvatarUrl       pgtype.Text        `json:"avatar_url"`
+	IsBot           bool               `json:"is_bot"`
 }
 
 func (q *Queries) GetSessionMessages(ctx context.Context, channelID pgtype.UUID) ([]GetSessionMessagesRow, error) {
@@ -412,6 +413,7 @@ func (q *Queries) GetSessionMessages(ctx context.Context, channelID pgtype.UUID)
 			&i.SearchVector,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OriginalContent,
 			&i.Username,
 			&i.DisplayName,
 			&i.AvatarUrl,

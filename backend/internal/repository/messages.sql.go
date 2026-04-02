@@ -14,7 +14,7 @@ import (
 
 const createMessage = `-- name: CreateMessage :one
 INSERT INTO messages (channel_id, user_id, thread_id, content, content_type, metadata)
-VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, channel_id, user_id, thread_id, content, content_type, edited_at, is_pinned, metadata, search_vector, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, channel_id, user_id, thread_id, content, content_type, edited_at, is_pinned, metadata, search_vector, created_at, updated_at, original_content
 `
 
 type CreateMessageParams struct {
@@ -49,6 +49,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.SearchVector,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OriginalContent,
 	)
 	return i, err
 }
@@ -63,28 +64,29 @@ func (q *Queries) DeleteMessage(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getMessageByID = `-- name: GetMessageByID :one
-SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, u.username, u.display_name, u.avatar_url, u.is_bot
+SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, m.original_content, u.username, u.display_name, u.avatar_url, u.is_bot
 FROM messages m JOIN users u ON u.id = m.user_id
 WHERE m.id = $1
 `
 
 type GetMessageByIDRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	ChannelID    pgtype.UUID        `json:"channel_id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	ThreadID     pgtype.UUID        `json:"thread_id"`
-	Content      string             `json:"content"`
-	ContentType  string             `json:"content_type"`
-	EditedAt     pgtype.Timestamptz `json:"edited_at"`
-	IsPinned     bool               `json:"is_pinned"`
-	Metadata     json.RawMessage    `json:"metadata"`
-	SearchVector interface{}        `json:"search_vector"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	Username     string             `json:"username"`
-	DisplayName  string             `json:"display_name"`
-	AvatarUrl    pgtype.Text        `json:"avatar_url"`
-	IsBot        bool               `json:"is_bot"`
+	ID              pgtype.UUID        `json:"id"`
+	ChannelID       pgtype.UUID        `json:"channel_id"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	ThreadID        pgtype.UUID        `json:"thread_id"`
+	Content         string             `json:"content"`
+	ContentType     string             `json:"content_type"`
+	EditedAt        pgtype.Timestamptz `json:"edited_at"`
+	IsPinned        bool               `json:"is_pinned"`
+	Metadata        json.RawMessage    `json:"metadata"`
+	SearchVector    interface{}        `json:"search_vector"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	OriginalContent pgtype.Text        `json:"original_content"`
+	Username        string             `json:"username"`
+	DisplayName     string             `json:"display_name"`
+	AvatarUrl       pgtype.Text        `json:"avatar_url"`
+	IsBot           bool               `json:"is_bot"`
 }
 
 func (q *Queries) GetMessageByID(ctx context.Context, id pgtype.UUID) (GetMessageByIDRow, error) {
@@ -103,6 +105,7 @@ func (q *Queries) GetMessageByID(ctx context.Context, id pgtype.UUID) (GetMessag
 		&i.SearchVector,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OriginalContent,
 		&i.Username,
 		&i.DisplayName,
 		&i.AvatarUrl,
@@ -112,7 +115,7 @@ func (q *Queries) GetMessageByID(ctx context.Context, id pgtype.UUID) (GetMessag
 }
 
 const getMessagesSince = `-- name: GetMessagesSince :many
-SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, u.username, u.display_name, u.avatar_url, u.is_bot
+SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, m.original_content, u.username, u.display_name, u.avatar_url, u.is_bot
 FROM messages m JOIN users u ON u.id = m.user_id
 WHERE m.channel_id = $1 AND m.created_at > $2
 ORDER BY m.created_at ASC
@@ -124,22 +127,23 @@ type GetMessagesSinceParams struct {
 }
 
 type GetMessagesSinceRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	ChannelID    pgtype.UUID        `json:"channel_id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	ThreadID     pgtype.UUID        `json:"thread_id"`
-	Content      string             `json:"content"`
-	ContentType  string             `json:"content_type"`
-	EditedAt     pgtype.Timestamptz `json:"edited_at"`
-	IsPinned     bool               `json:"is_pinned"`
-	Metadata     json.RawMessage    `json:"metadata"`
-	SearchVector interface{}        `json:"search_vector"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	Username     string             `json:"username"`
-	DisplayName  string             `json:"display_name"`
-	AvatarUrl    pgtype.Text        `json:"avatar_url"`
-	IsBot        bool               `json:"is_bot"`
+	ID              pgtype.UUID        `json:"id"`
+	ChannelID       pgtype.UUID        `json:"channel_id"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	ThreadID        pgtype.UUID        `json:"thread_id"`
+	Content         string             `json:"content"`
+	ContentType     string             `json:"content_type"`
+	EditedAt        pgtype.Timestamptz `json:"edited_at"`
+	IsPinned        bool               `json:"is_pinned"`
+	Metadata        json.RawMessage    `json:"metadata"`
+	SearchVector    interface{}        `json:"search_vector"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	OriginalContent pgtype.Text        `json:"original_content"`
+	Username        string             `json:"username"`
+	DisplayName     string             `json:"display_name"`
+	AvatarUrl       pgtype.Text        `json:"avatar_url"`
+	IsBot           bool               `json:"is_bot"`
 }
 
 func (q *Queries) GetMessagesSince(ctx context.Context, arg GetMessagesSinceParams) ([]GetMessagesSinceRow, error) {
@@ -164,6 +168,7 @@ func (q *Queries) GetMessagesSince(ctx context.Context, arg GetMessagesSincePara
 			&i.SearchVector,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OriginalContent,
 			&i.Username,
 			&i.DisplayName,
 			&i.AvatarUrl,
@@ -180,7 +185,7 @@ func (q *Queries) GetMessagesSince(ctx context.Context, arg GetMessagesSincePara
 }
 
 const listChannelMessages = `-- name: ListChannelMessages :many
-SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, u.username, u.display_name, u.avatar_url, u.is_bot
+SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, m.original_content, u.username, u.display_name, u.avatar_url, u.is_bot
 FROM messages m JOIN users u ON u.id = m.user_id
 WHERE m.channel_id = $1 AND m.thread_id IS NULL
 ORDER BY m.created_at DESC
@@ -194,22 +199,23 @@ type ListChannelMessagesParams struct {
 }
 
 type ListChannelMessagesRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	ChannelID    pgtype.UUID        `json:"channel_id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	ThreadID     pgtype.UUID        `json:"thread_id"`
-	Content      string             `json:"content"`
-	ContentType  string             `json:"content_type"`
-	EditedAt     pgtype.Timestamptz `json:"edited_at"`
-	IsPinned     bool               `json:"is_pinned"`
-	Metadata     json.RawMessage    `json:"metadata"`
-	SearchVector interface{}        `json:"search_vector"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	Username     string             `json:"username"`
-	DisplayName  string             `json:"display_name"`
-	AvatarUrl    pgtype.Text        `json:"avatar_url"`
-	IsBot        bool               `json:"is_bot"`
+	ID              pgtype.UUID        `json:"id"`
+	ChannelID       pgtype.UUID        `json:"channel_id"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	ThreadID        pgtype.UUID        `json:"thread_id"`
+	Content         string             `json:"content"`
+	ContentType     string             `json:"content_type"`
+	EditedAt        pgtype.Timestamptz `json:"edited_at"`
+	IsPinned        bool               `json:"is_pinned"`
+	Metadata        json.RawMessage    `json:"metadata"`
+	SearchVector    interface{}        `json:"search_vector"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	OriginalContent pgtype.Text        `json:"original_content"`
+	Username        string             `json:"username"`
+	DisplayName     string             `json:"display_name"`
+	AvatarUrl       pgtype.Text        `json:"avatar_url"`
+	IsBot           bool               `json:"is_bot"`
 }
 
 func (q *Queries) ListChannelMessages(ctx context.Context, arg ListChannelMessagesParams) ([]ListChannelMessagesRow, error) {
@@ -234,6 +240,7 @@ func (q *Queries) ListChannelMessages(ctx context.Context, arg ListChannelMessag
 			&i.SearchVector,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OriginalContent,
 			&i.Username,
 			&i.DisplayName,
 			&i.AvatarUrl,
@@ -250,29 +257,30 @@ func (q *Queries) ListChannelMessages(ctx context.Context, arg ListChannelMessag
 }
 
 const listPinnedMessages = `-- name: ListPinnedMessages :many
-SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, u.username, u.display_name, u.avatar_url, u.is_bot
+SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, m.original_content, u.username, u.display_name, u.avatar_url, u.is_bot
 FROM messages m JOIN users u ON u.id = m.user_id
 WHERE m.channel_id = $1 AND m.is_pinned = TRUE
 ORDER BY m.created_at DESC
 `
 
 type ListPinnedMessagesRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	ChannelID    pgtype.UUID        `json:"channel_id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	ThreadID     pgtype.UUID        `json:"thread_id"`
-	Content      string             `json:"content"`
-	ContentType  string             `json:"content_type"`
-	EditedAt     pgtype.Timestamptz `json:"edited_at"`
-	IsPinned     bool               `json:"is_pinned"`
-	Metadata     json.RawMessage    `json:"metadata"`
-	SearchVector interface{}        `json:"search_vector"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	Username     string             `json:"username"`
-	DisplayName  string             `json:"display_name"`
-	AvatarUrl    pgtype.Text        `json:"avatar_url"`
-	IsBot        bool               `json:"is_bot"`
+	ID              pgtype.UUID        `json:"id"`
+	ChannelID       pgtype.UUID        `json:"channel_id"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	ThreadID        pgtype.UUID        `json:"thread_id"`
+	Content         string             `json:"content"`
+	ContentType     string             `json:"content_type"`
+	EditedAt        pgtype.Timestamptz `json:"edited_at"`
+	IsPinned        bool               `json:"is_pinned"`
+	Metadata        json.RawMessage    `json:"metadata"`
+	SearchVector    interface{}        `json:"search_vector"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	OriginalContent pgtype.Text        `json:"original_content"`
+	Username        string             `json:"username"`
+	DisplayName     string             `json:"display_name"`
+	AvatarUrl       pgtype.Text        `json:"avatar_url"`
+	IsBot           bool               `json:"is_bot"`
 }
 
 func (q *Queries) ListPinnedMessages(ctx context.Context, channelID pgtype.UUID) ([]ListPinnedMessagesRow, error) {
@@ -297,6 +305,7 @@ func (q *Queries) ListPinnedMessages(ctx context.Context, channelID pgtype.UUID)
 			&i.SearchVector,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OriginalContent,
 			&i.Username,
 			&i.DisplayName,
 			&i.AvatarUrl,
@@ -313,29 +322,30 @@ func (q *Queries) ListPinnedMessages(ctx context.Context, channelID pgtype.UUID)
 }
 
 const listThreadMessages = `-- name: ListThreadMessages :many
-SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, u.username, u.display_name, u.avatar_url, u.is_bot
+SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, m.original_content, u.username, u.display_name, u.avatar_url, u.is_bot
 FROM messages m JOIN users u ON u.id = m.user_id
 WHERE m.thread_id = $1
 ORDER BY m.created_at ASC
 `
 
 type ListThreadMessagesRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	ChannelID    pgtype.UUID        `json:"channel_id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	ThreadID     pgtype.UUID        `json:"thread_id"`
-	Content      string             `json:"content"`
-	ContentType  string             `json:"content_type"`
-	EditedAt     pgtype.Timestamptz `json:"edited_at"`
-	IsPinned     bool               `json:"is_pinned"`
-	Metadata     json.RawMessage    `json:"metadata"`
-	SearchVector interface{}        `json:"search_vector"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	Username     string             `json:"username"`
-	DisplayName  string             `json:"display_name"`
-	AvatarUrl    pgtype.Text        `json:"avatar_url"`
-	IsBot        bool               `json:"is_bot"`
+	ID              pgtype.UUID        `json:"id"`
+	ChannelID       pgtype.UUID        `json:"channel_id"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	ThreadID        pgtype.UUID        `json:"thread_id"`
+	Content         string             `json:"content"`
+	ContentType     string             `json:"content_type"`
+	EditedAt        pgtype.Timestamptz `json:"edited_at"`
+	IsPinned        bool               `json:"is_pinned"`
+	Metadata        json.RawMessage    `json:"metadata"`
+	SearchVector    interface{}        `json:"search_vector"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	OriginalContent pgtype.Text        `json:"original_content"`
+	Username        string             `json:"username"`
+	DisplayName     string             `json:"display_name"`
+	AvatarUrl       pgtype.Text        `json:"avatar_url"`
+	IsBot           bool               `json:"is_bot"`
 }
 
 func (q *Queries) ListThreadMessages(ctx context.Context, threadID pgtype.UUID) ([]ListThreadMessagesRow, error) {
@@ -360,6 +370,7 @@ func (q *Queries) ListThreadMessages(ctx context.Context, threadID pgtype.UUID) 
 			&i.SearchVector,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OriginalContent,
 			&i.Username,
 			&i.DisplayName,
 			&i.AvatarUrl,
@@ -385,7 +396,7 @@ func (q *Queries) PinMessage(ctx context.Context, id pgtype.UUID) error {
 }
 
 const searchMessages = `-- name: SearchMessages :many
-SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, u.username, u.display_name, u.avatar_url, u.is_bot,
+SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, m.original_content, u.username, u.display_name, u.avatar_url, u.is_bot,
        ts_rank(m.search_vector, websearch_to_tsquery('portuguese', unaccent($1))) AS rank
 FROM messages m JOIN users u ON u.id = m.user_id
 WHERE m.search_vector @@ websearch_to_tsquery('portuguese', unaccent($1))
@@ -402,23 +413,24 @@ type SearchMessagesParams struct {
 }
 
 type SearchMessagesRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	ChannelID    pgtype.UUID        `json:"channel_id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	ThreadID     pgtype.UUID        `json:"thread_id"`
-	Content      string             `json:"content"`
-	ContentType  string             `json:"content_type"`
-	EditedAt     pgtype.Timestamptz `json:"edited_at"`
-	IsPinned     bool               `json:"is_pinned"`
-	Metadata     json.RawMessage    `json:"metadata"`
-	SearchVector interface{}        `json:"search_vector"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	Username     string             `json:"username"`
-	DisplayName  string             `json:"display_name"`
-	AvatarUrl    pgtype.Text        `json:"avatar_url"`
-	IsBot        bool               `json:"is_bot"`
-	Rank         float32            `json:"rank"`
+	ID              pgtype.UUID        `json:"id"`
+	ChannelID       pgtype.UUID        `json:"channel_id"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	ThreadID        pgtype.UUID        `json:"thread_id"`
+	Content         string             `json:"content"`
+	ContentType     string             `json:"content_type"`
+	EditedAt        pgtype.Timestamptz `json:"edited_at"`
+	IsPinned        bool               `json:"is_pinned"`
+	Metadata        json.RawMessage    `json:"metadata"`
+	SearchVector    interface{}        `json:"search_vector"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	OriginalContent pgtype.Text        `json:"original_content"`
+	Username        string             `json:"username"`
+	DisplayName     string             `json:"display_name"`
+	AvatarUrl       pgtype.Text        `json:"avatar_url"`
+	IsBot           bool               `json:"is_bot"`
+	Rank            float32            `json:"rank"`
 }
 
 func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) ([]SearchMessagesRow, error) {
@@ -448,6 +460,7 @@ func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) 
 			&i.SearchVector,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OriginalContent,
 			&i.Username,
 			&i.DisplayName,
 			&i.AvatarUrl,
@@ -465,7 +478,7 @@ func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) 
 }
 
 const searchMessagesForUser = `-- name: SearchMessagesForUser :many
-SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, u.username, u.display_name, u.avatar_url, u.is_bot,
+SELECT m.id, m.channel_id, m.user_id, m.thread_id, m.content, m.content_type, m.edited_at, m.is_pinned, m.metadata, m.search_vector, m.created_at, m.updated_at, m.original_content, u.username, u.display_name, u.avatar_url, u.is_bot,
        ts_rank(m.search_vector, websearch_to_tsquery('portuguese', unaccent($1))) AS rank
 FROM messages m
 JOIN users u ON u.id = m.user_id
@@ -485,23 +498,24 @@ type SearchMessagesForUserParams struct {
 }
 
 type SearchMessagesForUserRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	ChannelID    pgtype.UUID        `json:"channel_id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	ThreadID     pgtype.UUID        `json:"thread_id"`
-	Content      string             `json:"content"`
-	ContentType  string             `json:"content_type"`
-	EditedAt     pgtype.Timestamptz `json:"edited_at"`
-	IsPinned     bool               `json:"is_pinned"`
-	Metadata     json.RawMessage    `json:"metadata"`
-	SearchVector interface{}        `json:"search_vector"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	Username     string             `json:"username"`
-	DisplayName  string             `json:"display_name"`
-	AvatarUrl    pgtype.Text        `json:"avatar_url"`
-	IsBot        bool               `json:"is_bot"`
-	Rank         float32            `json:"rank"`
+	ID              pgtype.UUID        `json:"id"`
+	ChannelID       pgtype.UUID        `json:"channel_id"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	ThreadID        pgtype.UUID        `json:"thread_id"`
+	Content         string             `json:"content"`
+	ContentType     string             `json:"content_type"`
+	EditedAt        pgtype.Timestamptz `json:"edited_at"`
+	IsPinned        bool               `json:"is_pinned"`
+	Metadata        json.RawMessage    `json:"metadata"`
+	SearchVector    interface{}        `json:"search_vector"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	OriginalContent pgtype.Text        `json:"original_content"`
+	Username        string             `json:"username"`
+	DisplayName     string             `json:"display_name"`
+	AvatarUrl       pgtype.Text        `json:"avatar_url"`
+	IsBot           bool               `json:"is_bot"`
+	Rank            float32            `json:"rank"`
 }
 
 func (q *Queries) SearchMessagesForUser(ctx context.Context, arg SearchMessagesForUserParams) ([]SearchMessagesForUserRow, error) {
@@ -532,6 +546,7 @@ func (q *Queries) SearchMessagesForUser(ctx context.Context, arg SearchMessagesF
 			&i.SearchVector,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OriginalContent,
 			&i.Username,
 			&i.DisplayName,
 			&i.AvatarUrl,
@@ -558,7 +573,11 @@ func (q *Queries) UnpinMessage(ctx context.Context, id pgtype.UUID) error {
 }
 
 const updateMessageContent = `-- name: UpdateMessageContent :one
-UPDATE messages SET content = $2, edited_at = NOW() WHERE id = $1 RETURNING id, channel_id, user_id, thread_id, content, content_type, edited_at, is_pinned, metadata, search_vector, created_at, updated_at
+UPDATE messages SET
+  original_content = CASE WHEN original_content IS NULL THEN content ELSE original_content END,
+  content = $2,
+  edited_at = NOW()
+WHERE id = $1 RETURNING id, channel_id, user_id, thread_id, content, content_type, edited_at, is_pinned, metadata, search_vector, created_at, updated_at, original_content
 `
 
 type UpdateMessageContentParams struct {
@@ -582,6 +601,7 @@ func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageCon
 		&i.SearchVector,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OriginalContent,
 	)
 	return i, err
 }

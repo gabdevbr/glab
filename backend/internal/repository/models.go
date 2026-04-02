@@ -166,18 +166,19 @@ type Mention struct {
 }
 
 type Message struct {
-	ID           pgtype.UUID        `json:"id"`
-	ChannelID    pgtype.UUID        `json:"channel_id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	ThreadID     pgtype.UUID        `json:"thread_id"`
-	Content      string             `json:"content"`
-	ContentType  string             `json:"content_type"`
-	EditedAt     pgtype.Timestamptz `json:"edited_at"`
-	IsPinned     bool               `json:"is_pinned"`
-	Metadata     json.RawMessage    `json:"metadata"`
-	SearchVector interface{}        `json:"search_vector"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	ID              pgtype.UUID        `json:"id"`
+	ChannelID       pgtype.UUID        `json:"channel_id"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	ThreadID        pgtype.UUID        `json:"thread_id"`
+	Content         string             `json:"content"`
+	ContentType     string             `json:"content_type"`
+	EditedAt        pgtype.Timestamptz `json:"edited_at"`
+	IsPinned        bool               `json:"is_pinned"`
+	Metadata        json.RawMessage    `json:"metadata"`
+	SearchVector    interface{}        `json:"search_vector"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	OriginalContent pgtype.Text        `json:"original_content"`
 }
 
 type MessageAuditLog struct {

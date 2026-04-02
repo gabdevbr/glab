@@ -106,7 +106,7 @@ export default function ChatLayout({
       if ('Notification' in window && Notification.permission === 'granted') {
         const notif = new Notification(title, {
           body,
-          icon: '/favicon.ico',
+          icon: '/favicon-32x32.png',
           tag,
         });
         notif.onclick = () => {

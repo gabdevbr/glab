@@ -484,10 +484,11 @@ func (h *MessageHandler) handleMessageEdit(client *Client, env Envelope) {
 
 	channelID := uuidToString(existing.ChannelID)
 	editedEnv, err := MakeEnvelope(EventMessageEdited, MessageEditedPayload{
-		ID:        payload.MessageID,
-		ChannelID: channelID,
-		Content:   payload.Content,
-		EditedAt:  timestampToString(updated.EditedAt),
+		ID:              payload.MessageID,
+		ChannelID:       channelID,
+		Content:         payload.Content,
+		EditedAt:        timestampToString(updated.EditedAt),
+		OriginalContent: updated.OriginalContent.String,
 	})
 	if err == nil {
 		h.hub.BroadcastToChannel(channelID, editedEnv)
