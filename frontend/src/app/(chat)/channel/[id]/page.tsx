@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useChannelStore } from '@/stores/channelStore';
 import { useMessageStore } from '@/stores/messageStore';
 import { usePresenceStore } from '@/stores/presenceStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useWSStore } from '@/stores/wsStore';
 import { wsClient } from '@/lib/ws';
 import { api } from '@/lib/api';
@@ -48,6 +49,8 @@ export default function ChannelPage() {
 
   const [rightPanel, setRightPanel] = useState<RightPanel>({ type: 'none' });
   const [directChannel, setDirectChannel] = useState<Channel | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const authUser = useAuthStore((s) => s.user);
 
   const storeChannel = channels.find((c) => c.id === channelId);
   const channel = storeChannel ?? directChannel ?? undefined;
@@ -80,6 +83,19 @@ export default function ChannelPage() {
     setRightPanel({ type: 'thread', messageId });
   }, []);
 
+  const handleEditLastMessage = useCallback(() => {
+    const msgs = useMessageStore.getState().messages[channelId];
+    if (!msgs || !authUser) return;
+    // Find the last own text message (not file/system)
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      if (m.user_id === authUser.id && m.content_type === 'text' && !m.thread_id) {
+        setEditingMessageId(m.id);
+        return;
+      }
+    }
+  }, [channelId, authUser]);
+
   const handleUserInfoOpen = useCallback((userId: string) => {
     setRightPanel((p) =>
       p.type === 'userInfo' && p.userId === userId
@@ -106,11 +122,12 @@ export default function ChannelPage() {
     });
 
     const unsubEditMsg = wsClient.on('message.edited', (payload: unknown) => {
-      const data = payload as { id: string; channel_id: string; content: string; edited_at: string };
+      const data = payload as { id: string; channel_id: string; content: string; edited_at: string; original_content?: string };
       if (data.channel_id === channelId) {
         updateMessage(channelId, data.id, {
           content: data.content,
           edited_at: data.edited_at,
+          original_content: data.original_content,
         });
       }
     });
@@ -215,9 +232,11 @@ export default function ChannelPage() {
   const handleChatAreaClick = useCallback((e: { target: EventTarget | null }) => {
     const target = e.target as HTMLElement;
     if (target.closest('button, a, textarea, input, [role="button"], [data-chat-input]')) return;
+    // Don't steal focus from thread panel when it's open
+    if (rightPanel.type === 'thread') return;
     const input = document.querySelector<HTMLTextAreaElement>('[data-chat-input]');
     input?.focus();
-  }, []);
+  }, [rightPanel.type]);
 
   return (
     <div className="flex h-full flex-1 min-w-0">
@@ -274,7 +293,7 @@ export default function ChannelPage() {
         </header>
 
         {/* Messages */}
-        <MessageList channelId={channelId} onThreadOpen={handleThreadOpen} onUserInfoOpen={handleUserInfoOpen} />
+        <MessageList channelId={channelId} onThreadOpen={handleThreadOpen} onUserInfoOpen={handleUserInfoOpen} editingMessageId={editingMessageId} onEditingDone={() => setEditingMessageId(null)} />
 
         {/* Typing + Input */}
         <TypingIndicator channelId={channelId} />
@@ -283,6 +302,7 @@ export default function ChannelPage() {
           channelName={channelName}
           isConnected={isConnected}
           channel={channel}
+          onEditLastMessage={handleEditLastMessage}
         />
       </div>
 

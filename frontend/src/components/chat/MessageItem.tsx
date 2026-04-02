@@ -396,9 +396,11 @@ interface MessageItemProps {
   isCompact: boolean;
   onThreadOpen?: (messageId: string) => void;
   onUserInfoOpen?: (userId: string) => void;
+  editingMessageId?: string | null;
+  onEditingDone?: () => void;
 }
 
-export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }: MessageItemProps) {
+export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen, editingMessageId, onEditingDone }: MessageItemProps) {
   const user = useAuthStore((s) => s.user);
   const channelMessages = useMessageStore((s) => s.messages[message.channel_id]);
   const mdComponents = useMarkdownComponents(onUserInfoOpen);
@@ -434,6 +436,14 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
     ensureEditTimeoutLoaded(() => setTimeoutReady(true));
   }, []);
 
+  // Auto-enter edit mode when triggered by ArrowUp
+  useEffect(() => {
+    if (editingMessageId === message.id && !isEditing) {
+      setEditContent(message.content);
+      setIsEditing(true);
+    }
+  }, [editingMessageId, message.id, message.content, isEditing]);
+
   const isOwnMessage = user?.id === message.user_id;
   const isAdmin = user?.role === 'admin';
   const timeoutMs = (editTimeoutSeconds ?? 900) * 1000;
@@ -454,12 +464,14 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
       });
     }
     setIsEditing(false);
-  }, [editContent, message.id, message.content]);
+    onEditingDone?.();
+  }, [editContent, message.id, message.content, onEditingDone]);
 
   const handleEditCancel = useCallback(() => {
     setIsEditing(false);
     setEditContent(message.content);
-  }, [message.content]);
+    onEditingDone?.();
+  }, [message.content, onEditingDone]);
 
   const handleDelete = useCallback(() => {
     if (confirm('Delete this message?')) {
@@ -600,7 +612,17 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
             {message.is_bot ? message.content : cleanContent}
           </ReactMarkdown>
           {message.edited_at && (
-            <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>
+            <span
+              className="ml-1 text-[10px] text-muted-foreground cursor-default group/edited relative inline-block"
+              title={message.original_content ? `Original: ${message.original_content}` : undefined}
+            >
+              (edited)
+              {message.original_content && (
+                <span className="invisible group-hover/edited:visible absolute bottom-full left-0 z-50 mb-1 w-max max-w-xs rounded-lg border border-border bg-panel-bg px-3 py-2 text-xs text-foreground shadow-lg whitespace-pre-wrap">
+                  {message.original_content}
+                </span>
+              )}
+            </span>
           )}
         </div>
       </>
@@ -799,6 +821,12 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen }
           )}
           {message.is_pinned && (
             <Pin className="size-3 text-pin-color" />
+          )}
+          {message.thread_id && (
+            <span className="inline-flex items-center gap-0.5 rounded bg-secondary/60 px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <MessageSquare className="size-2.5" />
+              Reply
+            </span>
           )}
           <span
             className="text-[11px] text-muted-foreground"

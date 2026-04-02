@@ -65,6 +65,8 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
   const [content, setContent] = useState('');
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingCaption, setPendingCaption] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -279,26 +281,28 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     });
   }
 
-  async function handleFileUpload(file: File) {
+  async function confirmAndSendFile() {
+    if (!pendingFile) return;
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', pendingFile);
       await api.upload(`/api/v1/channels/${channelId}/upload`, formData);
     } catch (err) {
       console.error('Upload failed:', err);
     }
     setIsUploading(false);
     setUploadingFile(null);
+    setPendingFile(null);
+    setPendingCaption('');
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
-      setUploadingFile(file);
-      handleFileUpload(file);
+      setPendingFile(file);
+      setPendingCaption('');
     }
-    // Reset input so same file can be selected again
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -317,8 +321,8 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) {
-      setUploadingFile(file);
-      handleFileUpload(file);
+      setPendingFile(file);
+      setPendingCaption('');
     }
   }
 
@@ -327,14 +331,13 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     if (files.length > 0) {
       e.preventDefault();
       let file = files[0];
-      // Give clipboard images a meaningful filename instead of browser defaults like "image.png"
       if (file.type.startsWith('image/')) {
         const ext = file.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         file = new File([file], `clipboard-${timestamp}.${ext}`, { type: file.type });
       }
-      setUploadingFile(file);
-      handleFileUpload(file);
+      setPendingFile(file);
+      setPendingCaption('');
     }
   }
 
@@ -680,6 +683,52 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
           <Paperclip className="size-3.5" />
           <span className="truncate">{uploadingFile.name}</span>
           <span className="text-muted-foreground">Uploading...</span>
+        </div>
+      )}
+
+      {/* Pending file confirmation */}
+      {pendingFile && !isUploading && (
+        <div className="mb-2 rounded-lg border border-border bg-secondary/30 p-3">
+          <div className="flex items-start gap-3">
+            {pendingFile.type.startsWith('image/') ? (
+              <img
+                src={URL.createObjectURL(pendingFile)}
+                alt="Preview"
+                className="h-16 w-16 rounded-lg object-cover"
+              />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-border bg-secondary">
+                <Paperclip className="size-6 text-muted-foreground" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">{pendingFile.name}</p>
+              <p className="text-xs text-muted-foreground">{(pendingFile.size / 1024).toFixed(1)} KB</p>
+              <input
+                type="text"
+                value={pendingCaption}
+                onChange={(e) => setPendingCaption(e.target.value)}
+                placeholder="Add a caption..."
+                className="mt-2 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-chat-input-focus"
+              />
+            </div>
+          </div>
+          <div className="mt-2 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => { setPendingFile(null); setPendingCaption(''); }}
+              className="rounded-md px-3 py-1 text-xs text-muted-foreground hover:bg-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmAndSendFile}
+              className="rounded-md bg-accent-primary px-3 py-1 text-xs font-medium text-accent-primary-text hover:bg-accent-primary-hover"
+            >
+              Send
+            </button>
+          </div>
         </div>
       )}
 
