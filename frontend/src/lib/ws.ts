@@ -12,6 +12,16 @@ class WSClient {
   connect(token: string) {
     this.token = token;
     this.intentionalClose = false;
+    if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        this.ws.close();
+      }
+      this.ws = null;
+    }
     const wsUrl = (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080').replace(/\/+$/, '');
     this.ws = new WebSocket(`${wsUrl}/ws?token=${token}`);
 
@@ -41,6 +51,10 @@ class WSClient {
   }
 
   private reconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     const delay = Math.min(
       1000 * Math.pow(2, this.reconnectAttempts),
       this.maxReconnectDelay,
@@ -51,6 +65,7 @@ class WSClient {
       `[WS] reconnecting in ${Math.round(jitter)}ms (attempt ${this.reconnectAttempts})`,
     );
     this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
       if (this.token) this.connect(this.token);
     }, jitter);
   }
