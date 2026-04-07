@@ -14,7 +14,7 @@ import { NewDMDialog } from './NewDMDialog';
 import { ProfileModal } from './ProfileModal';
 import { SidebarSection } from './SidebarSection';
 import { SectionChannelList } from './SectionChannelList';
-import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboard, Users, Hash, MessageCircle, ArrowLeftRight, Key, Bug, Bell, Plus, Pencil, Trash2, CheckCheck } from 'lucide-react';
+import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboard, Users, Hash, MessageCircle, ArrowLeftRight, Key, Bug, Bell, Plus, Pencil, Trash2, CheckCheck, Pin, PinOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
@@ -51,6 +51,102 @@ import {
 } from '@/components/ui/context-menu';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
+
+function StarredSection() {
+  const router = useRouter();
+  const channels = useChannelStore((s) => s.channels);
+  const activeChannelId = useChannelStore((s) => s.activeChannelId);
+  const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
+  const unreadCounts = useChannelStore((s) => s.unreadCounts);
+  const statuses = usePresenceStore((s) => s.statuses);
+  const pinChannel = useChannelStore((s) => s.pinChannel);
+
+  const starred = channels
+    .filter((c) => c.is_pinned)
+    .sort((a, b) => {
+      // Unread first, then by activity
+      const ua = unreadCounts[a.id] || 0;
+      const ub = unreadCounts[b.id] || 0;
+      if (ua > 0 && ub === 0) return -1;
+      if (ub > 0 && ua === 0) return 1;
+      const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+      const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+      return tb - ta;
+    });
+
+  if (starred.length === 0) return null;
+
+  return (
+    <div className="mb-3">
+      <div className="mb-1 flex items-center gap-1 px-3 py-1">
+        <Pin className="size-3 text-sidebar-section-text" />
+        <span className="flex-1 text-xs font-semibold uppercase tracking-wider text-sidebar-section-text">
+          Starred
+        </span>
+      </div>
+      <ul className="space-y-0.5">
+        {starred.map((channel) => {
+          const unread = unreadCounts[channel.id] || 0;
+          const isActive = activeChannelId === channel.id;
+          const isDM = channel.type === 'dm';
+          const presenceStatus = isDM && channel.dm_user_id ? (statuses[channel.dm_user_id] || 'offline') : null;
+
+          return (
+            <li key={channel.id}>
+              <ContextMenu>
+                <ContextMenuTrigger
+                  render={
+                    <button
+                      onClick={() => {
+                        setActiveChannel(channel.id);
+                        router.push(`/channel/${channel.id}`);
+                      }}
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded-md mx-1 px-2 py-1.5 text-sm transition-all duration-150 hover:bg-sidebar-hover hover:text-foreground hover:translate-x-0.5',
+                        isActive
+                          ? 'bg-accent-primary-subtle text-foreground font-semibold'
+                          : unread > 0
+                            ? 'text-foreground font-semibold'
+                            : 'text-muted-foreground',
+                      )}
+                    />
+                  }
+                >
+                  {isDM && presenceStatus ? (
+                    <span
+                      className={cn(
+                        'inline-block size-2.5 shrink-0 rounded-full transition-colors duration-500',
+                        presenceStatus === 'online'
+                          ? 'bg-status-online'
+                          : presenceStatus === 'away'
+                            ? 'bg-status-warning'
+                            : 'bg-muted',
+                      )}
+                    />
+                  ) : (
+                    <Hash className="size-4 shrink-0 text-sidebar-section-text" />
+                  )}
+                  <span className="flex-1 truncate text-left">{channel.name}</span>
+                  {unread > 0 && (
+                    <span key={unread} className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text animate-badge-pulse">
+                      {unread > 99 ? '99+' : unread}
+                    </span>
+                  )}
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem onClick={() => pinChannel(channel.id, false)}>
+                    <PinOff className="mr-2 h-4 w-4" /> Unstar
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mx-3 mt-2 border-b border-border/50" />
+    </div>
+  );
+}
 
 function UnreadSection() {
   const router = useRouter();
@@ -355,6 +451,9 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
       <div className="flex-1 overflow-y-auto px-2 pt-3">
         {/* Unreads section */}
         <UnreadSection />
+
+        {/* Starred/Pinned channels section */}
+        <StarredSection />
 
         {/* User-defined sections with drag-and-drop */}
         {sections.length > 0 && (
