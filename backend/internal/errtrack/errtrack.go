@@ -1,10 +1,12 @@
 package errtrack
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -128,6 +130,14 @@ func (s *statusCapture) Write(b []byte) (int, error) {
 		s.body = append(s.body, b...)
 	}
 	return s.ResponseWriter.Write(b)
+}
+
+// Hijack implements http.Hijacker so WebSocket upgrades work through this wrapper.
+func (s *statusCapture) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := s.ResponseWriter.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, fmt.Errorf("underlying ResponseWriter does not implement http.Hijacker")
 }
 
 // Middleware returns an HTTP middleware that reports 5xx errors.
