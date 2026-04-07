@@ -12,6 +12,7 @@ interface ChannelState {
   fetchHiddenChannels: () => Promise<void>;
   hideChannel: (channelId: string) => Promise<void>;
   unhideChannel: (channelId: string) => Promise<void>;
+  hideAllChannels: () => Promise<void>;
   setActiveChannel: (id: string) => void;
   addChannel: (channel: Channel) => void;
   updateChannel: (id: string, partial: Partial<Channel>) => void;
@@ -67,6 +68,18 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
       set((s) => ({
         hiddenChannels: s.hiddenChannels.filter((c) => c.id !== channelId),
         channels: channel ? [...s.channels, channel] : s.channels,
+      }));
+    } catch {
+      // ignore
+    }
+  },
+  hideAllChannels: async () => {
+    try {
+      await api.hideAllChannels();
+      set((s) => ({
+        channels: [],
+        hiddenChannels: [...s.hiddenChannels, ...s.channels],
+        unreadCounts: {},
       }));
     } catch {
       // ignore

@@ -165,6 +165,15 @@ func (q *Queries) GetUnreadCount(ctx context.Context, arg GetUnreadCountParams) 
 	return count, err
 }
 
+const hideAllChannelsForUser = `-- name: HideAllChannelsForUser :exec
+UPDATE channel_members SET hidden = TRUE, muted = TRUE WHERE user_id = $1 AND hidden = FALSE
+`
+
+func (q *Queries) HideAllChannelsForUser(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, hideAllChannelsForUser, userID)
+	return err
+}
+
 const isChannelMember = `-- name: IsChannelMember :one
 SELECT EXISTS(SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2)
 `

@@ -621,6 +621,28 @@ func (h *ChannelHandler) HideChannel(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+// HideAllChannels handles POST /api/v1/channels/hide-all.
+func (h *ChannelHandler) HideAllChannels(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	uid, err := parseUUID(claims.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "invalid user id")
+		return
+	}
+
+	if err := h.queries.HideAllChannelsForUser(r.Context(), uid); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to hide all channels")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 // ListHidden handles GET /api/v1/channels/hidden.
 func (h *ChannelHandler) ListHidden(w http.ResponseWriter, r *http.Request) {
 	claims := auth.UserFromContext(r.Context())

@@ -14,7 +14,7 @@ import { NewDMDialog } from './NewDMDialog';
 import { ProfileModal } from './ProfileModal';
 import { SidebarSection } from './SidebarSection';
 import { SectionChannelList } from './SectionChannelList';
-import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboard, Users, Hash, MessageCircle, ArrowLeftRight, Key, Bug, Bell, Plus, Pencil, Trash2, CheckCheck, Pin, PinOff } from 'lucide-react';
+import { LogOut, Bot, Settings, ChevronDown, ChevronRight, Search, LayoutDashboard, Users, Hash, MessageCircle, ArrowLeftRight, Key, Bug, Bell, Plus, Pencil, Trash2, CheckCheck, Pin, PinOff, ChevronsDownUp, ChevronsUpDown, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
@@ -348,6 +348,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
   }, [sidebarWidth]);
 
   const markAllRead = useChannelStore((s) => s.markAllRead);
+  const hideAllChannels = useChannelStore((s) => s.hideAllChannels);
 
   const sections = useSectionStore((s) => s.sections);
   const createSection = useSectionStore((s) => s.createSection);
@@ -377,6 +378,20 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
     const reordered = arrayMove(sections, oldIndex, newIndex);
     reorderSections(reordered.map((s) => s.id));
   }
+
+  const allSectionKeys = ['channels', 'dms', 'agents', 'settings', 'admin', ...sections.map((s) => `section-${s.id}`)];
+  const allCollapsed = allSectionKeys.every((key) => collapsed[key]);
+  const toggleAll = () => {
+    setCollapsed((prev) => {
+      const next = { ...prev };
+      const shouldCollapse = !allCollapsed;
+      for (const key of allSectionKeys) {
+        next[key] = shouldCollapse;
+      }
+      try { localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   const handleCreateSection = useCallback(async () => {
     const name = newSectionName.trim();
@@ -449,6 +464,30 @@ export function Sidebar({ onOpenSearch }: SidebarProps) {
 
       {/* Scrollable sections */}
       <div className="flex-1 overflow-y-auto px-2 pt-3">
+        {/* Section toggles */}
+        <div className="mb-2 flex items-center justify-end gap-1 px-2">
+          <button
+            onClick={toggleAll}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-sidebar-hover transition-colors"
+            title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
+          >
+            {allCollapsed ? (
+              <ChevronsUpDown className="size-3" />
+            ) : (
+              <ChevronsDownUp className="size-3" />
+            )}
+            {allCollapsed ? 'Expand' : 'Collapse'}
+          </button>
+          <button
+            onClick={hideAllChannels}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:bg-sidebar-hover transition-colors"
+            title="Hide all channels and conversations"
+          >
+            <EyeOff className="size-3" />
+            Hide all
+          </button>
+        </div>
+
         {/* Unreads section */}
         <UnreadSection />
 

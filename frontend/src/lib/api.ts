@@ -84,6 +84,10 @@ class ApiClient {
     return this.post('/api/v1/channels/mark-all-read');
   }
 
+  hideAllChannels() {
+    return this.post('/api/v1/channels/hide-all');
+  }
+
   listHiddenChannels<T>() {
     return this.get<T>('/api/v1/channels/hidden');
   }
