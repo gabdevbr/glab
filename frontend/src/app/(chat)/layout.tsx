@@ -14,7 +14,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { wsClient } from '@/lib/ws';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { QuickSwitcher } from '@/components/chat/QuickSwitcher';
-import { Message } from '@/lib/types';
+import { Message, Channel } from '@/lib/types';
 import { UpdateBanner } from '@/components/UpdateBanner';
 
 export default function ChatLayout({
@@ -27,6 +27,7 @@ export default function ChatLayout({
   const fetchChannels = useChannelStore((s) => s.fetchChannels);
   const fetchSections = useSectionStore((s) => s.fetchSections);
   const incrementUnread = useChannelStore((s) => s.incrementUnread);
+  const addChannel = useChannelStore((s) => s.addChannel);
   const setStatus = usePresenceStore((s) => s.setStatus);
   const bulkSetStatus = usePresenceStore((s) => s.bulkSetStatus);
   const appendChunk = useAIStreamStore((s) => s.appendChunk);
@@ -187,6 +188,18 @@ export default function ChatLayout({
     });
     return unsub;
   }, [playNotificationSound, showBrowserNotification]);
+
+  // Wire channel.new events (e.g. when someone creates a DM with this user)
+  useEffect(() => {
+    const unsub = wsClient.on('channel.new', (payload: unknown) => {
+      const ch = payload as Channel;
+      const existing = useChannelStore.getState().channels.find((c) => c.id === ch.id);
+      if (!existing) {
+        addChannel(ch);
+      }
+    });
+    return unsub;
+  }, [addChannel]);
 
   // Update document.title and favicon badge with total unread count
   const unreadCounts = useChannelStore((s) => s.unreadCounts);

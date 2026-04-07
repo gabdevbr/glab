@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { User } from '@/lib/types';
+import { User, Channel } from '@/lib/types';
 import { usePresenceStore } from '@/stores/presenceStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useChannelStore } from '@/stores/channelStore';
@@ -37,7 +37,8 @@ export function UserInfoPanel({ userId, onClose }: UserInfoPanelProps) {
   const presenceStatus = usePresenceStore((s) => s.statuses[userId]);
   const currentUser = useAuthStore((s) => s.user);
   const channels = useChannelStore((s) => s.channels);
-  const fetchChannels = useChannelStore((s) => s.fetchChannels);
+  const addChannel = useChannelStore((s) => s.addChannel);
+  const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
   const router = useRouter();
 
   useEffect(() => {
@@ -62,7 +63,7 @@ export function UserInfoPanel({ userId, onClose }: UserInfoPanelProps) {
 
     // Check if a DM channel already exists with this user
     const existingDM = channels.find(
-      (c) => c.type === 'dm' && c.name.includes(user?.username || ''),
+      (c) => c.type === 'dm' && c.dm_user_id === userId,
     );
 
     if (existingDM) {
@@ -74,11 +75,12 @@ export function UserInfoPanel({ userId, onClose }: UserInfoPanelProps) {
     // Create a new DM channel
     setIsSending(true);
     try {
-      const newChannel = await api.post<{ id: string }>('/api/v1/channels', {
+      const newChannel = await api.post<Channel>('/api/v1/channels', {
         type: 'dm',
         member_id: userId,
       });
-      await fetchChannels();
+      addChannel(newChannel);
+      setActiveChannel(newChannel.id);
       router.push(`/channel/${newChannel.id}`);
       onClose();
     } catch {

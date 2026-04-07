@@ -44,6 +44,7 @@ const (
 	EventTyping          = "typing"
 	EventPresence        = "presence"
 	EventNotification    = "notification"
+	EventChannelNew      = "channel.new"
 
 	// AI events - Server -> Client
 	EventAIChunk      = "ai.chunk"       // streaming in channel (broadcast)
@@ -206,6 +207,18 @@ type ThreadUpdatedPayload struct {
 	ChannelID    string `json:"channel_id"`
 	ReplyCount   int32  `json:"reply_count"`
 	LastReplyAt  string `json:"last_reply_at"`
+}
+
+// ChannelNewPayload is sent to a user when they are added to a new channel (e.g. DM creation).
+type ChannelNewPayload struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Type        string `json:"type"`
+	CreatedBy   string `json:"created_by"`
+	DMUserID    string `json:"dm_user_id,omitempty"`
+	MemberCount int    `json:"member_count,omitempty"`
+	CreatedAt   string `json:"created_at"`
 }
 
 // --- AI payloads ---

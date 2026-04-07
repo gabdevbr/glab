@@ -96,6 +96,26 @@ func (h *Hub) Unsubscribe(client *Client, channelIDs []string) {
 	}
 }
 
+// SubscribeUser subscribes all active connections of a user to the given channels.
+func (h *Hub) SubscribeUser(userID string, channelIDs []string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for c := range h.clients {
+		if c.userID != userID {
+			continue
+		}
+		for _, chID := range channelIDs {
+			if h.channels[chID] == nil {
+				h.channels[chID] = make(map[*Client]bool)
+			}
+			h.channels[chID][c] = true
+			c.mu.Lock()
+			c.subscriptions[chID] = true
+			c.mu.Unlock()
+		}
+	}
+}
+
 // BroadcastToChannel sends an envelope to all clients subscribed to the channel.
 func (h *Hub) BroadcastToChannel(channelID string, envelope Envelope) {
 	data, err := marshalEnvelope(envelope)

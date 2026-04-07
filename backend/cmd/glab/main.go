@@ -128,7 +128,7 @@ func main() {
 
 	authHandler := handler.NewAuthHandler(queries, cfg.JWTSecret, cfg.JWTExpiry)
 	userHandler := handler.NewUserHandler(queries, storageSvc)
-	channelHandler := handler.NewChannelHandler(queries)
+	channelHandler := handler.NewChannelHandler(queries, hub)
 	messageHandler := handler.NewMessageHandler(queries)
 	agentHandler := handler.NewAgentHandler(queries)
 	fileHandler := handler.NewFileHandler(queries, storageSvc, hub)

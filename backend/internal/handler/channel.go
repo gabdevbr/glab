@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -10,16 +11,18 @@ import (
 
 	"github.com/gabdevbr/glab/backend/internal/auth"
 	"github.com/gabdevbr/glab/backend/internal/repository"
+	"github.com/gabdevbr/glab/backend/internal/ws"
 )
 
 // ChannelHandler handles channel endpoints.
 type ChannelHandler struct {
 	queries *repository.Queries
+	hub     *ws.Hub
 }
 
 // NewChannelHandler creates a ChannelHandler.
-func NewChannelHandler(q *repository.Queries) *ChannelHandler {
-	return &ChannelHandler{queries: q}
+func NewChannelHandler(q *repository.Queries, hub *ws.Hub) *ChannelHandler {
+	return &ChannelHandler{queries: q, hub: hub}
 }
 
 // generateSlug creates a URL-friendly slug from a channel name.
@@ -215,6 +218,9 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 		resp.MemberCount = 2
 		resp.DMUserID = body.MemberID
 		respondJSON(w, http.StatusCreated, resp)
+
+		// Notify the target user via WebSocket so their sidebar updates and they auto-subscribe.
+		h.notifyDMCreated(channel, claims.UserID, body.MemberID)
 		return
 	}
 
@@ -710,6 +716,32 @@ func (h *ChannelHandler) PinChannel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// notifyDMCreated sends a channel.new WebSocket event to the target user and auto-subscribes them.
+func (h *ChannelHandler) notifyDMCreated(channel repository.Channel, creatorID, targetID string) {
+	channelID := uuidToString(channel.ID)
+
+	// Send channel.new event to the target user so their sidebar updates.
+	env, err := ws.MakeEnvelope(ws.EventChannelNew, ws.ChannelNewPayload{
+		ID:          channelID,
+		Name:        channel.Name,
+		Slug:        channel.Slug,
+		Type:        channel.Type,
+		CreatedBy:   uuidToString(channel.CreatedBy),
+		DMUserID:    creatorID,
+		MemberCount: 2,
+		CreatedAt:   timestampToString(channel.CreatedAt),
+	})
+	if err != nil {
+		slog.Error("channel: failed to make channel.new envelope", "error", err)
+		return
+	}
+	h.hub.SendToUser(targetID, env)
+
+	// Auto-subscribe both users so messages flow immediately.
+	h.hub.SubscribeUser(creatorID, []string{channelID})
+	h.hub.SubscribeUser(targetID, []string{channelID})
 }
 
 // sentinel error for permission checks
