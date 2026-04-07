@@ -266,6 +266,15 @@ func (q *Queries) UnhideChannel(ctx context.Context, arg UnhideChannelParams) er
 	return err
 }
 
+const unhideChannelForAllMembers = `-- name: UnhideChannelForAllMembers :exec
+UPDATE channel_members SET hidden = FALSE WHERE channel_id = $1 AND hidden = TRUE
+`
+
+func (q *Queries) UnhideChannelForAllMembers(ctx context.Context, channelID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, unhideChannelForAllMembers, channelID)
+	return err
+}
+
 const updateLastRead = `-- name: UpdateLastRead :exec
 UPDATE channel_members SET last_read_msg_id = $3 WHERE channel_id = $1 AND user_id = $2
 `

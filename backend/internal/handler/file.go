@@ -161,6 +161,9 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			h.hub.BroadcastToChannel(channelIDStr, env)
 		}
+
+		// Auto-unhide channel for all members who had it hidden
+		_ = h.queries.UnhideChannelForAllMembers(r.Context(), channelUUID)
 	}
 
 	respondJSON(w, http.StatusCreated, fileToResponse(dbFile))

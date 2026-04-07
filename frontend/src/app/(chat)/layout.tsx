@@ -130,6 +130,12 @@ export default function ChatLayout({
       // Skip own messages
       if (msg.user_id === currentUserId) return;
 
+      // Auto-unhide channel if it was hidden and received a new message
+      const { hiddenChannels, unhideChannel } = useChannelStore.getState();
+      if (hiddenChannels.some((c) => c.id === msg.channel_id)) {
+        unhideChannel(msg.channel_id);
+      }
+
       // Only notify for channels not currently being viewed
       if (msg.channel_id !== currentChannelId || document.hidden) {
         if (msg.channel_id !== currentChannelId) {

@@ -33,6 +33,9 @@ UPDATE channel_members SET hidden = $3, muted = $3 WHERE channel_id = $1 AND use
 -- name: UnhideChannel :exec
 UPDATE channel_members SET hidden = FALSE WHERE channel_id = $1 AND user_id = $2;
 
+-- name: UnhideChannelForAllMembers :exec
+UPDATE channel_members SET hidden = FALSE WHERE channel_id = $1 AND hidden = TRUE;
+
 -- name: HideAllChannelsForUser :exec
 UPDATE channel_members SET hidden = TRUE, muted = TRUE WHERE user_id = $1 AND hidden = FALSE;
 

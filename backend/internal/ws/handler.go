@@ -303,6 +303,9 @@ func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
 	// Update channel's last_message_at
 	_ = h.queries.UpdateChannelLastMessageAt(ctx, channelUUID)
 
+	// Auto-unhide channel for all members who had it hidden
+	_ = h.queries.UnhideChannelForAllMembers(ctx, channelUUID)
+
 	// If this is a thread reply, update the thread summary.
 	if payload.ThreadID != "" {
 		parentUUID, err := parseUUID(payload.ThreadID)

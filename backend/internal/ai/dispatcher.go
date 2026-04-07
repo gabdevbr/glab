@@ -253,6 +253,9 @@ func (d *Dispatcher) HandleChannelMention(ctx context.Context, agentSlug string,
 	})
 	d.hub.BroadcastToChannel(channelID, newMsgEnv)
 
+	// Auto-unhide channel for all members who had it hidden
+	_ = d.queries.UnhideChannelForAllMembers(ctx, channelUUID)
+
 	// Send done chunk with message ID
 	doneEnv, _ := ws.MakeEnvelope(ws.EventAIChunk, ws.AIChunkPayload{
 		ChannelID:  channelID,
