@@ -158,12 +158,17 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 			UserID_2: targetUID,
 		})
 		if err == nil {
-			// DM already exists — unhide it if hidden, then return it
+			// DM already exists — unhide it for both users, then return it
 			_ = h.queries.UnhideChannel(r.Context(), repository.UnhideChannelParams{
 				ChannelID: existing.ID,
 				UserID:    creatorUID,
 			})
+			_ = h.queries.UnhideChannel(r.Context(), repository.UnhideChannelParams{
+				ChannelID: existing.ID,
+				UserID:    targetUID,
+			})
 			resp := channelToResponse(existing)
+			resp.DMUserID = body.MemberID
 			respondJSON(w, http.StatusOK, resp)
 			return
 		}
@@ -208,6 +213,7 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 		resp := channelToResponse(channel)
 		resp.MemberCount = 2
+		resp.DMUserID = body.MemberID
 		respondJSON(w, http.StatusCreated, resp)
 		return
 	}

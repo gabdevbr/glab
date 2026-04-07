@@ -67,9 +67,10 @@ export default function ChannelPage() {
     }
   }, [channelId, storeChannel]);
 
-  // Set active channel and fetch messages on mount
+  // Set active channel, subscribe via WS, and fetch messages on mount
   useEffect(() => {
     setActiveChannel(channelId);
+    wsClient.send('subscribe', { channel_ids: [channelId] });
     fetchMessages(channelId);
     clearUnread(channelId);
   }, [channelId, setActiveChannel, fetchMessages, clearUnread]);

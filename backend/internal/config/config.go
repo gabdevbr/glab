@@ -14,6 +14,11 @@ type Config struct {
 	JWTExpiry   int    `env:"JWT_EXPIRY" envDefault:"604800"`
 	UploadDir   string `env:"UPLOAD_DIR" envDefault:"./uploads"`
 	CORSOrigin  string `env:"CORS_ORIGIN" envDefault:"http://localhost:3000"`
+
+	// Error tracking — auto-creates GitHub issues on 5xx errors.
+	GitHubToken     string `env:"GITHUB_TOKEN" envDefault:""`
+	GitHubRepoOwner string `env:"GITHUB_REPO_OWNER" envDefault:"gabdevbr"`
+	GitHubRepoName  string `env:"GITHUB_REPO_NAME" envDefault:"glab"`
 }
 
 func Load() (*Config, error) {

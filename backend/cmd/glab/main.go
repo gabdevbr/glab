@@ -26,6 +26,7 @@ import (
 	"github.com/gabdevbr/glab/backend/internal/auth"
 	"github.com/gabdevbr/glab/backend/internal/config"
 	"github.com/gabdevbr/glab/backend/internal/db"
+	"github.com/gabdevbr/glab/backend/internal/errtrack"
 	"github.com/gabdevbr/glab/backend/internal/giphy"
 	"github.com/gabdevbr/glab/backend/internal/handler"
 	"github.com/gabdevbr/glab/backend/internal/migration"
@@ -164,12 +165,23 @@ func main() {
 	// Admin agent handler
 	adminAgentHandler := handler.NewAdminAgentHandler(queries)
 
+	// Error tracking — auto-creates GitHub issues on 5xx errors.
+	errReporter := errtrack.NewReporter(errtrack.Config{
+		GitHubToken: cfg.GitHubToken,
+		RepoOwner:   cfg.GitHubRepoOwner,
+		RepoName:    cfg.GitHubRepoName,
+	})
+	if errReporter.Enabled() {
+		slog.Info("errtrack: GitHub issue reporting enabled", "repo", cfg.GitHubRepoOwner+"/"+cfg.GitHubRepoName)
+	}
+
 	// Setup router
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(errReporter.Middleware)
 	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{cfg.CORSOrigin},
