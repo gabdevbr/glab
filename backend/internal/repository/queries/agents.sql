@@ -7,6 +7,9 @@ SELECT * FROM agents WHERE user_id = $1;
 -- name: ListAgents :many
 SELECT * FROM agents WHERE status = 'active' ORDER BY category, name;
 
+-- name: ListAllAgents :many
+SELECT * FROM agents ORDER BY category, name;
+
 -- name: ListAgentsRespondWithoutMention :many
 SELECT * FROM agents WHERE status = 'active' AND respond_without_mention = true ORDER BY name;
 

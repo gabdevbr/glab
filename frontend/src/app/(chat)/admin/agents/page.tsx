@@ -166,6 +166,20 @@ export default function AdminAgentsPage() {
     }
   };
 
+  const toggleStatus = async (agent: Agent) => {
+    const newStatus = agent.status === 'active' ? 'inactive' : 'active';
+    try {
+      await api.put(`/api/v1/admin/agents/${agent.id}`, {
+        ...agent,
+        gateway_url: agent.gateway_url,
+        status: newStatus,
+      });
+      setAgents((prev) => prev.map((a) => a.id === agent.id ? { ...a, status: newStatus } : a));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const F = (key: keyof typeof form) => ({
     value: form[key] as string,
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -191,7 +205,7 @@ export default function AdminAgentsPage() {
           <Card><CardContent className="py-10 text-center text-muted-foreground">No agents yet.</CardContent></Card>
         )}
         {agents.map((agent) => (
-          <Card key={agent.id}>
+          <Card key={agent.id} className={agent.status !== 'active' ? 'opacity-50' : ''}>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
@@ -205,10 +219,14 @@ export default function AdminAgentsPage() {
                   {agent.category && (
                     <Badge variant="outline" className="text-xs">{agent.category}</Badge>
                   )}
-                  <Badge variant={agent.status === 'active' ? 'default' : 'secondary'}>{agent.status}</Badge>
                   {agent.respond_without_mention && (
                     <Badge variant="outline" className="text-xs">responde sempre</Badge>
                   )}
+                  <Switch
+                    checked={agent.status === 'active'}
+                    onCheckedChange={() => toggleStatus(agent)}
+                    title={agent.status === 'active' ? 'Desativar agent' : 'Ativar agent'}
+                  />
                   <Button variant="ghost" size="icon" onClick={() => openEdit(agent)}><Pencil className="size-4" /></Button>
                   <AlertDialog>
                     <AlertDialogTrigger

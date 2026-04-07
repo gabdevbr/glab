@@ -73,7 +73,7 @@ func agentToAdminResponse(a repository.Agent) AdminAgentResponse {
 
 // ListAgents handles GET /api/v1/admin/agents
 func (h *AdminAgentHandler) ListAgents(w http.ResponseWriter, r *http.Request) {
-	agents, err := h.queries.ListAgents(r.Context())
+	agents, err := h.queries.ListAllAgents(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list agents")
 		return

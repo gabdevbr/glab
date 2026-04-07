@@ -622,6 +622,55 @@ func (q *Queries) ListAgentsRespondWithoutMention(ctx context.Context) ([]Agent,
 	return items, nil
 }
 
+const listAllAgents = `-- name: ListAllAgents :many
+SELECT id, user_id, slug, name, emoji, avatar_url, description, scope, status, gateway_url, gateway_token, model, system_prompt, max_tokens, temperature, bridge_url, use_bridge, max_context_messages, auto_join_channels, capabilities, created_at, updated_at, respond_without_mention, category FROM agents ORDER BY category, name
+`
+
+func (q *Queries) ListAllAgents(ctx context.Context) ([]Agent, error) {
+	rows, err := q.db.Query(ctx, listAllAgents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Agent{}
+	for rows.Next() {
+		var i Agent
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Slug,
+			&i.Name,
+			&i.Emoji,
+			&i.AvatarUrl,
+			&i.Description,
+			&i.Scope,
+			&i.Status,
+			&i.GatewayUrl,
+			&i.GatewayToken,
+			&i.Model,
+			&i.SystemPrompt,
+			&i.MaxTokens,
+			&i.Temperature,
+			&i.BridgeUrl,
+			&i.UseBridge,
+			&i.MaxContextMessages,
+			&i.AutoJoinChannels,
+			&i.Capabilities,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.RespondWithoutMention,
+			&i.Category,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateAgent = `-- name: UpdateAgent :one
 UPDATE agents SET
     name = $2,
