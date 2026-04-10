@@ -184,7 +184,9 @@ export function ChannelList() {
                       />
                     }
                   >
-                    <Hash className="size-4 shrink-0 text-sidebar-section-text" />
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-hover text-sidebar-section-text">
+                      <Hash className="size-3.5" />
+                    </span>
                     <span className="flex-1 truncate text-left">{channel.name}</span>
                     {channel.is_pinned && (
                       <Pin className="size-3 shrink-0 text-muted-foreground" />

@@ -8,6 +8,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import { Channel } from '@/lib/types';
 import { Hash, MessageCircle, FolderOutput, ChevronRight } from 'lucide-react';
+
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
 import { sortChannels } from './ChannelList';
 import {
   ContextMenu,
@@ -83,15 +85,28 @@ export function SectionChannelList({ channelIds, sectionId }: SectionChannelList
                 }
               >
                 {isDM ? (
-                  presenceStatus === 'online' ? (
-                    <span className="inline-block size-2.5 shrink-0 rounded-full bg-status-online" />
-                  ) : presenceStatus === 'away' ? (
-                    <span className="inline-block size-2.5 shrink-0 rounded-full bg-status-warning" />
-                  ) : (
-                    <span className="inline-block size-2.5 shrink-0 rounded-full bg-muted" />
-                  )
+                  (() => {
+                    const presenceColor = presenceStatus === 'online' ? 'bg-status-online' : presenceStatus === 'away' ? 'bg-status-warning' : 'bg-muted';
+                    const avatarSrc = channel.dm_avatar_url
+                      ? channel.dm_avatar_url.startsWith('/') ? `${API_URL}${channel.dm_avatar_url}` : channel.dm_avatar_url
+                      : null;
+                    return (
+                      <span className="relative shrink-0">
+                        <span className="flex size-6 items-center justify-center rounded-full bg-avatar-bg text-[10px] font-medium text-avatar-text overflow-hidden">
+                          {avatarSrc ? (
+                            <img src={avatarSrc} alt={channel.name} className="size-6 rounded-full object-cover" />
+                          ) : (
+                            channel.name.charAt(0).toUpperCase()
+                          )}
+                        </span>
+                        <span className={cn('absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-sidebar transition-colors duration-500', presenceColor)} />
+                      </span>
+                    );
+                  })()
                 ) : (
-                  <Hash className="size-4 shrink-0 text-sidebar-section-text" />
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-hover text-sidebar-section-text">
+                    <Hash className="size-3.5" />
+                  </span>
                 )}
                 <span className="flex-1 truncate text-left">{channel.name}</span>
                 {unread > 0 && (

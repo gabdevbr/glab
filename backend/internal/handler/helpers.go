@@ -291,6 +291,7 @@ type ChannelResponse struct {
 	UnreadCount   int32  `json:"unread_count"`
 	IsPinned      bool   `json:"is_pinned"`
 	DMUserID      string `json:"dm_user_id,omitempty"`
+	DMAvatarURL   string `json:"dm_avatar_url,omitempty"`
 }
 
 // channelToResponse converts a repository.Channel to ChannelResponse.

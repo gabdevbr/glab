@@ -64,6 +64,7 @@ func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 	type dmInfo struct {
 		DisplayName string
 		UserID      string
+		AvatarURL   string
 	}
 	dmInfoMap := make(map[string]dmInfo) // channel_id -> info
 	dmRows, err := h.queries.GetDMDisplayNames(r.Context(), uid)
@@ -72,6 +73,7 @@ func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 			dmInfoMap[uuidToString(row.ChannelID)] = dmInfo{
 				DisplayName: row.DisplayName,
 				UserID:      uuidToString(row.OtherUserID),
+				AvatarURL:   row.AvatarUrl.String,
 			}
 		}
 	}
@@ -83,6 +85,7 @@ func (h *ChannelHandler) List(w http.ResponseWriter, r *http.Request) {
 			if info, ok := dmInfoMap[resp.ID]; ok {
 				resp.Name = info.DisplayName
 				resp.DMUserID = info.UserID
+				resp.DMAvatarURL = info.AvatarURL
 			} else {
 				// DM with no resolvable other member — skip it
 				continue
@@ -156,6 +159,13 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Check if DM already exists
+		// Look up target user for the channel name and avatar
+		targetUser, err := h.queries.GetUserByID(r.Context(), targetUID)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "target user not found")
+			return
+		}
+
 		existing, err := h.queries.GetDMChannel(r.Context(), repository.GetDMChannelParams{
 			UserID:   creatorUID,
 			UserID_2: targetUID,
@@ -172,14 +182,8 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 			})
 			resp := channelToResponse(existing)
 			resp.DMUserID = body.MemberID
+			resp.DMAvatarURL = targetUser.AvatarUrl.String
 			respondJSON(w, http.StatusOK, resp)
-			return
-		}
-
-		// Look up target user for the channel name
-		targetUser, err := h.queries.GetUserByID(r.Context(), targetUID)
-		if err != nil {
-			respondError(w, http.StatusBadRequest, "target user not found")
 			return
 		}
 
@@ -217,10 +221,17 @@ func (h *ChannelHandler) Create(w http.ResponseWriter, r *http.Request) {
 		resp := channelToResponse(channel)
 		resp.MemberCount = 2
 		resp.DMUserID = body.MemberID
+		resp.DMAvatarURL = targetUser.AvatarUrl.String
 		respondJSON(w, http.StatusCreated, resp)
 
 		// Notify the target user via WebSocket so their sidebar updates and they auto-subscribe.
-		h.notifyDMCreated(channel, claims.UserID, body.MemberID)
+		// The target sees the creator's avatar, so look up the creator.
+		creatorUser, _ := h.queries.GetUserByID(r.Context(), creatorUID)
+		creatorAvatar := ""
+		if creatorUser.AvatarUrl.Valid {
+			creatorAvatar = creatorUser.AvatarUrl.String
+		}
+		h.notifyDMCreated(channel, claims.UserID, body.MemberID, creatorAvatar)
 		return
 	}
 
@@ -741,7 +752,7 @@ func (h *ChannelHandler) PinChannel(w http.ResponseWriter, r *http.Request) {
 }
 
 // notifyDMCreated sends a channel.new WebSocket event to the target user and auto-subscribes them.
-func (h *ChannelHandler) notifyDMCreated(channel repository.Channel, creatorID, targetID string) {
+func (h *ChannelHandler) notifyDMCreated(channel repository.Channel, creatorID, targetID, creatorAvatarURL string) {
 	channelID := uuidToString(channel.ID)
 
 	// Send channel.new event to the target user so their sidebar updates.
@@ -752,6 +763,7 @@ func (h *ChannelHandler) notifyDMCreated(channel repository.Channel, creatorID, 
 		Type:        channel.Type,
 		CreatedBy:   uuidToString(channel.CreatedBy),
 		DMUserID:    creatorID,
+		DMAvatarURL: creatorAvatarURL,
 		MemberCount: 2,
 		CreatedAt:   timestampToString(channel.CreatedAt),
 	})

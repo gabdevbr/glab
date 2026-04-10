@@ -217,6 +217,7 @@ type ChannelNewPayload struct {
 	Type        string `json:"type"`
 	CreatedBy   string `json:"created_by"`
 	DMUserID    string `json:"dm_user_id,omitempty"`
+	DMAvatarURL string `json:"dm_avatar_url,omitempty"`
 	MemberCount int    `json:"member_count,omitempty"`
 	CreatedAt   string `json:"created_at"`
 }

@@ -29,6 +29,7 @@ export interface Channel {
   unread_count?: number;
   is_pinned?: boolean;
   dm_user_id?: string;
+  dm_avatar_url?: string;
 }
 
 export interface Reaction {

@@ -8,18 +8,36 @@ import { useSectionStore } from '@/stores/sectionStore';
 import { cn } from '@/lib/utils';
 import { sortChannels } from './ChannelList';
 
-function PresenceDot({ status }: { status: string }) {
-  const color =
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
+
+function DMAvatar({ name, avatarUrl, status }: { name: string; avatarUrl?: string; status: string }) {
+  const presenceColor =
     status === 'online'
       ? 'bg-status-online'
       : status === 'away'
         ? 'bg-status-warning'
         : 'bg-muted';
 
+  const src = avatarUrl
+    ? avatarUrl.startsWith('/') ? `${API_URL}${avatarUrl}` : avatarUrl
+    : null;
+
   return (
-    <span
-      className={cn('inline-block size-2.5 shrink-0 rounded-full transition-colors duration-500', color)}
-    />
+    <span className="relative shrink-0">
+      <span className="flex size-6 items-center justify-center rounded-full bg-avatar-bg text-[10px] font-medium text-avatar-text overflow-hidden">
+        {src ? (
+          <img src={src} alt={name} className="size-6 rounded-full object-cover" />
+        ) : (
+          name.charAt(0).toUpperCase()
+        )}
+      </span>
+      <span
+        className={cn(
+          'absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-sidebar transition-colors duration-500',
+          presenceColor,
+        )}
+      />
+    </span>
   );
 }
 
@@ -74,7 +92,7 @@ export function DMList() {
                     : 'text-muted-foreground',
               )}
             >
-              <PresenceDot status={presenceStatus} />
+              <DMAvatar name={channel.name} avatarUrl={channel.dm_avatar_url} status={presenceStatus} />
               <span className="flex-1 truncate text-left">{channel.name}</span>
               {unread > 0 && (
                 <span key={unread} className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-primary text-[10px] font-bold text-accent-primary-text animate-badge-pulse">
