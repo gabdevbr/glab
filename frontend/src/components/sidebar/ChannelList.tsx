@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Channel } from '@/lib/types';
-import { Hash, EyeOff, Archive, Trash2, ArrowUpDown, FolderInput, ChevronRight, Pin, PinOff } from 'lucide-react';
+import { Hash, EyeOff, Archive, Trash2, ArrowUpDown, FolderInput, ChevronRight, Pin, PinOff, MoreHorizontal } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -35,6 +35,11 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 
 const SORT_LABELS: Record<string, string> = {
@@ -167,7 +172,7 @@ export function ChannelList() {
             const unread = unreadCounts[channel.id] || 0;
             const isActive = activeChannelId === channel.id;
             return (
-              <li key={channel.id}>
+              <li key={channel.id} className="group/ch">
                 <ContextMenu>
                   <ContextMenuTrigger
                     render={
@@ -196,6 +201,62 @@ export function ChannelList() {
                         {unread > 99 ? '99+' : unread}
                       </span>
                     )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        onClick={(e) => e.stopPropagation()}
+                        className={cn(
+                          'shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-sidebar-hover transition-opacity',
+                          'opacity-0 group-hover/ch:opacity-100 focus:opacity-100 data-[state=open]:opacity-100',
+                        )}
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => pinChannel(channel.id, !channel.is_pinned)}>
+                          {channel.is_pinned ? (
+                            <><PinOff className="mr-2 h-4 w-4" /> Unpin Channel</>
+                          ) : (
+                            <><Pin className="mr-2 h-4 w-4" /> Pin to Top</>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => hideChannel(channel.id)}>
+                          <EyeOff className="mr-2 h-4 w-4" /> Hide Channel
+                        </DropdownMenuItem>
+                        {sections.length > 0 && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                <FolderInput className="mr-2 h-4 w-4" />
+                                Move to section
+                                <ChevronRight className="ml-auto h-4 w-4" />
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent>
+                                {sections.map((sec) => (
+                                  <DropdownMenuItem key={sec.id} onClick={() => moveChannel(channel.id, sec.id)}>
+                                    {sec.name}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                          </>
+                        )}
+                        {user?.role === 'admin' && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleArchive(channel.id)}>
+                              <Archive className="mr-2 h-4 w-4" /> Archive Channel
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteTarget({ id: channel.id, name: channel.name })}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete Channel
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
                     <ContextMenuItem onClick={() => pinChannel(channel.id, !channel.is_pinned)}>

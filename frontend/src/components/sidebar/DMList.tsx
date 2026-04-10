@@ -7,6 +7,17 @@ import { usePresenceStore } from '@/stores/presenceStore';
 import { useSectionStore } from '@/stores/sectionStore';
 import { cn } from '@/lib/utils';
 import { sortChannels } from './ChannelList';
+import { EyeOff, MoreHorizontal, Pin, PinOff, FolderInput, ChevronRight } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from '@/components/ui/dropdown-menu';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
 
@@ -47,9 +58,12 @@ export function DMList() {
   const activeChannelId = useChannelStore((s) => s.activeChannelId);
   const setActiveChannel = useChannelStore((s) => s.setActiveChannel);
   const unreadCounts = useChannelStore((s) => s.unreadCounts);
+  const hideChannel = useChannelStore((s) => s.hideChannel);
+  const pinChannel = useChannelStore((s) => s.pinChannel);
   const statuses = usePresenceStore((s) => s.statuses);
   const user = useAuthStore((s) => s.user);
   const sections = useSectionStore((s) => s.sections);
+  const moveChannel = useSectionStore((s) => s.moveChannel);
 
   const sortMode = user?.channel_sort || 'activity';
 
@@ -80,7 +94,7 @@ export function DMList() {
         const unread = unreadCounts[channel.id] || 0;
 
         return (
-          <li key={channel.id}>
+          <li key={channel.id} className="group/dm">
             <button
               onClick={() => handleClick(channel.id)}
               className={cn(
@@ -99,6 +113,48 @@ export function DMList() {
                   {unread > 99 ? '99+' : unread}
                 </span>
               )}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  onClick={(e) => e.stopPropagation()}
+                  className={cn(
+                    'shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-sidebar-hover transition-opacity',
+                    'opacity-0 group-hover/dm:opacity-100 focus:opacity-100 data-[state=open]:opacity-100',
+                  )}
+                >
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => pinChannel(channel.id, !channel.is_pinned)}>
+                    {channel.is_pinned ? (
+                      <><PinOff className="mr-2 h-4 w-4" /> Unpin</>
+                    ) : (
+                      <><Pin className="mr-2 h-4 w-4" /> Pin to Top</>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => hideChannel(channel.id)}>
+                    <EyeOff className="mr-2 h-4 w-4" /> Hide
+                  </DropdownMenuItem>
+                  {sections.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <FolderInput className="mr-2 h-4 w-4" />
+                          Move to section
+                          <ChevronRight className="ml-auto h-4 w-4" />
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          {sections.map((sec) => (
+                            <DropdownMenuItem key={sec.id} onClick={() => moveChannel(channel.id, sec.id)}>
+                              {sec.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </button>
           </li>
         );
