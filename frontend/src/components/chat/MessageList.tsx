@@ -89,7 +89,19 @@ export function MessageList({ channelId, onThreadOpen, onUserInfoOpen, editingMe
     return el.scrollHeight - el.scrollTop - el.clientHeight < 100;
   }, []);
 
-  // Auto-scroll to bottom when new messages arrive (if user was near bottom)
+  // Robust scroll-to-bottom: double rAF ensures virtualizer has measured
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
+        // Final nudge — virtualizer may underestimate total height
+        const el = parentRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    });
+  }, [virtualizer, messages.length]);
+
+  // Auto-scroll to bottom when new messages arrive
   // Preserve scroll position when older messages are prepended
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
@@ -100,16 +112,14 @@ export function MessageList({ channelId, onThreadOpen, onUserInfoOpen, editingMe
         requestAnimationFrame(() => {
           virtualizer.scrollToIndex(addedCount, { align: 'start' });
         });
-      } else if (wasNearBottomRef.current) {
-        // New messages at bottom — auto-scroll
-        requestAnimationFrame(() => {
-          virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
-        });
+      } else {
+        // New messages at bottom — always scroll to bottom
+        scrollToBottom();
       }
     }
     prevMessageCountRef.current = messages.length;
     isLoadingOlderRef.current = false;
-  }, [messages.length, virtualizer]);
+  }, [messages.length, virtualizer, scrollToBottom]);
 
   // Scroll to bottom when opening a channel or when messages first load
   const hasScrolledRef = useRef(false);
@@ -122,12 +132,17 @@ export function MessageList({ channelId, onThreadOpen, onUserInfoOpen, editingMe
   useEffect(() => {
     if (messages.length > 0 && !hasScrolledRef.current) {
       hasScrolledRef.current = true;
-      // Wait for virtualizer to measure, then scroll
-      requestAnimationFrame(() => {
-        virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
-      });
+      scrollToBottom();
     }
-  }, [messages.length, channelId, virtualizer]);
+  }, [messages.length, channelId, scrollToBottom]);
+
+  // Keep bottom during AI streaming
+  useEffect(() => {
+    if (activeStream) {
+      const el = parentRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }
+  }, [activeStream?.content]);
 
   // Handle scroll events for loading older messages
   const handleScroll = useCallback(() => {
