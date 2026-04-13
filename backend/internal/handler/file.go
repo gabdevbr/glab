@@ -95,13 +95,21 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	backendType := h.storageSvc.Backend().Type()
 
+	// Read optional caption from form.
+	caption := strings.TrimSpace(r.FormValue("caption"))
+	metadata := json.RawMessage("null")
+	if caption != "" {
+		m, _ := json.Marshal(map[string]string{"caption": caption})
+		metadata = m
+	}
+
 	// Create message for this file upload.
 	msg, err := h.queries.CreateMessage(r.Context(), repository.CreateMessageParams{
 		ChannelID:   channelUUID,
 		UserID:      userUUID,
 		Content:     header.Filename,
 		ContentType: "file",
-		Metadata:    json.RawMessage("null"),
+		Metadata:    metadata,
 	})
 	if err != nil {
 		slog.Error("failed to create file message", "error", err)
@@ -144,6 +152,7 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 			ThreadID:    uuidToString(fullMsg.ThreadID),
 			IsBot:       fullMsg.IsBot,
 			CreatedAt:   timestampToString(fullMsg.CreatedAt),
+			Metadata:    metadata,
 			File: &ws.FilePayload{
 				ID:           fr.ID,
 				MessageID:    fr.MessageID,

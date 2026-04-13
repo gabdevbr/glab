@@ -146,18 +146,19 @@ type FilePayload struct {
 
 // MessageNewPayload is broadcast when a new message is created.
 type MessageNewPayload struct {
-	ID          string       `json:"id"`
-	ChannelID   string       `json:"channel_id"`
-	UserID      string       `json:"user_id"`
-	Username    string       `json:"username"`
-	DisplayName string       `json:"display_name"`
-	AvatarURL   string       `json:"avatar_url,omitempty"`
-	Content     string       `json:"content"`
-	ContentType string       `json:"content_type"`
-	ThreadID    string       `json:"thread_id,omitempty"`
-	IsBot       bool         `json:"is_bot"`
-	CreatedAt   string       `json:"created_at"`
-	File        *FilePayload `json:"file,omitempty"`
+	ID          string          `json:"id"`
+	ChannelID   string          `json:"channel_id"`
+	UserID      string          `json:"user_id"`
+	Username    string          `json:"username"`
+	DisplayName string          `json:"display_name"`
+	AvatarURL   string          `json:"avatar_url,omitempty"`
+	Content     string          `json:"content"`
+	ContentType string          `json:"content_type"`
+	ThreadID    string          `json:"thread_id,omitempty"`
+	IsBot       bool            `json:"is_bot"`
+	CreatedAt   string          `json:"created_at"`
+	Metadata    json.RawMessage `json:"metadata,omitempty"`
+	File        *FilePayload    `json:"file,omitempty"`
 }
 
 // MessageEditedPayload is broadcast when a message is edited.

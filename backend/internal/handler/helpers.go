@@ -350,21 +350,30 @@ type SectionResponse struct {
 	ChannelIDs []string `json:"channel_ids"`
 }
 
+// nonNullMetadata returns metadata only when it contains actual data (not JSON null).
+func nonNullMetadata(m json.RawMessage) json.RawMessage {
+	if len(m) == 0 || string(m) == "null" {
+		return nil
+	}
+	return m
+}
+
 // MessageResponse is the JSON representation of a message with user info.
 type MessageResponse struct {
-	ID          string        `json:"id"`
-	ChannelID   string        `json:"channel_id"`
-	UserID      string        `json:"user_id"`
-	ThreadID    string        `json:"thread_id,omitempty"`
-	Content     string        `json:"content"`
-	ContentType string        `json:"content_type"`
-	EditedAt    string        `json:"edited_at,omitempty"`
-	IsPinned    bool          `json:"is_pinned"`
-	CreatedAt   string        `json:"created_at"`
-	UpdatedAt   string        `json:"updated_at"`
-	Username    string        `json:"username"`
-	DisplayName string        `json:"display_name"`
-	AvatarURL   string        `json:"avatar_url,omitempty"`
+	ID          string          `json:"id"`
+	ChannelID   string          `json:"channel_id"`
+	UserID      string          `json:"user_id"`
+	ThreadID    string          `json:"thread_id,omitempty"`
+	Content     string          `json:"content"`
+	ContentType string          `json:"content_type"`
+	EditedAt    string          `json:"edited_at,omitempty"`
+	IsPinned    bool            `json:"is_pinned"`
+	Metadata    json.RawMessage `json:"metadata,omitempty"`
+	CreatedAt   string          `json:"created_at"`
+	UpdatedAt   string          `json:"updated_at"`
+	Username    string          `json:"username"`
+	DisplayName string          `json:"display_name"`
+	AvatarURL   string          `json:"avatar_url,omitempty"`
 	IsBot           bool                   `json:"is_bot"`
 	OriginalContent string                 `json:"original_content,omitempty"`
 	File            *FileResponse          `json:"file,omitempty"`

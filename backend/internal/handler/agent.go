@@ -254,6 +254,7 @@ func (h *AgentHandler) GetSessionMessages(w http.ResponseWriter, r *http.Request
 			ContentType:     m.ContentType,
 			EditedAt:        timestampToString(m.EditedAt),
 			IsPinned:        m.IsPinned,
+			Metadata:        nonNullMetadata(m.Metadata),
 			CreatedAt:       timestampToString(m.CreatedAt),
 			UpdatedAt:       timestampToString(m.UpdatedAt),
 			Username:        m.Username,

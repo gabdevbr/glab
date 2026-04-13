@@ -287,6 +287,9 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
     try {
       const formData = new FormData();
       formData.append('file', pendingFile);
+      if (pendingCaption.trim()) {
+        formData.append('caption', pendingCaption.trim());
+      }
       await api.upload(`/api/v1/channels/${channelId}/upload`, formData);
     } catch (err) {
       console.error('Upload failed:', err);

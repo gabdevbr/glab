@@ -552,6 +552,7 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen, 
     }
 
     if (isFile) {
+      const caption = (message.metadata as Record<string, unknown>)?.caption as string | undefined;
       if (message.file) {
         const isImage = message.file.mime_type.startsWith('image/');
         return (
@@ -587,6 +588,9 @@ export function MessageItem({ message, isCompact, onThreadOpen, onUserInfoOpen, 
                   ({formatFileSize(message.file.size_bytes)})
                 </span>
               </a>
+            )}
+            {caption && (
+              <p className="mt-1 text-sm text-foreground">{caption}</p>
             )}
           </div>
         );
