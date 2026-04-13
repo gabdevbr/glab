@@ -110,7 +110,10 @@ export default function ChannelPage() {
     const unsubNewMsg = wsClient.on('message.new', (payload: unknown) => {
       const msg = payload as Message;
       if (msg.channel_id === channelId) {
-        addMessage(channelId, msg);
+        // Thread replies are only shown in the ThreadPanel, not in the main channel list
+        if (!msg.thread_id) {
+          addMessage(channelId, msg);
+        }
         // Mark as read since user is viewing
         wsClient.send('channel.read', {
           channel_id: channelId,
