@@ -63,8 +63,8 @@ make migrate-up
 # Run backend (needs DATABASE_URL, JWT_SECRET, REDIS_URL in env or .env)
 make backend
 
-# Run frontend (separate terminal)
-cd frontend && npm install   # first time only
+# Run frontend (separate terminal) — ALWAYS use yarn, never npm
+cd frontend && yarn install   # first time only
 make frontend
 ```
 
@@ -128,6 +128,7 @@ Server → Client: `ack`, `hello`, `message.new`, `message.edited`, `message.del
 - `parseBody` uses `DisallowUnknownFields()` — API rejects unknown JSON fields
 
 **Frontend:**
+- **MANDATORY: Always use `yarn` for package management. Never use `npm`. This applies to install, add, remove, and all other package operations.**
 - State: Zustand stores in `src/stores/`
 - UI: shadcn/ui components in `src/components/ui/`
 - API: singleton `ApiClient` in `src/lib/api.ts`

@@ -25,7 +25,7 @@ backend:
 	cd backend && go run ./cmd/glab/
 
 frontend:
-	cd frontend && npm run dev
+	cd frontend && yarn dev
 
 # Production Docker
 build:
