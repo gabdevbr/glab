@@ -31,6 +31,8 @@ interface MessageInputProps {
   channel?: Channel;
   /** Called when user presses ↑ in empty input to edit last message */
   onEditLastMessage?: () => void;
+  /** File dropped from outside (e.g. from the chat area drag-and-drop) */
+  droppedFile?: File | null;
 }
 
 /** Wraps selected text in a textarea with prefix/suffix markdown markers. */
@@ -58,7 +60,7 @@ function wrapSelection(ta: HTMLTextAreaElement, prefix: string, suffix: string):
   return newValue;
 }
 
-export function MessageInput({ channelId, channelName, isConnected, threadId, channel, onEditLastMessage }: MessageInputProps) {
+export function MessageInput({ channelId, channelName, isConnected, threadId, channel, onEditLastMessage, droppedFile }: MessageInputProps) {
   const authUser = useAuthStore((s) => s.user);
   const isReadOnly = channel?.read_only && authUser?.role !== 'admin';
 
@@ -102,6 +104,14 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
       })
       .catch(() => {});
   }, []);
+
+  // Accept file dropped from parent (chat area drag-and-drop)
+  useEffect(() => {
+    if (droppedFile) {
+      setPendingFile(droppedFile);
+      setPendingCaption('');
+    }
+  }, [droppedFile]);
 
   // Auto-focus textarea when channel changes
   useEffect(() => {

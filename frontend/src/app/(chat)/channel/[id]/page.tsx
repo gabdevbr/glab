@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, DragEvent } from 'react';
 import { useParams } from 'next/navigation';
 import { useChannelStore } from '@/stores/channelStore';
 import { useMessageStore } from '@/stores/messageStore';
@@ -50,6 +50,9 @@ export default function ChannelPage() {
   const [rightPanel, setRightPanel] = useState<RightPanel>({ type: 'none' });
   const [directChannel, setDirectChannel] = useState<Channel | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  const dragCounterRef = useRef(0);
   const authUser = useAuthStore((s) => s.user);
 
   const storeChannel = channels.find((c) => c.id === channelId);
@@ -233,6 +236,39 @@ export default function ChannelPage() {
   const isDM = channel?.type === 'dm';
   const channelName = channel?.name || '';
 
+  // Drag-and-drop file upload on the entire chat area
+  const handleDragEnter = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  const handleDrop = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      setDroppedFile(file);
+      // Reset so the same file can be dropped again
+      setTimeout(() => setDroppedFile(null), 100);
+    }
+  }, []);
+
   const handleChatAreaClick = useCallback((e: { target: EventTarget | null }) => {
     const target = e.target as HTMLElement;
     if (target.closest('button, a, textarea, input, [role="button"], [data-chat-input]')) return;
@@ -245,7 +281,21 @@ export default function ChannelPage() {
   return (
     <div className="flex h-full flex-1 min-w-0">
       {/* Main chat area */}
-      <div key={channelId} className="flex flex-1 flex-col bg-chat-bg animate-in fade-in-0 duration-150" onClick={handleChatAreaClick}>
+      <div
+        key={channelId}
+        className="relative flex flex-1 flex-col bg-chat-bg animate-in fade-in-0 duration-150"
+        onClick={handleChatAreaClick}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {/* Full-area drag overlay */}
+        {isDragging && (
+          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-xl border-2 border-dashed border-accent bg-accent/10">
+            <span className="text-sm font-medium text-accent">Drop file to upload</span>
+          </div>
+        )}
         {/* Channel header */}
         <header className="flex flex-col border-b border-border px-5 py-3">
           <div className="flex items-center justify-between">
@@ -307,6 +357,7 @@ export default function ChannelPage() {
           isConnected={isConnected}
           channel={channel}
           onEditLastMessage={handleEditLastMessage}
+          droppedFile={droppedFile}
         />
       </div>
 
