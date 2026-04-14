@@ -289,3 +289,18 @@ func (q *Queries) UpdateLastRead(ctx context.Context, arg UpdateLastReadParams) 
 	_, err := q.db.Exec(ctx, updateLastRead, arg.ChannelID, arg.UserID, arg.LastReadMsgID)
 	return err
 }
+
+const updateMemberRole = `-- name: UpdateMemberRole :exec
+UPDATE channel_members SET role = $3 WHERE channel_id = $1 AND user_id = $2
+`
+
+type UpdateMemberRoleParams struct {
+	ChannelID pgtype.UUID `json:"channel_id"`
+	UserID    pgtype.UUID `json:"user_id"`
+	Role      string      `json:"role"`
+}
+
+func (q *Queries) UpdateMemberRole(ctx context.Context, arg UpdateMemberRoleParams) error {
+	_, err := q.db.Exec(ctx, updateMemberRole, arg.ChannelID, arg.UserID, arg.Role)
+	return err
+}

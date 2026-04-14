@@ -97,6 +97,7 @@ type Channel struct {
 	ReadOnly      bool               `json:"read_only"`
 	RetentionDays pgtype.Int4        `json:"retention_days"`
 	LastMessageAt pgtype.Timestamptz `json:"last_message_at"`
+	AvatarUrl     pgtype.Text        `json:"avatar_url"`
 }
 
 type ChannelMember struct {

@@ -302,6 +302,19 @@ func (h *ChannelHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	resp := channelToResponse(channel)
 	resp.MemberCount = len(members)
+
+	// Include user's role in this channel
+	uid, uidErr := parseUUID(claims.UserID)
+	if uidErr == nil {
+		member, mErr := h.queries.GetChannelMember(r.Context(), repository.GetChannelMemberParams{
+			ChannelID: cid,
+			UserID:    uid,
+		})
+		if mErr == nil {
+			resp.MyRole = member.Role
+		}
+	}
+
 	respondJSON(w, http.StatusOK, resp)
 }
 
@@ -320,9 +333,9 @@ func (h *ChannelHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check permissions: must be channel owner or admin
+	// Check permissions: must be channel owner/admin or system admin
 	if claims.Role != "admin" {
-		if err := h.requireChannelRole(r, cid, claims.UserID, "owner"); err != nil {
+		if err := h.requireChannelRole(r, cid, claims.UserID, "owner", "admin"); err != nil {
 			respondError(w, http.StatusForbidden, "forbidden")
 			return
 		}
@@ -335,6 +348,7 @@ func (h *ChannelHandler) Update(w http.ResponseWriter, r *http.Request) {
 		IsArchived    *bool   `json:"is_archived"`
 		ReadOnly      *bool   `json:"read_only"`
 		RetentionDays *int32  `json:"retention_days"`
+		AvatarURL     *string `json:"avatar_url"`
 	}
 	if err := parseBody(r, &body); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
@@ -359,6 +373,9 @@ func (h *ChannelHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.RetentionDays != nil {
 		params.RetentionDays = pgtype.Int4{Int32: *body.RetentionDays, Valid: true}
+	}
+	if body.AvatarURL != nil {
+		params.AvatarUrl = pgtype.Text{String: *body.AvatarURL, Valid: true}
 	}
 
 	channel, err := h.queries.UpdateChannel(r.Context(), params)
@@ -776,6 +793,106 @@ func (h *ChannelHandler) notifyDMCreated(channel repository.Channel, creatorID, 
 	// Auto-subscribe both users so messages flow immediately.
 	h.hub.SubscribeUser(creatorID, []string{channelID})
 	h.hub.SubscribeUser(targetID, []string{channelID})
+}
+
+// ListMembers handles GET /api/v1/channels/{id}/members.
+func (h *ChannelHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	cid, err := parseUUID(chi.URLParam(r, "id"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid channel id")
+		return
+	}
+
+	// Must be a member (or public channel)
+	if status, err := requireChannelMember(r.Context(), h.queries, cid, claims.UserID); err != nil {
+		respondError(w, status, err.Error())
+		return
+	}
+
+	members, err := h.queries.GetChannelMembers(r.Context(), cid)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to list members")
+		return
+	}
+
+	items := make([]ChannelMemberResponse, len(members))
+	for i, m := range members {
+		uid := uuidToString(m.ID)
+		items[i] = ChannelMemberResponse{
+			ID:          uid,
+			Username:    m.Username,
+			DisplayName: m.DisplayName,
+			AvatarURL:   resolveAvatarURL(m.AvatarUrl.String, uid),
+			Status:      m.Status,
+			IsBot:       m.IsBot,
+			Role:        m.Role,
+			JoinedAt:    timestampToString(m.JoinedAt),
+		}
+	}
+
+	respondJSON(w, http.StatusOK, items)
+}
+
+// UpdateMemberRole handles PATCH /api/v1/channels/{id}/members/{uid}/role.
+func (h *ChannelHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
+	claims := auth.UserFromContext(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	cid, err := parseUUID(chi.URLParam(r, "id"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid channel id")
+		return
+	}
+
+	// Only channel owner or system admin can change roles
+	if claims.Role != "admin" {
+		if err := h.requireChannelRole(r, cid, claims.UserID, "owner"); err != nil {
+			respondError(w, http.StatusForbidden, "only channel owner can change roles")
+			return
+		}
+	}
+
+	memberUID, err := parseUUID(chi.URLParam(r, "uid"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid member id")
+		return
+	}
+
+	var body struct {
+		Role string `json:"role"`
+	}
+	if err := parseBody(r, &body); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Validate role
+	switch body.Role {
+	case "owner", "admin", "member":
+	default:
+		respondError(w, http.StatusBadRequest, "role must be owner, admin, or member")
+		return
+	}
+
+	if err := h.queries.UpdateMemberRole(r.Context(), repository.UpdateMemberRoleParams{
+		ChannelID: cid,
+		UserID:    memberUID,
+		Role:      body.Role,
+	}); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to update role")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // sentinel error for permission checks

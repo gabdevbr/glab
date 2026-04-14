@@ -17,7 +17,8 @@ import { ThreadPanel } from '@/components/chat/ThreadPanel';
 import { PinnedMessages } from '@/components/chat/PinnedMessages';
 import { SearchResults } from '@/components/chat/SearchResults';
 import { UserInfoPanel } from '@/components/chat/UserInfoPanel';
-import { Hash, Users, Pin, Search } from 'lucide-react';
+import { ChannelSettingsPanel } from '@/components/chat/ChannelSettingsPanel';
+import { Hash, Users, Pin, Search, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type RightPanel =
@@ -25,7 +26,8 @@ type RightPanel =
   | { type: 'thread'; messageId: string }
   | { type: 'pinned' }
   | { type: 'search' }
-  | { type: 'userInfo'; userId: string };
+  | { type: 'userInfo'; userId: string }
+  | { type: 'settings' };
 
 export default function ChannelPage() {
   const params = useParams<{ id: string }>();
@@ -339,6 +341,19 @@ export default function ChannelPage() {
               >
                 <Search className="size-4" />
               </button>
+              {!isDM && (
+                <button
+                  onClick={() =>
+                    setRightPanel((p) =>
+                      p.type === 'settings' ? { type: 'none' } : { type: 'settings' },
+                    )
+                  }
+                  className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  title="Channel settings"
+                >
+                  <Settings className="size-4" />
+                </button>
+              )}
             </div>
           </div>
           {channel?.topic && (
@@ -384,6 +399,12 @@ export default function ChannelPage() {
       {rightPanel.type === 'userInfo' && (
         <UserInfoPanel
           userId={rightPanel.userId}
+          onClose={() => setRightPanel({ type: 'none' })}
+        />
+      )}
+      {rightPanel.type === 'settings' && (
+        <ChannelSettingsPanel
+          channelId={channelId}
           onClose={() => setRightPanel({ type: 'none' })}
         />
       )}

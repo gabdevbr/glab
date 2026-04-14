@@ -80,6 +80,27 @@ class ApiClient {
     return this.patch(`/api/v1/channels/${channelId}/pin`, { pinned });
   }
 
+  // Channel members
+  listChannelMembers<T>(channelId: string) {
+    return this.get<T>(`/api/v1/channels/${channelId}/members`);
+  }
+
+  addChannelMember(channelId: string, userId: string) {
+    return this.post(`/api/v1/channels/${channelId}/members`, { user_id: userId });
+  }
+
+  removeChannelMember(channelId: string, userId: string) {
+    return this.delete(`/api/v1/channels/${channelId}/members/${userId}`);
+  }
+
+  updateMemberRole(channelId: string, userId: string, role: string) {
+    return this.patch(`/api/v1/channels/${channelId}/members/${userId}/role`, { role });
+  }
+
+  updateChannel(channelId: string, data: Record<string, unknown>) {
+    return this.patch(`/api/v1/channels/${channelId}`, data);
+  }
+
   markAllRead() {
     return this.post('/api/v1/channels/mark-all-read');
   }

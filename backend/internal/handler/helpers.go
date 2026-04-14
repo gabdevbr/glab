@@ -292,20 +292,35 @@ type ChannelResponse struct {
 	IsPinned      bool   `json:"is_pinned"`
 	DMUserID      string `json:"dm_user_id,omitempty"`
 	DMAvatarURL   string `json:"dm_avatar_url,omitempty"`
+	AvatarURL     string `json:"avatar_url,omitempty"`
+	MyRole        string `json:"my_role,omitempty"`
+}
+
+// ChannelMemberResponse is the JSON representation of a channel member.
+type ChannelMemberResponse struct {
+	ID          string `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url,omitempty"`
+	Status      string `json:"status"`
+	IsBot       bool   `json:"is_bot"`
+	Role        string `json:"role"`
+	JoinedAt    string `json:"joined_at"`
 }
 
 // channelToResponse converts a repository.Channel to ChannelResponse.
 func channelToResponse(c repository.Channel) ChannelResponse {
 	resp := ChannelResponse{
-		ID:          uuidToString(c.ID),
-		Name:        c.Name,
-		Slug:        c.Slug,
-		Description: c.Description.String,
-		Type:        c.Type,
-		Topic:       c.Topic.String,
-		CreatedBy:   uuidToString(c.CreatedBy),
-		IsArchived:  c.IsArchived,
+		ID:            uuidToString(c.ID),
+		Name:          c.Name,
+		Slug:          c.Slug,
+		Description:   c.Description.String,
+		Type:          c.Type,
+		Topic:         c.Topic.String,
+		CreatedBy:     uuidToString(c.CreatedBy),
+		IsArchived:    c.IsArchived,
 		ReadOnly:      c.ReadOnly,
+		AvatarURL:     c.AvatarUrl.String,
 		LastMessageAt: timestampToString(c.LastMessageAt),
 		CreatedAt:     timestampToString(c.CreatedAt),
 		UpdatedAt:     timestampToString(c.UpdatedAt),
@@ -329,11 +344,13 @@ func channelRowToResponse(c repository.ListChannelsForUserRow) ChannelResponse {
 		CreatedBy:     uuidToString(c.CreatedBy),
 		IsArchived:    c.IsArchived,
 		ReadOnly:      c.ReadOnly,
+		AvatarURL:     c.AvatarUrl.String,
 		LastMessageAt: timestampToString(c.LastMessageAt),
 		CreatedAt:     timestampToString(c.CreatedAt),
 		UpdatedAt:     timestampToString(c.UpdatedAt),
 		UnreadCount:   c.UnreadCount,
 		IsPinned:      c.IsPinned,
+		MyRole:        c.MyRole,
 	}
 	if c.RetentionDays.Valid {
 		v := c.RetentionDays.Int32

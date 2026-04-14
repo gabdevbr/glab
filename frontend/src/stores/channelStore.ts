@@ -15,7 +15,8 @@ interface ChannelState {
   hideAllChannels: () => Promise<void>;
   setActiveChannel: (id: string) => void;
   addChannel: (channel: Channel) => void;
-  updateChannel: (id: string, partial: Partial<Channel>) => void;
+  updateChannel: (channelOrId: string | Channel, partial?: Partial<Channel>) => void;
+  removeChannel: (id: string) => void;
   incrementUnread: (channelId: string) => void;
   clearUnread: (channelId: string) => void;
   markAllRead: () => Promise<void>;
@@ -88,11 +89,26 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
   setActiveChannel: (id) => set({ activeChannelId: id }),
   addChannel: (channel) =>
     set((s) => ({ channels: [...s.channels, channel] })),
-  updateChannel: (id, partial) =>
+  updateChannel: (channelOrId, partial) => {
+    if (typeof channelOrId === 'string') {
+      set((s) => ({
+        channels: s.channels.map((c) =>
+          c.id === channelOrId ? { ...c, ...partial } : c,
+        ),
+      }));
+    } else {
+      // Full channel object passed — replace by id
+      const updated = channelOrId;
+      set((s) => ({
+        channels: s.channels.map((c) =>
+          c.id === updated.id ? { ...c, ...updated } : c,
+        ),
+      }));
+    }
+  },
+  removeChannel: (id) =>
     set((s) => ({
-      channels: s.channels.map((c) =>
-        c.id === id ? { ...c, ...partial } : c,
-      ),
+      channels: s.channels.filter((c) => c.id !== id),
     })),
   incrementUnread: (channelId) =>
     set((s) => ({

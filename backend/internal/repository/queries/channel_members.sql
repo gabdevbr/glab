@@ -60,3 +60,6 @@ WHERE cm.channel_id = sub.channel_id AND cm.user_id = $1;
 -- name: GetChannelSectionsForUser :many
 SELECT cm.channel_id, cm.section_id FROM channel_members cm
 WHERE cm.user_id = $1 AND cm.hidden = FALSE AND cm.section_id IS NOT NULL;
+
+-- name: UpdateMemberRole :exec
+UPDATE channel_members SET role = $3 WHERE channel_id = $1 AND user_id = $2;

@@ -12,7 +12,8 @@ SELECT c.*,
      AND (cm.last_read_msg_id IS NULL
        OR m.created_at > (SELECT created_at FROM messages WHERE id = cm.last_read_msg_id))
   )::int AS unread_count,
-  cm.is_pinned
+  cm.is_pinned,
+  cm.role AS my_role
 FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
@@ -46,7 +47,8 @@ UPDATE channels SET
     topic = coalesce(sqlc.narg('topic'), topic),
     is_archived = coalesce(sqlc.narg('is_archived'), is_archived),
     read_only = coalesce(sqlc.narg('read_only'), read_only),
-    retention_days = coalesce(sqlc.narg('retention_days'), retention_days)
+    retention_days = coalesce(sqlc.narg('retention_days'), retention_days),
+    avatar_url = coalesce(sqlc.narg('avatar_url'), avatar_url)
 WHERE id = $1 RETURNING *;
 
 -- name: DeleteChannel :exec

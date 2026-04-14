@@ -13,7 +13,7 @@ import (
 
 const createChannel = `-- name: CreateChannel :one
 INSERT INTO channels (name, slug, description, type, topic, created_by, read_only)
-VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at, avatar_url
 `
 
 type CreateChannelParams struct {
@@ -51,6 +51,7 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		&i.ReadOnly,
 		&i.RetentionDays,
 		&i.LastMessageAt,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
@@ -65,7 +66,7 @@ func (q *Queries) DeleteChannel(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getChannelByID = `-- name: GetChannelByID :one
-SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at FROM channels WHERE id = $1
+SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at, avatar_url FROM channels WHERE id = $1
 `
 
 func (q *Queries) GetChannelByID(ctx context.Context, id pgtype.UUID) (Channel, error) {
@@ -85,12 +86,13 @@ func (q *Queries) GetChannelByID(ctx context.Context, id pgtype.UUID) (Channel, 
 		&i.ReadOnly,
 		&i.RetentionDays,
 		&i.LastMessageAt,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
 
 const getChannelBySlug = `-- name: GetChannelBySlug :one
-SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at FROM channels WHERE slug = $1
+SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at, avatar_url FROM channels WHERE slug = $1
 `
 
 func (q *Queries) GetChannelBySlug(ctx context.Context, slug string) (Channel, error) {
@@ -110,6 +112,7 @@ func (q *Queries) GetChannelBySlug(ctx context.Context, slug string) (Channel, e
 		&i.ReadOnly,
 		&i.RetentionDays,
 		&i.LastMessageAt,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
@@ -126,7 +129,7 @@ func (q *Queries) GetChannelReadOnly(ctx context.Context, id pgtype.UUID) (bool,
 }
 
 const getDMChannel = `-- name: GetDMChannel :one
-SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at FROM channels c
+SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at, c.avatar_url FROM channels c
 JOIN channel_members cm1 ON cm1.channel_id = c.id AND cm1.user_id = $1
 JOIN channel_members cm2 ON cm2.channel_id = c.id AND cm2.user_id = $2
 WHERE c.type = 'dm'
@@ -154,6 +157,7 @@ func (q *Queries) GetDMChannel(ctx context.Context, arg GetDMChannelParams) (Cha
 		&i.ReadOnly,
 		&i.RetentionDays,
 		&i.LastMessageAt,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
@@ -218,14 +222,15 @@ func (q *Queries) GetDMDisplayNames(ctx context.Context, userID pgtype.UUID) ([]
 }
 
 const listChannelsForUser = `-- name: ListChannelsForUser :many
-SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at,
+SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at, c.avatar_url,
   (SELECT COUNT(*) FROM messages m
    WHERE m.channel_id = c.id
      AND m.thread_id IS NULL
      AND (cm.last_read_msg_id IS NULL
        OR m.created_at > (SELECT created_at FROM messages WHERE id = cm.last_read_msg_id))
   )::int AS unread_count,
-  cm.is_pinned
+  cm.is_pinned,
+  cm.role AS my_role
 FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND c.is_archived = FALSE AND cm.hidden = FALSE
@@ -265,8 +270,10 @@ type ListChannelsForUserRow struct {
 	ReadOnly      bool               `json:"read_only"`
 	RetentionDays pgtype.Int4        `json:"retention_days"`
 	LastMessageAt pgtype.Timestamptz `json:"last_message_at"`
+	AvatarUrl     pgtype.Text        `json:"avatar_url"`
 	UnreadCount   int32              `json:"unread_count"`
 	IsPinned      bool               `json:"is_pinned"`
+	MyRole        string             `json:"my_role"`
 }
 
 func (q *Queries) ListChannelsForUser(ctx context.Context, arg ListChannelsForUserParams) ([]ListChannelsForUserRow, error) {
@@ -292,8 +299,10 @@ func (q *Queries) ListChannelsForUser(ctx context.Context, arg ListChannelsForUs
 			&i.ReadOnly,
 			&i.RetentionDays,
 			&i.LastMessageAt,
+			&i.AvatarUrl,
 			&i.UnreadCount,
 			&i.IsPinned,
+			&i.MyRole,
 		); err != nil {
 			return nil, err
 		}
@@ -306,7 +315,7 @@ func (q *Queries) ListChannelsForUser(ctx context.Context, arg ListChannelsForUs
 }
 
 const listHiddenChannelsForUser = `-- name: ListHiddenChannelsForUser :many
-SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at FROM channels c
+SELECT c.id, c.name, c.slug, c.description, c.type, c.topic, c.created_by, c.is_archived, c.created_at, c.updated_at, c.read_only, c.retention_days, c.last_message_at, c.avatar_url FROM channels c
 JOIN channel_members cm ON cm.channel_id = c.id
 WHERE cm.user_id = $1 AND cm.hidden = TRUE AND c.is_archived = FALSE
   AND c.slug NOT LIKE 'agent-session-%'
@@ -336,6 +345,7 @@ func (q *Queries) ListHiddenChannelsForUser(ctx context.Context, userID pgtype.U
 			&i.ReadOnly,
 			&i.RetentionDays,
 			&i.LastMessageAt,
+			&i.AvatarUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -348,7 +358,7 @@ func (q *Queries) ListHiddenChannelsForUser(ctx context.Context, userID pgtype.U
 }
 
 const listPublicChannels = `-- name: ListPublicChannels :many
-SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at FROM channels WHERE type = 'public' AND is_archived = FALSE ORDER BY name
+SELECT id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at, avatar_url FROM channels WHERE type = 'public' AND is_archived = FALSE ORDER BY name
 `
 
 func (q *Queries) ListPublicChannels(ctx context.Context) ([]Channel, error) {
@@ -374,6 +384,7 @@ func (q *Queries) ListPublicChannels(ctx context.Context) ([]Channel, error) {
 			&i.ReadOnly,
 			&i.RetentionDays,
 			&i.LastMessageAt,
+			&i.AvatarUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -420,8 +431,9 @@ UPDATE channels SET
     topic = coalesce($4, topic),
     is_archived = coalesce($5, is_archived),
     read_only = coalesce($6, read_only),
-    retention_days = coalesce($7, retention_days)
-WHERE id = $1 RETURNING id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at
+    retention_days = coalesce($7, retention_days),
+    avatar_url = coalesce($8, avatar_url)
+WHERE id = $1 RETURNING id, name, slug, description, type, topic, created_by, is_archived, created_at, updated_at, read_only, retention_days, last_message_at, avatar_url
 `
 
 type UpdateChannelParams struct {
@@ -432,6 +444,7 @@ type UpdateChannelParams struct {
 	IsArchived    pgtype.Bool `json:"is_archived"`
 	ReadOnly      pgtype.Bool `json:"read_only"`
 	RetentionDays pgtype.Int4 `json:"retention_days"`
+	AvatarUrl     pgtype.Text `json:"avatar_url"`
 }
 
 func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (Channel, error) {
@@ -443,6 +456,7 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 		arg.IsArchived,
 		arg.ReadOnly,
 		arg.RetentionDays,
+		arg.AvatarUrl,
 	)
 	var i Channel
 	err := row.Scan(
@@ -459,6 +473,7 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 		&i.ReadOnly,
 		&i.RetentionDays,
 		&i.LastMessageAt,
+		&i.AvatarUrl,
 	)
 	return i, err
 }

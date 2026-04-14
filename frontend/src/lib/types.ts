@@ -30,6 +30,19 @@ export interface Channel {
   is_pinned?: boolean;
   dm_user_id?: string;
   dm_avatar_url?: string;
+  avatar_url?: string;
+  my_role?: 'owner' | 'admin' | 'member';
+}
+
+export interface ChannelMember {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url?: string;
+  status: string;
+  is_bot: boolean;
+  role: 'owner' | 'admin' | 'member';
+  joined_at: string;
 }
 
 export interface Reaction {
