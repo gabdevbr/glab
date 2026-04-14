@@ -46,13 +46,14 @@ export function MentionAutocomplete({
     (s) => s.keyword.startsWith(q),
   );
 
-  // Filter users
+  // Filter users — show more when browsing (empty query) vs searching
+  const maxResults = q ? 10 : 20;
   const filteredUsers = users.filter((u) => {
     return (
       u.username.toLowerCase().includes(q) ||
       u.display_name.toLowerCase().includes(q)
     );
-  }).slice(0, 8);
+  }).slice(0, maxResults);
 
   const totalItems = filteredSpecial.length + filteredUsers.length;
 
@@ -66,6 +67,13 @@ export function MentionAutocomplete({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
+  // Scroll selected item into view
+  useEffect(() => {
+    if (!ref.current) return;
+    const item = ref.current.querySelector('[data-selected="true"]');
+    if (item) item.scrollIntoView({ block: 'nearest' });
+  }, [selectedIndex]);
+
   if (totalItems === 0) return null;
 
   const wrappedIndex = selectedIndex % totalItems;
@@ -73,12 +81,13 @@ export function MentionAutocomplete({
   return (
     <div
       ref={ref}
-      className="absolute bottom-full left-0 mb-1 w-72 rounded-lg border border-border bg-panel-bg py-1 shadow-xl"
+      className="absolute bottom-full left-0 mb-1 max-h-80 w-72 overflow-y-auto rounded-lg border border-border bg-panel-bg py-1 shadow-xl"
     >
       {/* Special mentions (@all, @here, @channel) */}
       {filteredSpecial.map((special, i) => (
         <button
           key={special.keyword}
+          data-selected={i === wrappedIndex}
           onClick={() => onSelect(special.keyword)}
           className={cn(
             'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm',
@@ -108,6 +117,7 @@ export function MentionAutocomplete({
         return (
           <button
             key={user.id}
+            data-selected={globalIndex === wrappedIndex}
             onClick={() => onSelect(user.username)}
             className={cn(
               'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm',
@@ -139,8 +149,9 @@ export function MentionAutocomplete({
 export function getMentionItemCount(users: MentionUser[], query: string): number {
   const q = query.toLowerCase();
   const specialCount = SPECIAL_MENTIONS.filter((s) => s.keyword.startsWith(q)).length;
+  const maxResults = q ? 10 : 20;
   const userCount = users.filter(
     (u) => u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q),
-  ).slice(0, 8).length;
+  ).slice(0, maxResults).length;
   return specialCount + userCount;
 }

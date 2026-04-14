@@ -86,7 +86,7 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
 
   // Load users for mention autocomplete
   useEffect(() => {
-    api.get<User[]>('/api/v1/users').then(setUsers).catch(() => {});
+    api.get<User[]>('/api/v1/users?limit=200').then(setUsers).catch(() => {});
   }, []);
 
   // Load custom emojis for autocomplete
@@ -432,9 +432,10 @@ export function MessageInput({ channelId, channelName, isConnected, threadId, ch
           if (idx < specialMentions.length) {
             selectedUsername = specialMentions[idx];
           } else {
+            const maxResults = q ? 10 : 20;
             const filtered = users.filter((u) =>
               u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q),
-            ).slice(0, 8);
+            ).slice(0, maxResults);
             selectedUsername = filtered[idx - specialMentions.length].username;
           }
 
