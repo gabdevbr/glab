@@ -76,7 +76,7 @@ export function ChannelSettingsPanel({ channelId, onClose }: ChannelSettingsPane
   // Fetch all users for "add member" (lazy)
   useEffect(() => {
     if (showAddMember && allUsers.length === 0) {
-      api.get<User[]>('/api/v1/users').then(setAllUsers).catch(() => {});
+      api.get<User[]>('/api/v1/users?limit=200').then(setAllUsers).catch(() => {});
     }
   }, [showAddMember, allUsers.length]);
 
