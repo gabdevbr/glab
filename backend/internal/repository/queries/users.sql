@@ -11,6 +11,12 @@ SELECT * FROM users WHERE email = $1;
 SELECT id, username, email, display_name, avatar_url, role, status, last_seen, is_bot
 FROM users WHERE is_deactivated = FALSE ORDER BY display_name LIMIT $1 OFFSET $2;
 
+-- name: SearchUsers :many
+SELECT id, username, email, display_name, avatar_url, role, status, last_seen, is_bot
+FROM users WHERE is_deactivated = FALSE
+  AND (display_name ILIKE '%' || $1 || '%' OR username ILIKE '%' || $1 || '%')
+ORDER BY display_name LIMIT $2;
+
 -- name: CreateUser :one
 INSERT INTO users (username, email, display_name, password_hash, role, is_bot, bot_config)
 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;

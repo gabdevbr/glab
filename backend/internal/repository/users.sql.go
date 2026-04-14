@@ -221,6 +221,60 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 	return items, nil
 }
 
+const searchUsers = `-- name: SearchUsers :many
+SELECT id, username, email, display_name, avatar_url, role, status, last_seen, is_bot
+FROM users WHERE is_deactivated = FALSE
+  AND (display_name ILIKE '%' || $1 || '%' OR username ILIKE '%' || $1 || '%')
+ORDER BY display_name LIMIT $2
+`
+
+type SearchUsersParams struct {
+	Column1 pgtype.Text `json:"column_1"`
+	Limit   int32       `json:"limit"`
+}
+
+type SearchUsersRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	Username    string             `json:"username"`
+	Email       string             `json:"email"`
+	DisplayName string             `json:"display_name"`
+	AvatarUrl   pgtype.Text        `json:"avatar_url"`
+	Role        string             `json:"role"`
+	Status      string             `json:"status"`
+	LastSeen    pgtype.Timestamptz `json:"last_seen"`
+	IsBot       bool               `json:"is_bot"`
+}
+
+func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]SearchUsersRow, error) {
+	rows, err := q.db.Query(ctx, searchUsers, arg.Column1, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchUsersRow{}
+	for rows.Next() {
+		var i SearchUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Email,
+			&i.DisplayName,
+			&i.AvatarUrl,
+			&i.Role,
+			&i.Status,
+			&i.LastSeen,
+			&i.IsBot,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateAutoHideDays = `-- name: UpdateAutoHideDays :exec
 UPDATE users SET auto_hide_days = $2 WHERE id = $1
 `

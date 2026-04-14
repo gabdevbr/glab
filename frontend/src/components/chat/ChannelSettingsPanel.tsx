@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
 import { Channel, ChannelMember, User } from '@/lib/types';
 import { useAuthStore } from '@/stores/authStore';
@@ -31,11 +31,12 @@ export function ChannelSettingsPanel({ channelId, onClose }: ChannelSettingsPane
 
   const [channel, setChannel] = useState<Channel | null>(null);
   const [members, setMembers] = useState<ChannelMember[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('info');
   const [showAddMember, setShowAddMember] = useState(false);
   const [addSearch, setAddSearch] = useState('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Editable fields
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -73,12 +74,21 @@ export function ChannelSettingsPanel({ channelId, onClose }: ChannelSettingsPane
     fetchData();
   }, [fetchData]);
 
-  // Fetch all users for "add member" (lazy)
+  // Server-side user search with debounce
   useEffect(() => {
-    if (showAddMember && allUsers.length === 0) {
-      api.get<User[]>('/api/v1/users?limit=200').then(setAllUsers).catch(() => {});
-    }
-  }, [showAddMember, allUsers.length]);
+    if (!showAddMember) return;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    searchTimerRef.current = setTimeout(() => {
+      const query = addSearch.trim();
+      const url = query
+        ? `/api/v1/users?search=${encodeURIComponent(query)}&limit=20`
+        : '/api/v1/users?limit=20';
+      api.get<User[]>(url).then(setSearchResults).catch(() => {});
+    }, 200);
+
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [showAddMember, addSearch]);
 
   const handleSaveField = async (field: string) => {
     if (!channel) return;
@@ -162,12 +172,8 @@ export function ChannelSettingsPanel({ channelId, onClose }: ChannelSettingsPane
   };
 
   const memberIds = new Set(members.map((m) => m.id));
-  const filteredUsers = allUsers.filter(
-    (u) =>
-      !memberIds.has(u.id) &&
-      !u.is_bot &&
-      (u.display_name.toLowerCase().includes(addSearch.toLowerCase()) ||
-        u.username.toLowerCase().includes(addSearch.toLowerCase())),
+  const filteredUsers = searchResults.filter(
+    (u) => !memberIds.has(u.id) && !u.is_bot,
   );
 
   if (isLoading) {
@@ -422,7 +428,7 @@ export function ChannelSettingsPanel({ channelId, onClose }: ChannelSettingsPane
                       {filteredUsers.length === 0 && (
                         <p className="px-3 py-2 text-xs text-muted-foreground">No users found</p>
                       )}
-                      {filteredUsers.slice(0, 20).map((u) => (
+                      {filteredUsers.map((u) => (
                         <button
                           key={u.id}
                           onClick={() => handleAddMember(u.id)}
@@ -441,7 +447,7 @@ export function ChannelSettingsPanel({ channelId, onClose }: ChannelSettingsPane
                       ))}
                     </div>
                     <button
-                      onClick={() => { setShowAddMember(false); setAddSearch(''); }}
+                      onClick={() => { setShowAddMember(false); setAddSearch(''); setSearchResults([]); }}
                       className="text-xs text-muted-foreground hover:text-foreground"
                     >
                       Cancel

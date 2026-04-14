@@ -48,10 +48,37 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	users, err := h.queries.ListUsers(r.Context(), repository.ListUsersParams{
-		Limit:  limit,
-		Offset: offset,
-	})
+	search := r.URL.Query().Get("search")
+
+	var users []repository.ListUsersRow
+	var err error
+
+	if search != "" {
+		results, sErr := h.queries.SearchUsers(r.Context(), repository.SearchUsersParams{
+			Column1: pgtype.Text{String: search, Valid: true},
+			Limit:   limit,
+		})
+		err = sErr
+		// Convert SearchUsersRow to ListUsersRow (same fields)
+		for _, su := range results {
+			users = append(users, repository.ListUsersRow{
+				ID:          su.ID,
+				Username:    su.Username,
+				Email:       su.Email,
+				DisplayName: su.DisplayName,
+				AvatarUrl:   su.AvatarUrl,
+				Role:        su.Role,
+				Status:      su.Status,
+				LastSeen:    su.LastSeen,
+				IsBot:       su.IsBot,
+			})
+		}
+	} else {
+		users, err = h.queries.ListUsers(r.Context(), repository.ListUsersParams{
+			Limit:  limit,
+			Offset: offset,
+		})
+	}
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list users")
 		return
