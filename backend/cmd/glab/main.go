@@ -30,6 +30,7 @@ import (
 	"github.com/gabdevbr/glab/backend/internal/giphy"
 	"github.com/gabdevbr/glab/backend/internal/handler"
 	"github.com/gabdevbr/glab/backend/internal/migration"
+	"github.com/gabdevbr/glab/backend/internal/rcbridge"
 	"github.com/gabdevbr/glab/backend/internal/repository"
 	"github.com/gabdevbr/glab/backend/internal/retention"
 	"github.com/gabdevbr/glab/backend/internal/storage"
@@ -126,7 +127,16 @@ func main() {
 	hub := ws.NewHub()
 	go hub.Run()
 
+	// RC Bridge (login delegation + realtime sync)
+	rcBridgeCfgSvc := rcbridge.NewConfigService(queries)
+	rcBridge := rcbridge.New(rcBridgeCfgSvc, cfg.RCEncryptionKey, queries, hub)
+	// context.Background(): the bridge must outlive the 10-second startup timeout ctx.
+	if err := rcBridge.Start(context.Background()); err != nil {
+		slog.Warn("RC bridge failed to start (non-fatal)", "error", err)
+	}
+
 	authHandler := handler.NewAuthHandler(queries, cfg.JWTSecret, cfg.JWTExpiry)
+	authHandler.SetBridge(rcBridge)
 	userHandler := handler.NewUserHandler(queries, storageSvc)
 	channelHandler := handler.NewChannelHandler(queries, hub)
 	messageHandler := handler.NewMessageHandler(queries)
@@ -143,6 +153,7 @@ func main() {
 	bridge := ai.NewBridgeClient()
 	dispatcher := ai.NewDispatcher(bridge, queries, hub)
 	wsHandler.SetAIDispatcher(dispatcher)
+	wsHandler.SetBridgeNotifier(rcBridge)
 
 	// Admin handler
 	adminHandler := handler.NewAdminHandler(queries, presenceService)
@@ -164,6 +175,9 @@ func main() {
 
 	// Admin agent handler
 	adminAgentHandler := handler.NewAdminAgentHandler(queries)
+
+	// RC Bridge admin handler
+	rcBridgeAdminHandler := handler.NewRCBridgeAdminHandler(rcBridgeCfgSvc, rcBridge)
 
 	// Error tracking — auto-creates GitHub issues on 5xx errors.
 	errReporter := errtrack.NewReporter(errtrack.Config{
@@ -328,6 +342,11 @@ func main() {
 		r.Get("/api/v1/admin/migration/jobs", migrationHandler.ListJobs)
 		r.Get("/api/v1/admin/migration/rooms", migrationHandler.RoomStates)
 
+		// Admin — RC bridge
+		r.Get("/api/v1/admin/rc-bridge/config", rcBridgeAdminHandler.GetConfig)
+		r.Put("/api/v1/admin/rc-bridge/config", rcBridgeAdminHandler.PutConfig)
+		r.Get("/api/v1/admin/rc-bridge/status", rcBridgeAdminHandler.GetStatus)
+
 		// Admin — agents CRUD
 		r.Get("/api/v1/admin/agents", adminAgentHandler.ListAgents)
 		r.Post("/api/v1/admin/agents", adminAgentHandler.CreateAgent)
@@ -379,6 +398,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	rcBridge.Stop()
 	slog.Info("server stopped gracefully")
 }
 

@@ -19,6 +19,10 @@ type Config struct {
 	GitHubToken     string `env:"GITHUB_TOKEN" envDefault:""`
 	GitHubRepoOwner string `env:"GITHUB_REPO_OWNER" envDefault:"gabdevbr"`
 	GitHubRepoName  string `env:"GITHUB_REPO_NAME" envDefault:"glab"`
+
+	// RC bridge — AES-256 key (32 bytes, base64-encoded) for encrypting RC auth tokens.
+	// If empty, tokens are stored as plain base64 (acceptable for dev; use a real key in prod).
+	RCEncryptionKey string `env:"GLAB_RC_ENCRYPTION_KEY" envDefault:""`
 }
 
 func Load() (*Config, error) {

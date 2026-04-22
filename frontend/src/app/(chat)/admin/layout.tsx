@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LayoutDashboard, Users, Hash, ArrowLeftRight, HardDrive, Bot, Clock, Pencil, Image } from 'lucide-react';
+import { LayoutDashboard, Users, Hash, ArrowLeftRight, HardDrive, Bot, Clock, Pencil, Image, Radio } from 'lucide-react';
 
 const adminTabs = [
   { value: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -17,6 +17,7 @@ const adminTabs = [
   { value: '/admin/retention', label: 'Retention', icon: Clock },
   { value: '/admin/messages', label: 'Messages', icon: Pencil },
   { value: '/admin/migration', label: 'Migration', icon: ArrowLeftRight },
+  { value: '/admin/rc-bridge', label: 'RC Bridge', icon: Radio },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

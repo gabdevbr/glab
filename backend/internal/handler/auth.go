@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gabdevbr/glab/backend/internal/auth"
+	"github.com/gabdevbr/glab/backend/internal/rcbridge"
 	"github.com/gabdevbr/glab/backend/internal/repository"
 )
 
@@ -14,6 +15,7 @@ type AuthHandler struct {
 	queries   *repository.Queries
 	jwtSecret string
 	jwtExpiry int
+	bridge    *rcbridge.Bridge // optional; nil if bridge is not configured
 }
 
 // NewAuthHandler creates an AuthHandler.
@@ -21,7 +23,16 @@ func NewAuthHandler(q *repository.Queries, secret string, expiry int) *AuthHandl
 	return &AuthHandler{queries: q, jwtSecret: secret, jwtExpiry: expiry}
 }
 
+// SetBridge attaches the RC bridge so the login handler can delegate to RC.
+func (h *AuthHandler) SetBridge(b *rcbridge.Bridge) {
+	h.bridge = b
+}
+
 // Login handles POST /api/v1/auth/login.
+// Supports three modes (configured via admin panel):
+//   - "delegated": authenticate against RocketChat only
+//   - "local":     authenticate against local bcrypt hash only
+//   - "dual":      try RC first, fall back to local (default)
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Username string `json:"username"`
@@ -36,25 +47,72 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Accept username or email
+	// Determine login mode from bridge config
+	loginMode := "local"
+	if h.bridge != nil {
+		if cfg := h.bridge.Config(); cfg != nil {
+			loginMode = cfg.LoginMode
+		}
+	}
+
+	switch loginMode {
+	case "delegated":
+		h.loginDelegated(w, r, body.Username, body.Password)
+	case "dual":
+		h.loginDual(w, r, body.Username, body.Password)
+	default:
+		h.loginLocal(w, r, body.Username, body.Password)
+	}
+}
+
+// loginDelegated authenticates only via RocketChat.
+func (h *AuthHandler) loginDelegated(w http.ResponseWriter, r *http.Request, username, password string) {
+	result, err := h.bridge.Auth().LoginAndUpsert(r.Context(), username, password)
+	if err != nil {
+		slog.Warn("login delegated: RC auth failed", "username", username, "error", err)
+		respondError(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+	h.issueToken(w, result.User, result.AuthToken, result.UserID)
+}
+
+// loginDual tries RC first, falls back to local bcrypt.
+func (h *AuthHandler) loginDual(w http.ResponseWriter, r *http.Request, username, password string) {
+	if h.bridge != nil && h.bridge.Enabled() {
+		result, err := h.bridge.Auth().LoginAndUpsert(r.Context(), username, password)
+		if err == nil {
+			h.issueToken(w, result.User, result.AuthToken, result.UserID)
+			return
+		}
+		slog.Debug("login dual: RC failed, trying local", "username", username, "error", err)
+	}
+	h.loginLocal(w, r, username, password)
+}
+
+// loginLocal authenticates via local bcrypt hash.
+func (h *AuthHandler) loginLocal(w http.ResponseWriter, r *http.Request, username, password string) {
 	var user repository.User
 	var err error
-	if strings.Contains(body.Username, "@") {
-		user, err = h.queries.GetUserByEmail(r.Context(), body.Username)
+	if strings.Contains(username, "@") {
+		user, err = h.queries.GetUserByEmail(r.Context(), username)
 	} else {
-		user, err = h.queries.GetUserByUsername(r.Context(), body.Username)
+		user, err = h.queries.GetUserByUsername(r.Context(), username)
 	}
 	if err != nil {
-		slog.Warn("login: user not found", "login", body.Username, "error", err)
+		slog.Warn("login: user not found", "login", username)
 		respondError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
 
-	if err := auth.CheckPassword(user.PasswordHash, body.Password); err != nil {
+	if err := auth.CheckPassword(user.PasswordHash, password); err != nil {
 		respondError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
+	h.issueToken(w, user, "", "")
+}
 
+// issueToken generates a Glab JWT and starts an RC DDP session if applicable.
+func (h *AuthHandler) issueToken(w http.ResponseWriter, user repository.User, rcToken, rcUserID string) {
 	token, err := auth.GenerateToken(
 		uuidToString(user.ID),
 		user.Username,
@@ -68,6 +126,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Start RC DDP session asynchronously (non-blocking for login response)
+	if rcToken != "" && rcUserID != "" && h.bridge != nil {
+		h.bridge.AttachSession(uuidToString(user.ID), rcUserID, rcToken)
+	}
+
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"token": token,
 		"user":  userToResponse(user),
@@ -75,7 +138,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // Logout handles POST /api/v1/auth/logout.
-// JWT is stateless so we just acknowledge the request.
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

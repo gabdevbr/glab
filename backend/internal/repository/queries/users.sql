@@ -46,3 +46,31 @@ UPDATE users SET channel_sort = $2 WHERE id = $1;
 
 -- name: GetChannelSort :one
 SELECT channel_sort FROM users WHERE id = $1;
+
+-- name: GetUserByRCUserID :one
+SELECT * FROM users WHERE rc_user_id = $1;
+
+-- name: UpsertUserByRCLogin :one
+INSERT INTO users (username, email, display_name, password_hash, role, is_bot, bot_config, rc_user_id, rc_auth_token_enc, rc_token_expires_at, rc_last_login_at)
+VALUES ($1, $2, $3, $4, 'user', FALSE, 'null', $5, $6, $7, NOW())
+ON CONFLICT (rc_user_id) DO UPDATE SET
+    username          = EXCLUDED.username,
+    display_name      = EXCLUDED.display_name,
+    rc_auth_token_enc = EXCLUDED.rc_auth_token_enc,
+    rc_token_expires_at = EXCLUDED.rc_token_expires_at,
+    rc_last_login_at  = NOW(),
+    updated_at        = NOW()
+RETURNING *;
+
+-- name: UpdateRCToken :exec
+UPDATE users SET
+    rc_auth_token_enc   = $2,
+    rc_token_expires_at = $3,
+    rc_last_login_at    = NOW()
+WHERE id = $1;
+
+-- name: MarkLocalAuthReady :exec
+UPDATE users SET
+    password_hash     = $2,
+    local_auth_ready  = TRUE
+WHERE id = $1;

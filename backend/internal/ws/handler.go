@@ -34,13 +34,14 @@ type AIDispatcher interface {
 
 // MessageHandler dispatches incoming WebSocket messages to the correct business logic.
 type MessageHandler struct {
-	hub          *Hub
-	queries      *repository.Queries
-	presence     *PresenceService
-	jwtSecret    string
-	version      string
-	aiDispatcher AIDispatcher
-	agentSlugs   map[string]bool // cached set of known agent slugs
+	hub            *Hub
+	queries        *repository.Queries
+	presence       *PresenceService
+	jwtSecret      string
+	version        string
+	aiDispatcher   AIDispatcher
+	agentSlugs     map[string]bool // cached set of known agent slugs
+	bridgeNotifier BridgeNotifier  // optional RC bridge outbound hook
 }
 
 // NewMessageHandler creates a new MessageHandler.
@@ -59,6 +60,11 @@ func NewMessageHandler(hub *Hub, queries *repository.Queries, presence *Presence
 func (h *MessageHandler) SetAIDispatcher(d AIDispatcher) {
 	h.aiDispatcher = d
 	h.refreshAgentSlugs()
+}
+
+// SetBridgeNotifier wires an optional RC bridge for outbound event forwarding.
+func (h *MessageHandler) SetBridgeNotifier(n BridgeNotifier) {
+	h.bridgeNotifier = n
 }
 
 // refreshAgentSlugs loads all active agent slugs from the DB.
@@ -299,6 +305,9 @@ func (h *MessageHandler) handleMessageSend(client *Client, env Envelope) {
 		return
 	}
 	h.hub.BroadcastToChannel(payload.ChannelID, broadcastEnv)
+	if h.bridgeNotifier != nil {
+		h.bridgeNotifier.Notify(payload.ChannelID, client.userID, broadcastEnv)
+	}
 
 	// Update channel's last_message_at
 	_ = h.queries.UpdateChannelLastMessageAt(ctx, channelUUID)
@@ -495,6 +504,9 @@ func (h *MessageHandler) handleMessageEdit(client *Client, env Envelope) {
 	})
 	if err == nil {
 		h.hub.BroadcastToChannel(channelID, editedEnv)
+		if h.bridgeNotifier != nil {
+			h.bridgeNotifier.Notify(channelID, client.userID, editedEnv)
+		}
 	}
 
 	h.sendAck(client, env.ID, true, "", nil)
@@ -544,6 +556,9 @@ func (h *MessageHandler) handleMessageDelete(client *Client, env Envelope) {
 	})
 	if err == nil {
 		h.hub.BroadcastToChannel(channelID, deletedEnv)
+		if h.bridgeNotifier != nil {
+			h.bridgeNotifier.Notify(channelID, client.userID, deletedEnv)
+		}
 	}
 
 	h.sendAck(client, env.ID, true, "", nil)
@@ -936,6 +951,9 @@ func (h *MessageHandler) handleReactionAdd(client *Client, env Envelope) {
 	})
 	if err == nil {
 		h.hub.BroadcastToChannel(channelID, broadcastEnv)
+		if h.bridgeNotifier != nil {
+			h.bridgeNotifier.Notify(channelID, client.userID, broadcastEnv)
+		}
 	}
 
 	h.sendAck(client, env.ID, true, "", nil)
@@ -994,6 +1012,9 @@ func (h *MessageHandler) handleReactionRemove(client *Client, env Envelope) {
 	})
 	if err == nil {
 		h.hub.BroadcastToChannel(channelID, broadcastEnv)
+		if h.bridgeNotifier != nil {
+			h.bridgeNotifier.Notify(channelID, client.userID, broadcastEnv)
+		}
 	}
 
 	h.sendAck(client, env.ID, true, "", nil)

@@ -104,3 +104,15 @@ UPDATE channel_members SET is_pinned = FALSE WHERE channel_id = $1 AND user_id =
 
 -- name: GetChannelReadOnly :one
 SELECT read_only FROM channels WHERE id = $1;
+
+-- name: GetChannelByRCRoomID :one
+SELECT * FROM channels WHERE rc_room_id = $1;
+
+-- name: UpsertChannelByRCRoomID :one
+INSERT INTO channels (name, slug, description, type, created_by, rc_room_id)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (rc_room_id) DO UPDATE SET
+    name        = EXCLUDED.name,
+    description = EXCLUDED.description,
+    updated_at  = NOW()
+RETURNING *;

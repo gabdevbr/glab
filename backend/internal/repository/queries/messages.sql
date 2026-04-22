@@ -67,3 +67,25 @@ SELECT m.*, u.username, u.display_name, u.avatar_url, u.is_bot
 FROM messages m JOIN users u ON u.id = m.user_id
 WHERE m.channel_id = $1 AND m.created_at > $2
 ORDER BY m.created_at ASC;
+
+-- name: CreateMessageWithRCID :one
+INSERT INTO messages (channel_id, user_id, thread_id, content, content_type, metadata, rc_message_id, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
+
+-- name: GetMessageByRCID :one
+SELECT m.*, u.username, u.display_name, u.avatar_url, u.is_bot
+FROM messages m JOIN users u ON u.id = m.user_id
+WHERE m.rc_message_id = $1;
+
+-- name: UpdateMessageByRCID :one
+UPDATE messages SET
+  original_content = CASE WHEN original_content IS NULL THEN content ELSE original_content END,
+  content = $2,
+  edited_at = $3
+WHERE rc_message_id = $1 RETURNING *;
+
+-- name: DeleteMessageByRCID :exec
+DELETE FROM messages WHERE rc_message_id = $1;
+
+-- name: UpdateMessageRCID :exec
+UPDATE messages SET rc_message_id = $2 WHERE id = $1;
